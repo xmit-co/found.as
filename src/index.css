@@ -1,0 +1,66 @@
+:root {
+  color-scheme: dark;
+  font-family: sans-serif;
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  margin: 0;
+  padding: 0;
+}
+
+main {
+  box-sizing: border-box;
+  padding: 1em;
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  gap: 1em;
+}
+
+div.edit-and-preview {
+  flex-grow: 1;
+  display: flex;
+  flex-direction: row;
+  flex-wrap: wrap;
+}
+
+div.edit-and-preview > * {
+  min-width: 20em;
+  flex: 1;
+}
+
+h1, footer {
+  margin: 0;
+  font-size: 150%;
+  font-weight: normal;
+}
+
+h1 {
+  line-height: 150%;
+}
+
+footer {
+  text-align: right;
+}
+
+input, select, button {
+  font-size: inherit;
+}
+
+input[type=text], input[type=password] {
+  width: 5em;
+}
+
+textarea.code {
+  resize: none;
+}
+
+span.sep {
+  color: #f00;
+}
+
+span.nbl {
+  white-space: nowrap;
+}
