@@ -175,7 +175,7 @@ export function App() {
 
   const [working, setWorking] = useState<boolean>(false);
   const [pw, setPw] = useState<string>("");
-  const [path, setPath] = useState<string>("");
+  const [path, setPath] = useState<string>(window.location.pathname.substring(1));
   const [kp, setKP] = useState<SignKeyPair | null>(null);
   const [pwStatus, setPwStatus] = useState<boolean | undefined>(undefined);
   const [pathStatus, setPathStatus] = useState<boolean>(true);
@@ -216,6 +216,7 @@ export function App() {
   }, [priv.value]);
 
   useEffect(() => {
+    window.history.replaceState(null, "", `/${path}`);
     setWorking(true);
     (async () => {
       const key = await subtle.importKey(
@@ -303,7 +304,8 @@ export function App() {
               }
             }}
           />
-          &nbsp;{boolishSymbol(pathStatus)}
+          {' '}{boolishSymbol(pathStatus)}
+          {' '}<button onClick={() => navigator.clipboard.writeText(`https://found.as/${path}`)}>📋</button>
         </span>
         ,<br />
         write-protected by{" "}
