@@ -179,11 +179,10 @@ export function App() {
   const [working, setWorking] = useState<boolean>(false);
   const [pw, setPw] = useState<string>("");
   const [path, setPath] = useState<string>(
-    window.location.pathname.substring(1),
+    decodeURIComponent(window.location.pathname.substring(1)),
   );
   const [kp, setKP] = useState<SignKeyPair | null>(null);
   const [pwStatus, setPwStatus] = useState<boolean | undefined>(undefined);
-  const [pathStatus, setPathStatus] = useState<boolean>(true);
   const [refreshTimeout, setRefreshTimeout] = useState<number | null>(null);
   const [file, setFile] = useState<File | undefined>(undefined);
 
@@ -262,7 +261,7 @@ export function App() {
     if (refreshTimeout) {
       clearTimeout(refreshTimeout);
     }
-    if (!pathStatus || !kp) {
+    if (!kp) {
       return;
     }
     setWorking(true);
@@ -306,15 +305,8 @@ export function App() {
             onInput={(e) => {
               const current = (e.target as HTMLInputElement).value;
               setPath(current);
-              try {
-                const url = new URL(`https://found.as/${current}`);
-                setPathStatus(url.pathname === `/${current}`);
-              } catch {
-                setPathStatus(false);
-              }
             }}
           />{" "}
-          {boolishSymbol(pathStatus)}{" "}
           <button
             onClick={() =>
               navigator.clipboard.writeText(`https://found.as/${path}`)
@@ -392,7 +384,6 @@ export function App() {
         <button
           disabled={
             working ||
-            !pathStatus ||
             !pwStatus ||
             (priv.value.type === Type.BYTES && !file)
           }
