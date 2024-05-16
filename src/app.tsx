@@ -303,9 +303,15 @@ export function App() {
                 setPathStatus(false);
               }
             }}
-          />
-          {' '}{boolishSymbol(pathStatus)}
-          {' '}<button onClick={() => navigator.clipboard.writeText(`https://found.as/${path}`)}>📋</button>
+          />{" "}
+          {boolishSymbol(pathStatus)}{" "}
+          <button
+            onClick={() =>
+              navigator.clipboard.writeText(`https://found.as/${path}`)
+            }
+          >
+            📋
+          </button>
         </span>
         ,<br />
         write-protected by{" "}
@@ -325,14 +331,14 @@ export function App() {
             };
           }}
         >
+          <option name={String(Type.REDIR)} value={Type.REDIR}>
+            a redirect
+          </option>
           <option name={String(Type.MARKDOWN_PAGE)} value={Type.MARKDOWN_PAGE}>
             a markdown page
           </option>
           <option name={String(Type.HTML_PAGE)} value={Type.HTML_PAGE}>
             an HTML page
-          </option>
-          <option name={String(Type.REDIR)} value={Type.REDIR}>
-            a redirect
           </option>
         </select>
         {priv.value.type === Type.REDIR ? (
