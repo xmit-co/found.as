@@ -46,7 +46,7 @@ function intoDoc(fragment: string, attrs: Record<string, any>) {
 <head>
 <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
 <style>:root { color-scheme: dark light; }</style>
-${attrs["title"] ? `<title>${attrs["title"]}</title>` : ""}
+${attrs["title"] ? `<title>${attrs["title"].replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')}</title>` : ""}
 </head>
 <body>${fragment}</body>
 </html>`;
