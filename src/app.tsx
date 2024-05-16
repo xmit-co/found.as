@@ -277,7 +277,7 @@ export function App() {
     <main>
       <h1>
         <span class="nbl">
-          found<span class="sep">.</span>as
+          Hi! found<span class="sep">.</span>as
           <span class="sep">/</span>
           <input
             type="text"
