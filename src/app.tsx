@@ -221,7 +221,7 @@ export function App() {
         {
           name: "PBKDF2",
           hash: "SHA-256",
-          salt: new TextEncoder().encode("found.as"),
+          salt: new TextEncoder().encode(`found.as/${path}`),
           iterations: 100000,
         },
         key,
@@ -235,7 +235,7 @@ export function App() {
       .finally(() => {
         setWorking(false);
       });
-  }, [pw]);
+  }, [path, pw]);
 
   useEffect(() => {
     if (refreshTimeout) {
