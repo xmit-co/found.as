@@ -251,12 +251,6 @@ export function App() {
           })
           .catch((e) => {
             if (e instanceof FourOFour) {
-              priv.value = {
-                type: Type.MARKDOWN_PAGE,
-                md: "",
-                html: "",
-                redir: "",
-              };
               setPwStatus(true);
             } else if (e instanceof FourXX) {
               setPwStatus(false);
