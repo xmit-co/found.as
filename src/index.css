@@ -49,12 +49,26 @@ input, select, button {
   font-size: inherit;
 }
 
-input[type=text], input[type=password] {
-  width: 5em;
+input[type=text], input[type=url], input[type=password] {
+  width: 10em;
+  outline: none;
+  border: none;
+  border-bottom: 1px solid #f00;
+}
+
+input[type=url] {
+  width: 20em;
 }
 
 textarea.code {
   resize: none;
+  outline: none;
+  border: 1px solid #f00;
+}
+
+iframe {
+  outline: none;
+  border: none;
 }
 
 span.sep {

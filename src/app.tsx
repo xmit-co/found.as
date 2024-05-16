@@ -297,14 +297,14 @@ export function App() {
           />
           &nbsp;{boolishSymbol(pathStatus)}
         </span>
-        , write-protected by{" "}
+        ,<br/>write-protected by{" "}
         <input
           type="password"
           placeholder="password"
           value={pw || ""}
           onInput={(e) => setPw((e.target as HTMLInputElement).value)}
         />
-        &nbsp;{boolishSymbol(pwStatus)}, I serve{" "}
+        &nbsp;{boolishSymbol(pwStatus)},<br/>I serve{" "}
         <select
           value={priv.value.type}
           onChange={(e) => {
@@ -343,7 +343,7 @@ export function App() {
             }
             updateData(kp, path, priv.value, pub)
               .then(() => {
-                window.open(`https://found.as/${path}`, "_blank");
+                window.alert("Done!");
               })
               .catch((e) => {
                 window.alert(e.message);
