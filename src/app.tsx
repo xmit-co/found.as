@@ -292,16 +292,6 @@ export function App() {
     };
   }, [path, kp]);
 
-  useEffect(() => {
-    if (file === undefined) {
-      return;
-    }
-    if (file.size > 1024 * 1024) {
-      window.alert("File too large");
-      return;
-    }
-  }, [file]);
-
   return (
     <main>
       <h1>
@@ -376,8 +366,18 @@ export function App() {
             <input
               type="file"
               onChange={(e) => {
-                const tgt = (e.target as HTMLInputElement).files?.[0];
-                setFile(tgt);
+                const target = e.target as HTMLInputElement;
+                const file = target.files?.[0];
+                if (!file) {
+                  setFile(file);
+                  return;
+                }
+                if (file.size > 1024 * 1024) {
+                  window.alert("File too large (max 1MB)");
+                  target.value = target.defaultValue;
+                  return;
+                }
+                setFile(file);
               }}
             />
           </>
