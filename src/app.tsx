@@ -54,9 +54,9 @@ ${attrs["title"] ? `<title>${attrs["title"]}</title>` : ""}
 
 function PageEditor({ priv, pub }: { priv: Signal<Private>; pub: Public }) {
   const ifref = useRef<HTMLIFrameElement>(null);
-  if (ifref.current !== null) {
-    ifref.current.contentWindow?.postMessage(pub.html, "*");
-  }
+  useEffect(() => {
+    ifref.current?.contentWindow?.postMessage(pub.html, "*");
+  }, [ifref.current, pub.html]);
   return (
     <div className="edit-and-preview">
       <textarea
@@ -383,9 +383,7 @@ export function App() {
       <footer>
         <button
           disabled={
-            working ||
-            !pwStatus ||
-            (priv.value.type === Type.BYTES && !file)
+            working || !pwStatus || (priv.value.type === Type.BYTES && !file)
           }
           onClick={() => {
             if (!kp) {
