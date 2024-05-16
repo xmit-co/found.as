@@ -86,7 +86,10 @@ function PageEditor({ priv, pub }: { priv: Signal<Private>; pub: Public }) {
 }
 
 function RedirectEditor({ priv }: { priv: Signal<Private> }) {
-  const valid = useMemo(() => URL.canParse(priv.value.redir), [priv.value.redir]);
+  const valid = useMemo(
+    () => URL.canParse(priv.value.redir),
+    [priv.value.redir],
+  );
   return (
     <>
       to{" "}
@@ -292,14 +295,15 @@ export function App() {
           />
           &nbsp;{boolishSymbol(pathStatus)}
         </span>
-        ,<br/>write-protected by{" "}
+        ,<br />
+        write-protected by{" "}
         <input
           type="password"
           placeholder="password"
           value={pw || ""}
           onInput={(e) => setPw((e.target as HTMLInputElement).value)}
         />
-        &nbsp;{boolishSymbol(pwStatus)},<br/>I serve{" "}
+        &nbsp;{boolishSymbol(pwStatus)},<br />I serve{" "}
         <select
           value={priv.value.type}
           onChange={(e) => {
@@ -338,7 +342,7 @@ export function App() {
             }
             updateData(kp, path, priv.value, pub)
               .then(() => {
-                window.alert("Done!");
+                window.open(`https://found.as/${path}`, "_blank");
               })
               .catch((e) => {
                 window.alert(e.message);
