@@ -86,6 +86,7 @@ function PageEditor({ priv, pub }: { priv: Signal<Private>; pub: Public }) {
 }
 
 function RedirectEditor({ priv }: { priv: Signal<Private> }) {
+  const valid = useMemo(() => URL.canParse(priv.value.redir), [priv.value.redir]);
   return (
     <>
       to{" "}
@@ -98,7 +99,7 @@ function RedirectEditor({ priv }: { priv: Signal<Private> }) {
             redir: (e.target as HTMLInputElement).value,
           };
         }}
-      />
+      />&nbsp;{boolishSymbol(valid)}
     </>
   );
 }
