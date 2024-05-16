@@ -41,10 +41,6 @@ h1 {
   line-height: 150%;
 }
 
-footer {
-  text-align: right;
-}
-
 input, select, button {
   font-size: inherit;
 }
