@@ -102,15 +102,23 @@ function RedirectEditor({ priv }: { priv: Signal<Private> }) {
             redir: (e.target as HTMLInputElement).value,
           };
         }}
-      />&nbsp;{boolishSymbol(valid)}
+      />
+      &nbsp;{boolishSymbol(valid)}
     </>
   );
 }
 
+let postSingleton: AbortController | null = null;
+
 async function post(body: any) {
+  if (postSingleton && !postSingleton.signal.aborted) {
+    postSingleton.abort();
+  }
+  postSingleton = new AbortController();
   return fetch("/api", {
     method: "POST",
     body: encode(body),
+    signal: postSingleton.signal,
   });
 }
 
@@ -230,7 +238,9 @@ export function App() {
       setKP(sign.keyPair.fromSeed(new Uint8Array(bits)));
     })()
       .catch((e) => {
-        window.alert(e.message);
+        if (e.name !== "AbortError") {
+          window.alert(e.message);
+        }
       })
       .finally(() => {
         setWorking(false);
@@ -257,7 +267,7 @@ export function App() {
               setPwStatus(true);
             } else if (e instanceof FourXX) {
               setPwStatus(false);
-            } else {
+            } else if (e.name !== "AbortError") {
               window.alert(e.message);
             }
           })
