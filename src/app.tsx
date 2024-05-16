@@ -385,10 +385,9 @@ export function App() {
           <>:</>
         )}
       </h1>
-      {priv.value.type === Type.HTML_PAGE ||
-        (priv.value.type === Type.MARKDOWN_PAGE && pub !== null && (
-          <PageEditor priv={priv} pub={pub} />
-        ))}
+      {(priv.value.type === Type.HTML_PAGE ||
+        priv.value.type === Type.MARKDOWN_PAGE) &&
+        pub !== null && <PageEditor priv={priv} pub={pub} />}
       <footer>
         <button
           disabled={
