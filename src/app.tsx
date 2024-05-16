@@ -167,7 +167,7 @@ function boolishSymbol(b: boolean | undefined): string {
 
 export function App() {
   const priv = useSignal<Private>({
-    type: Type.MARKDOWN_PAGE,
+    type: Type.REDIR,
     md: "",
     html: "",
     redir: "",
