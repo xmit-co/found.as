@@ -54,6 +54,7 @@ input[type=text], input[type=url], input[type=password] {
   outline: none;
   border: none;
   border-bottom: 1px solid #f00;
+  background: inherit;
 }
 
 input[type=url] {
@@ -64,6 +65,7 @@ textarea.code {
   resize: none;
   outline: none;
   border: 1px solid #f00;
+  background: inherit;
 }
 
 iframe {
