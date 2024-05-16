@@ -11,6 +11,7 @@ enum Type {
   HTML_PAGE,
   MARKDOWN_PAGE,
   REDIR,
+  BYTES,
 }
 
 interface Private {
@@ -23,6 +24,8 @@ interface Private {
 interface Public {
   redir?: string;
   html?: string;
+  mime?: string;
+  bytes?: Uint8Array;
 }
 
 class FourOFour extends Error {
@@ -175,15 +178,22 @@ export function App() {
 
   const [working, setWorking] = useState<boolean>(false);
   const [pw, setPw] = useState<string>("");
-  const [path, setPath] = useState<string>(window.location.pathname.substring(1));
+  const [path, setPath] = useState<string>(
+    window.location.pathname.substring(1),
+  );
   const [kp, setKP] = useState<SignKeyPair | null>(null);
   const [pwStatus, setPwStatus] = useState<boolean | undefined>(undefined);
   const [pathStatus, setPathStatus] = useState<boolean>(true);
   const [refreshTimeout, setRefreshTimeout] = useState<number | null>(null);
+  const [file, setFile] = useState<File | undefined>(undefined);
 
-  const pub = useMemo<Public>(() => {
+  const pub = useMemo<Public | null>(() => {
     if (priv.value.type === Type.REDIR) {
       return { redir: priv.value.redir };
+    }
+
+    if (priv.value.type === Type.BYTES && file) {
+      return null;
     }
 
     let attrs: Record<string, any> = {};
@@ -213,7 +223,7 @@ export function App() {
               attrs,
             ),
     };
-  }, [priv.value]);
+  }, [priv.value, file]);
 
   useEffect(() => {
     window.history.replaceState(null, "", `/${path}`);
@@ -282,6 +292,16 @@ export function App() {
     };
   }, [path, kp]);
 
+  useEffect(() => {
+    if (file === undefined) {
+      return;
+    }
+    if (file.size > 1024 * 1024) {
+      window.alert("File too large");
+      return;
+    }
+  }, [file]);
+
   return (
     <main>
       <h1>
@@ -340,30 +360,64 @@ export function App() {
           <option name={String(Type.HTML_PAGE)} value={Type.HTML_PAGE}>
             an HTML page
           </option>
+          <option name={String(Type.BYTES)} value={Type.BYTES}>
+            a file (max 1MB)
+          </option>
         </select>
         {priv.value.type === Type.REDIR ? (
           <>
             {" "}
             <RedirectEditor priv={priv} />
           </>
+        ) : priv.value.type === Type.BYTES ? (
+          <>
+            {" "}
+            from{" "}
+            <input
+              type="file"
+              onChange={(e) => {
+                const tgt = (e.target as HTMLInputElement).files?.[0];
+                setFile(tgt);
+              }}
+            />
+          </>
         ) : (
           <>:</>
         )}
       </h1>
-      {priv.value.type !== Type.REDIR && <PageEditor priv={priv} pub={pub} />}
+      {priv.value.type === Type.HTML_PAGE ||
+        (priv.value.type === Type.MARKDOWN_PAGE && pub !== null && (
+          <PageEditor priv={priv} pub={pub} />
+        ))}
       <footer>
         <button
-          disabled={working || !pathStatus || !pwStatus}
+          disabled={
+            working ||
+            !pathStatus ||
+            !pwStatus ||
+            (priv.value.type === Type.BYTES && !file)
+          }
           onClick={() => {
             if (!kp) {
               return;
             }
-            updateData(kp, path, priv.value, pub)
+            setWorking(true);
+            (pub !== null
+              ? updateData(kp, path, priv.value, pub)
+              : (async () =>
+                  updateData(kp, path, priv.value, {
+                    bytes: new Uint8Array(await file!.arrayBuffer()),
+                    mime: file!.type,
+                  }))()
+            )
               .then(() => {
                 window.open(`https://found.as/${path}`, "_blank");
               })
               .catch((e) => {
                 window.alert(e.message);
+              })
+              .finally(() => {
+                setWorking(false);
               });
           }}
         >
