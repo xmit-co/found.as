@@ -343,7 +343,7 @@ export function App() {
             }
             updateData(kp, path, priv.value, pub)
               .then(() => {
-                window.alert("Done!");
+                window.open(`https://found.as/${path}`, "_blank");
               })
               .catch((e) => {
                 window.alert(e.message);
