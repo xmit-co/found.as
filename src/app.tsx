@@ -46,7 +46,7 @@ function intoDoc(fragment: string, attrs: Record<string, any>) {
 <head>
 <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
 <style>:root { color-scheme: dark light; }</style>
-${attrs["title"] ? `<title>${attrs["title"].replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')}</title>` : ""}
+${attrs["title"] ? `<title>${attrs["title"].replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")}</title>` : ""}
 </head>
 <body>${fragment}</body>
 </html>`;
@@ -105,8 +105,7 @@ function RedirectEditor({ priv }: { priv: Signal<Private> }) {
             redir: (e.target as HTMLInputElement).value,
           };
         }}
-      />
-      &nbsp;{boolishSymbol(valid)}
+      />{boolishSymbol(valid)}
     </>
   );
 }
@@ -306,7 +305,7 @@ export function App() {
               const current = (e.target as HTMLInputElement).value;
               setPath(current);
             }}
-          />{" "}
+          />
           <button
             onClick={() =>
               navigator.clipboard.writeText(`https://found.as/${path}`)
@@ -322,8 +321,7 @@ export function App() {
           placeholder="password"
           value={pw || ""}
           onInput={(e) => setPw((e.target as HTMLInputElement).value)}
-        />
-        &nbsp;{boolishSymbol(pwStatus)},<br />I serve{" "}
+        />{boolishSymbol(pwStatus)},<br />I serve{" "}
         <select
           value={priv.value.type}
           onChange={(e) => {
