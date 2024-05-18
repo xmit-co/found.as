@@ -15,7 +15,7 @@ main {
   padding: 1em;
   display: flex;
   flex-direction: column;
-  height: 100vh;
+  min-height: 100svh;
   gap: 1em;
 }
 
