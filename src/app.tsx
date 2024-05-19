@@ -6,6 +6,7 @@ import { sign, SignKeyPair } from "tweetnacl";
 import { decode, encode } from "cbor-x";
 
 const subtle = window.crypto.subtle;
+const textEncoder = new TextEncoder();
 
 enum Type {
   HTML_PAGE,
@@ -131,27 +132,44 @@ async function updateData(
   priv: Private,
   pub: Public,
 ): Promise<void> {
-  const body = [
+  const response = await post([
     1,
     keyPair.publicKey,
     sign(
       encode([new Date().getTime() / 1000, path, encode(priv), encode(pub)]),
       keyPair.secretKey,
     ),
-  ];
-  const response = await post(body);
+  ]);
+  if (!response.ok) {
+    throw new Error(`${response.status} (${await response.text()})`);
+  }
+}
+
+async function updatePw(
+  keyPair: SignKeyPair,
+  path: string,
+  newPw: string,
+): Promise<void> {
+  const newKey = await deriveKP(path, newPw);
+  const response = await post([
+    3,
+    keyPair.publicKey,
+    sign(
+      encode([new Date().getTime() / 1000, path, newKey.publicKey]),
+      keyPair.secretKey,
+    ),
+  ]);
   if (!response.ok) {
     throw new Error(`${response.status} (${await response.text()})`);
   }
 }
 
 async function fetchData(keyPair: SignKeyPair, path: string): Promise<Private> {
-  const body = [
+  const response = await post([
     2,
     keyPair.publicKey,
     sign(encode([new Date().getTime() / 1000, path]), keyPair.secretKey),
-  ];
-  const response = await post(body);
+  ]);
   if (!response.ok) {
     if (response.status === 404) {
       throw new FourOFour(await response.text());
@@ -168,6 +186,25 @@ function boolishSymbol(b: boolean | undefined): string {
   return b === undefined ? "❓" : b ? "✅" : "❌";
 }
 
+async function deriveKP(path: string, pw: string) {
+  return sign.keyPair.fromSeed(
+    new Uint8Array(
+      await subtle.deriveBits(
+        {
+          name: "PBKDF2",
+          hash: "SHA-256",
+          salt: textEncoder.encode(`found.as/${path}`),
+          iterations: 100000,
+        },
+        await subtle.importKey("raw", textEncoder.encode(pw), "PBKDF2", false, [
+          "deriveBits",
+        ]),
+        256,
+      ),
+    ),
+  );
+}
+
 export function App() {
   const priv = useSignal<Private>({
     type: Type.REDIR,
@@ -178,6 +215,7 @@ export function App() {
 
   const [working, setWorking] = useState<boolean>(false);
   const [pw, setPw] = useState<string>("");
+  const [newPw, setNewPw] = useState<string>("");
   const [path, setPath] = useState<string>(
     decodeURIComponent(window.location.pathname.substring(1)),
   );
@@ -228,29 +266,10 @@ export function App() {
     window.history.replaceState(null, "", `/${path}`);
     setWorking(true);
     (async () => {
-      const key = await subtle.importKey(
-        "raw",
-        new TextEncoder().encode(pw || ""),
-        "PBKDF2",
-        false,
-        ["deriveBits"],
-      );
-      const bits = await subtle.deriveBits(
-        {
-          name: "PBKDF2",
-          hash: "SHA-256",
-          salt: new TextEncoder().encode(`found.as/${path}`),
-          iterations: 100000,
-        },
-        key,
-        256,
-      );
-      setKP(sign.keyPair.fromSeed(new Uint8Array(bits)));
+      setKP(await deriveKP(path, pw));
     })()
       .catch((e) => {
-        if (e.name !== "AbortError") {
-          window.alert(e.message);
-        }
+        window.alert(e.message);
       })
       .finally(() => {
         setWorking(false);
@@ -326,6 +345,7 @@ export function App() {
             onInput={(e) => setPw((e.target as HTMLInputElement).value)}
           />
           {boolishSymbol(pwStatus)}
+          {pwStatus && <button popovertarget="changePw">change</button>}
         </span>
         ,<br />I serve{" "}
         <select
@@ -416,6 +436,36 @@ export function App() {
           now
         </button>
       </footer>
+      <div popover="auto" id="changePw">
+        <input
+          type="password"
+          placeholder="new password"
+          value={newPw}
+          onInput={(e) => setNewPw((e.target as HTMLInputElement).value)}
+        />
+        <button
+          onClick={() => {
+            if (!kp) {
+              return;
+            }
+            setWorking(true);
+            updatePw(kp, path, newPw)
+              .then(() => {
+                setPw(newPw);
+                setNewPw("");
+                document.getElementById("changePw")?.hidePopover();
+              })
+              .catch((e) => {
+                window.alert(e.message);
+              })
+              .finally(() => {
+                setWorking(false);
+              });
+          }}
+        >
+          change
+        </button>
+      </div>
     </main>
   );
 }
