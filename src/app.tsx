@@ -348,7 +348,12 @@ export function App() {
             onInput={(e) => setPw((e.target as HTMLInputElement).value)}
           />
           {boolishSymbol(pwStatus)}
-          {(pwStatus && !pathIsNew) && <button popovertarget="changePw">change</button>}
+          {pwStatus && !pathIsNew && (
+            <>
+              {" "}
+              (<button popovertarget="changePw">change</button>)
+            </>
+          )}
         </span>
         ,<br />I serve{" "}
         <select
