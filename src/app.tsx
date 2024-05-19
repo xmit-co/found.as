@@ -348,13 +348,15 @@ export function App() {
             onInput={(e) => setPw((e.target as HTMLInputElement).value)}
           />
           {boolishSymbol(pwStatus)}
-          {pwStatus && !pathIsNew && (
-            <>
-              {" "}
-              (<button popovertarget="changePw">change</button>)
-            </>
-          )}
         </span>
+        {pwStatus && !pathIsNew ? (
+          <>
+            {" "}
+            (<button popovertarget="changePw">change</button>)
+          </>
+        ) : pwStatus && pw === "" ? (
+          <> (so anyone can update)</>
+        ) : null}
         ,<br />I serve{" "}
         <select
           value={priv.value.type}
