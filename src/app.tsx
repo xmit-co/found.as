@@ -274,7 +274,7 @@ export function App() {
           })
           .catch((e) => {
             if (e instanceof FourOFour) {
-              setPwStatus(pw !== "");
+              setPwStatus(true);
             } else if (e instanceof FourXX) {
               setPwStatus(false);
             } else if (e.name !== "AbortError") {
