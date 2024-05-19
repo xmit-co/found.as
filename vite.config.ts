@@ -5,6 +5,9 @@ import basicSsl from "@vitejs/plugin-basic-ssl"; // https://vitejs.dev/config/
 // https://vitejs.dev/config/
 export default defineConfig({
   plugins: [preact(), basicSsl()],
+  build: {
+    sourcemap: true,
+  },
   server: {
     proxy: {
       "/api": {
