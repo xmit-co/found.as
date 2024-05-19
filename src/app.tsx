@@ -105,7 +105,8 @@ function RedirectEditor({ priv }: { priv: Signal<Private> }) {
             redir: (e.target as HTMLInputElement).value,
           };
         }}
-      />{boolishSymbol(valid)}
+      />
+      {boolishSymbol(valid)}
     </>
   );
 }
@@ -293,8 +294,9 @@ export function App() {
   return (
     <main>
       <h1>
+        Hi!{" "}
         <span class="nbl">
-          Hi! found<span class="sep">.</span>as
+          found<span class="sep">.</span>as
           <span class="sep">/</span>
           <input
             type="text"
@@ -316,12 +318,16 @@ export function App() {
         </span>
         ,<br />
         only writable with{" "}
-        <input
-          type="password"
-          placeholder="password"
-          value={pw || ""}
-          onInput={(e) => setPw((e.target as HTMLInputElement).value)}
-        />{boolishSymbol(pwStatus)},<br />I serve{" "}
+        <span class="nbl">
+          <input
+            type="password"
+            placeholder="password"
+            value={pw || ""}
+            onInput={(e) => setPw((e.target as HTMLInputElement).value)}
+          />
+          {boolishSymbol(pwStatus)}
+        </span>
+        ,<br />I serve{" "}
         <select
           value={priv.value.type}
           onChange={(e) => {
