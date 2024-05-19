@@ -273,7 +273,7 @@ export function App() {
           })
           .catch((e) => {
             if (e instanceof FourOFour) {
-              setPwStatus(true);
+              setPwStatus(pw !== "");
             } else if (e instanceof FourXX) {
               setPwStatus(false);
             } else if (e.name !== "AbortError") {
@@ -315,7 +315,7 @@ export function App() {
           </button>
         </span>
         ,<br />
-        write-protected by{" "}
+        only writable with{" "}
         <input
           type="password"
           placeholder="password"
