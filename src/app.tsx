@@ -219,6 +219,7 @@ export function App() {
   const [path, setPath] = useState<string>(
     decodeURIComponent(window.location.pathname.substring(1)),
   );
+  const [pathIsNew, setPathIsNew] = useState<boolean>(false);
   const [kp, setKP] = useState<SignKeyPair | null>(null);
   const [pwStatus, setPwStatus] = useState<boolean | undefined>(undefined);
   const [refreshTimeout, setRefreshTimeout] = useState<number | null>(null);
@@ -290,10 +291,12 @@ export function App() {
           .then((recvPriv) => {
             priv.value = recvPriv;
             setPwStatus(true);
+            setPathIsNew(false);
           })
           .catch((e) => {
             if (e instanceof FourOFour) {
               setPwStatus(true);
+              setPathIsNew(true);
             } else if (e instanceof FourXX) {
               setPwStatus(false);
             } else if (e.name !== "AbortError") {
@@ -345,7 +348,7 @@ export function App() {
             onInput={(e) => setPw((e.target as HTMLInputElement).value)}
           />
           {boolishSymbol(pwStatus)}
-          {pwStatus && <button popovertarget="changePw">change</button>}
+          {(pwStatus && !pathIsNew) && <button popovertarget="changePw">change</button>}
         </span>
         ,<br />I serve{" "}
         <select
@@ -423,6 +426,7 @@ export function App() {
                   }))()
             )
               .then(() => {
+                setPathIsNew(false);
                 window.open(`https://found.as/${path}`, "_blank");
               })
               .catch((e) => {
