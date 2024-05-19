@@ -339,7 +339,7 @@ export function App() {
           </button>
         </span>
         ,<br />
-        only writable with{" "}
+        updatable with{" "}
         <span class="nbl">
           <input
             type="password"
