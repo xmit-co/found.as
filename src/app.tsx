@@ -56,7 +56,7 @@ ${attrs["title"] ? `<title>${attrs["title"].replace(/&/g, "&amp;").replace(/</g,
 function PageEditor({ priv, pub }: { priv: Signal<Private>; pub: Public }) {
   const ifref = useRef<HTMLIFrameElement>(null);
   useEffect(() => {
-    ifref.current?.contentWindow?.postMessage(pub.html, "*");
+    ifref.current?.contentWindow?.postMessage({ type: "preview-update", html: pub.html }, "*");
   }, [pub.html]);
   return (
     <div className="edit-and-preview">
@@ -83,7 +83,7 @@ function PageEditor({ priv, pub }: { priv: Signal<Private>; pub: Public }) {
       <iframe
         class="preview"
         ref={ifref}
-        srcdoc={`<html><head><script>window.addEventListener('message', (e) => document.documentElement.innerHTML = e.data)</script></head><body></body></html>`}
+        srcdoc={`<html><head><script>window.addEventListener('message', (e) => { if (e.data?.type === 'preview-update') document.documentElement.innerHTML = e.data.html })</script></head><body></body></html>`}
       ></iframe>
     </div>
   );
