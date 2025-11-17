@@ -99,7 +99,18 @@ function PageEditor({ priv, pub }: { priv: Signal<Private>; pub: Public }) {
         class="preview"
         ref={ifref}
         onLoad={() => setIframeReady(true)}
-        srcdoc={`<html><head><script>window.addEventListener('message', (e) => { if (e.data?.type === 'preview-update') document.documentElement.innerHTML = e.data.html })</script></head><body></body></html>`}
+        srcdoc={`<html><head><script>
+window.addEventListener('message', (e) => {
+  if (e.data?.type === 'preview-update') {
+    const parser = new DOMParser();
+    const doc = parser.parseFromString(e.data.html, 'text/html');
+    Array.from(doc.documentElement.attributes).forEach(attr => {
+      document.documentElement.setAttribute(attr.name, attr.value);
+    });
+    document.documentElement.innerHTML = e.data.html;
+  }
+})
+</script></head><body></body></html>`}
       ></iframe>
     </div>
   );
