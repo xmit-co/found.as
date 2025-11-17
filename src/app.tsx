@@ -41,6 +41,16 @@ class FourXX extends Error {
   }
 }
 
+function normalizeUrl(url: string): string {
+  const trimmed = url.trim();
+  if (!trimmed) return trimmed;
+  // If URL doesn't contain ://, assume https://
+  if (!trimmed.includes("://")) {
+    return `https://${trimmed}`;
+  }
+  return trimmed;
+}
+
 function intoDoc(fragment: string, attrs: Record<string, any>) {
   return `<!DOCTYPE html>
 <html>
@@ -55,9 +65,14 @@ ${attrs["title"] ? `<title>${attrs["title"].replace(/&/g, "&amp;").replace(/</g,
 
 function PageEditor({ priv, pub }: { priv: Signal<Private>; pub: Public }) {
   const ifref = useRef<HTMLIFrameElement>(null);
+  const [iframeReady, setIframeReady] = useState(false);
+
   useEffect(() => {
-    ifref.current?.contentWindow?.postMessage({ type: "preview-update", html: pub.html }, "*");
-  }, [pub.html]);
+    if (iframeReady) {
+      ifref.current?.contentWindow?.postMessage({ type: "preview-update", html: pub.html }, "*");
+    }
+  }, [pub.html, iframeReady]);
+
   return (
     <div className="edit-and-preview">
       <textarea
@@ -83,6 +98,7 @@ function PageEditor({ priv, pub }: { priv: Signal<Private>; pub: Public }) {
       <iframe
         class="preview"
         ref={ifref}
+        onLoad={() => setIframeReady(true)}
         srcdoc={`<html><head><script>window.addEventListener('message', (e) => { if (e.data?.type === 'preview-update') document.documentElement.innerHTML = e.data.html })</script></head><body></body></html>`}
       ></iframe>
     </div>
@@ -90,10 +106,16 @@ function PageEditor({ priv, pub }: { priv: Signal<Private>; pub: Public }) {
 }
 
 function RedirectEditor({ priv }: { priv: Signal<Private> }) {
-  const valid = useMemo(
-    () => URL.canParse(priv.value.redir),
+  const normalizedUrl = useMemo(
+    () => normalizeUrl(priv.value.redir),
     [priv.value.redir],
   );
+
+  const valid = useMemo(
+    () => URL.canParse(normalizedUrl),
+    [normalizedUrl],
+  );
+
   return (
     <>
       to{" "}
@@ -227,7 +249,7 @@ export function App() {
 
   const pub = useMemo<Public | null>(() => {
     if (priv.value.type === Type.REDIR) {
-      return { redir: priv.value.redir };
+      return { redir: normalizeUrl(priv.value.redir) };
     }
 
     if (priv.value.type === Type.BYTES && file) {
