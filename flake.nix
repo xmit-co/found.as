@@ -2,6 +2,10 @@
   inputs = {
     nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable";
     flake-utils.url = "github:numtide/flake-utils";
+    xmit = {
+      url = "github:xmit-co/xmit";
+      inputs.nixpkgs.follows = "nixpkgs";
+    };
   };
 
   outputs =
@@ -9,6 +13,7 @@
       self,
       flake-utils,
       nixpkgs,
+      xmit,
     }:
     flake-utils.lib.eachDefaultSystem (
       system:
@@ -19,6 +24,7 @@
         devShell = pkgs.mkShell {
           buildInputs = with pkgs; [
             pnpm
+            xmit.packages.${system}.default
           ];
         };
       }

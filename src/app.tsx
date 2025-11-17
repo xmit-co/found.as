@@ -367,16 +367,16 @@ export function App() {
             };
           }}
         >
-          <option name={String(Type.REDIR)} value={Type.REDIR}>
+          <option value={Type.REDIR}>
             a redirect
           </option>
-          <option name={String(Type.MARKDOWN_PAGE)} value={Type.MARKDOWN_PAGE}>
+          <option value={Type.MARKDOWN_PAGE}>
             a markdown page
           </option>
-          <option name={String(Type.HTML_PAGE)} value={Type.HTML_PAGE}>
+          <option value={Type.HTML_PAGE}>
             an HTML page
           </option>
-          <option name={String(Type.BYTES)} value={Type.BYTES}>
+          <option value={Type.BYTES}>
             a file (max 1MB)
           </option>
         </select>
