@@ -57,7 +57,7 @@ function PageEditor({ priv, pub }: { priv: Signal<Private>; pub: Public }) {
   const ifref = useRef<HTMLIFrameElement>(null);
   useEffect(() => {
     ifref.current?.contentWindow?.postMessage(pub.html, "*");
-  }, [ifref.current, pub.html]);
+  }, [pub.html]);
   return (
     <div className="edit-and-preview">
       <textarea
