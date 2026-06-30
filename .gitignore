@@ -1,3 +1,5 @@
+/.direnv/
+
 # Logs
 logs
 *.log
