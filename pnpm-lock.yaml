@@ -23,6 +23,9 @@ importers:
       preact:
         specifier: ^10.29.3
         version: 10.29.3
+      qrcode-generator:
+        specifier: ^2.0.4
+        version: 2.0.4
       tweetnacl:
         specifier: ^1.0.3
         version: 1.0.3
@@ -683,6 +686,9 @@ packages:
     engines: {node: '>=14'}
     hasBin: true
 
+  qrcode-generator@2.0.4:
+    resolution: {integrity: sha512-mZSiP6RnbHl4xL2Ap5HfkjLnmxfKcPWpWe/c+5XxCuetEenqmNFf1FH/ftXPCtFG5/TDobjsjz6sSNL0Sr8Z9g==}
+
   rollup@4.62.2:
     resolution: {integrity: sha512-RFnrW4lhXA3s3eqHDZvN654g8OTjzRfqpIRJYczCGB6HzphckVAi/Qh4tbPUbRuDi7s1Llv8g/NspLkttY3gTA==}
     engines: {node: '>=18.0.0', npm: '>=8.0.0'}
@@ -1323,6 +1329,8 @@ snapshots:
   preact@10.29.3: {}
 
   prettier@3.9.4: {}
+
+  qrcode-generator@2.0.4: {}
 
   rollup@4.62.2:
     dependencies:
