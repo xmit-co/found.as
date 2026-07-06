@@ -1716,11 +1716,9 @@ a.vcard-button:focus-visible {
   outline-offset: 2px;
 }
 a.contact-link.featured {
-  min-height: 60px;
   border-color: var(--accent);
   background: var(--accent);
   color: var(--accent-text);
-  font-size: 1.08rem;
 }
 a.contact-link.featured:hover {
   border-color: color-mix(in srgb, var(--accent) 85%, var(--text));
