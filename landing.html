@@ -184,6 +184,88 @@
         text-align: center;
         font-size: 0.9rem;
       }
+
+      .steps {
+        list-style: none;
+        margin: 48px 0 0;
+        padding: 0;
+        display: grid;
+        gap: 12px;
+      }
+      .steps li {
+        display: flex;
+        gap: 14px;
+        align-items: center;
+        margin: 0;
+      }
+      .step-n {
+        flex: none;
+        width: 28px;
+        height: 28px;
+        display: inline-grid;
+        place-items: center;
+        border-radius: 50%;
+        background: var(--accent);
+        color: var(--accent-text);
+        font-weight: 800;
+        font-size: 0.9rem;
+      }
+
+      .features {
+        margin-top: 40px;
+        display: grid;
+        grid-template-columns: 1fr;
+        gap: 14px;
+      }
+      @media (min-width: 560px) {
+        .features {
+          grid-template-columns: 1fr 1fr;
+          gap: 16px;
+        }
+      }
+      .feature {
+        background: var(--panel);
+        border: 1px solid var(--border);
+        border-radius: 12px;
+        padding: 18px 20px;
+      }
+      .feature h3 {
+        margin: 0 0 6px;
+        font-size: 1.02rem;
+        font-weight: 750;
+      }
+      .feature p {
+        margin: 0;
+        color: var(--muted);
+        font-size: 0.96rem;
+      }
+
+      .section-h {
+        margin: 48px 0 14px;
+        font-size: 1.35rem;
+        font-weight: 800;
+        letter-spacing: -0.01em;
+      }
+      .why {
+        list-style: none;
+        margin: 0;
+        padding: 0;
+        display: grid;
+        gap: 10px;
+      }
+      .why li {
+        position: relative;
+        margin: 0;
+        padding-left: 28px;
+      }
+      .why li::before {
+        content: "✓";
+        position: absolute;
+        left: 0;
+        top: -0.02em;
+        color: var(--accent);
+        font-weight: 800;
+      }
     </style>
   </head>
   <body>
@@ -222,73 +304,94 @@
         </div>
       </div>
 
-      <h2>How it works</h2>
-      <p>
-        It takes about a minute. Choose your web address —
-        <strong>found.as/yourname</strong> — pick a password, add your links,
-        and you're online. Want to change something later? Come back with your
-        password and edit anytime. There's no password reset, so save the
-        recovery kit the editor offers: a little file with everything you need
-        to get back in, ready for your password manager or a drawer.
-      </p>
+      <ol class="steps">
+        <li>
+          <span class="step-n">1</span>
+          <span
+            >Pick your address — <strong>found.as/yourname</strong> — and a
+            password.</span
+          >
+        </li>
+        <li>
+          <span class="step-n">2</span>
+          <span>Add your phone, email, and the apps you already use.</span>
+        </li>
+        <li>
+          <span class="step-n">3</span>
+          <span>Share one link and QR code. Nothing to install.</span>
+        </li>
+      </ol>
 
-      <h2>What you can add</h2>
-      <p>
-        Add the ways people already reach you: your phone, your email, your
-        website, and the messaging and social apps you use every day, like
-        WhatsApp and Instagram. You don't need to know how links work — type
-        your username or paste whatever you have, and found.as turns it into a
-        tidy button. Then drag them into any order, rename them, or hide the
-        ones you're not ready to share.
-      </p>
+      <div class="features">
+        <div class="feature">
+          <h3>Everything, one tap away</h3>
+          <p>
+            Phone, email, website, WhatsApp, Instagram — paste what you have and
+            found.as makes a tidy button. Drag to reorder, rename, or hide.
+          </p>
+        </div>
+        <div class="feature">
+          <h3>Make it yours</h3>
+          <p>
+            Themes, an accent color, your photo, button icons. Shared anywhere,
+            your page brings its own preview card, made automatically.
+          </p>
+        </div>
+        <div class="feature">
+          <h3>A real business card</h3>
+          <p>
+            A QR for your link, and one that saves your contact to a phone with
+            no internet — plus printable cards, a poster, and an email
+            signature.
+          </p>
+        </div>
+        <div class="feature">
+          <h3>Bring your own domain</h3>
+          <p>
+            Point <strong>yourname.com</strong> at your page: one DNS record for
+            a subdomain, two for a bare domain. We handle the padlock — still
+            free.
+          </p>
+        </div>
+        <div class="feature">
+          <h3>More than a bio link</h3>
+          <p>
+            Send visitors to another site, publish a short write-up, or hand out
+            a file. There if you need it, easy to ignore if you don't.
+          </p>
+        </div>
+        <div class="feature">
+          <h3>Nothing changes behind your back</h3>
+          <p>
+            Your page updates only when you publish. Take your time — visitors
+            keep seeing the last version until you're ready.
+          </p>
+        </div>
+      </div>
 
-      <h2>Make it yours</h2>
-      <p>
-        Pick a theme and an accent color, add your photo, and give buttons
-        icons — an emoji, or the site's own icon fetched for you. Feature the
-        link that matters most and group the rest under headings. Shared in a
-        chat or on social media, your page shows up with a preview card made
-        for you automatically.
-      </p>
-
-      <h2>Share it — link, QR, paper</h2>
-      <p>
-        Every page comes with a QR code for the link, and a second one that
-        saves your contact card directly onto a phone — no internet needed.
-        found.as also lays out a print-ready sheet of business cards, a "scan
-        to reach me" poster, and an email signature to paste into your mail
-        app.
-      </p>
-
-      <h2>Want to do more?</h2>
-      <p>
-        Your address can do more than a contact page: send visitors straight to
-        another website, show a short write-up, or hand out a file. It's there
-        if you need it, and easy to ignore if you don't.
-      </p>
-
-      <h2>Compared with the usual link-in-bio services</h2>
-      <p>
-        found.as does what they do — one address for all your links, fit for
-        your Instagram or TikTok bio — with a few differences:
-      </p>
-      <ul>
-        <li><strong>No account.</strong> No email, no signup — an address and a password.</li>
-        <li><strong>No tracking.</strong> No cookies, no analytics, no ads — for you or your visitors.</li>
-        <li><strong>Fast.</strong> Your page is a plain web page with zero scripts. It loads instantly and works on any phone.</li>
-        <li><strong>Free.</strong> Every feature, no paid tier, no upsell banners.</li>
-        <li><strong>Verifiable.</strong> Your links can prove they're yours — Mastodon shows the green “verified” check.</li>
-        <li><strong>A real business card.</strong> Visitors save your contact in a tap; QR codes, printable cards, and a poster are built in.</li>
-        <li><strong>🇪🇺 European.</strong> Hosted entirely in the EU, on renewable energy.</li>
+      <h2 class="section-h">Why found.as?</h2>
+      <ul class="why">
+        <li>
+          <strong>No account.</strong> An address and a password — no email, no
+          signup.
+        </li>
+        <li>
+          <strong>No tracking.</strong> No cookies, analytics, or ads — for you
+          or your visitors.
+        </li>
+        <li>
+          <strong>Fast &amp; free.</strong> A plain page with zero scripts;
+          every feature included, no paid tier.
+        </li>
+        <li>
+          <strong>Verifiable.</strong> Your links can prove they're yours —
+          Mastodon shows the green “verified” check.
+        </li>
+        <li>
+          <strong>🇪🇺 European.</strong> Hosted entirely in the EU, on renewable
+          energy.
+        </li>
       </ul>
-
-      <h2>Nothing changes behind your back</h2>
-      <p>
-        Your page only changes when you publish it. Rearrange your links, try
-        new wording, take your time — visitors keep seeing the last version you
-        published until you decide the new one is ready. No silent updates, no
-        surprise redesigns: what you published is what people see.
-      </p>
     </main>
   </body>
 </html>

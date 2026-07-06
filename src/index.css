@@ -609,6 +609,41 @@ h2 {
   text-align: center;
 }
 
+.main-address {
+  margin: 0;
+  padding: 12px 14px;
+  border: 1px solid var(--border, #e2e6e0);
+  border-radius: 8px;
+  display: grid;
+  gap: 6px;
+}
+
+.main-address legend {
+  padding: 0 6px;
+  font-weight: 700;
+}
+
+.main-address .help {
+  margin: 0 0 4px;
+}
+
+.main-address-option {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  cursor: pointer;
+}
+
+.main-address-option input {
+  width: auto;
+  flex: none;
+  margin: 0;
+}
+
+.main-address-option span {
+  overflow-wrap: anywhere;
+}
+
 .social-preview-panel {
   display: grid;
   gap: 14px;
@@ -1684,4 +1719,96 @@ iframe.preview {
     background: #2c302d;
     color: #767c76;
   }
+}
+
+.domain-popover {
+  width: min(92vw, 480px);
+}
+
+.domain-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.domain-row a {
+  overflow-wrap: anywhere;
+}
+
+.domain-row .help {
+  margin: 0 0 0 auto;
+  white-space: nowrap;
+}
+
+.domain-row button {
+  flex-shrink: 0;
+}
+
+.domain-pending {
+  display: grid;
+  gap: 10px;
+}
+
+.domain-pending p {
+  margin: 0;
+}
+
+.dns-records {
+  display: grid;
+  gap: 6px;
+  padding: 12px;
+  border: 1px solid #d7dcd5;
+  border-radius: 8px;
+  background: #ffffff;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 0.9rem;
+}
+
+.dns-records > div {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+}
+
+.dns-records span {
+  font-weight: 700;
+  min-width: 3.5em;
+}
+
+.dns-records code {
+  flex: 1;
+  overflow-wrap: anywhere;
+}
+
+.dns-copy {
+  flex-shrink: 0;
+  min-height: 32px;
+  padding: 4px 12px;
+  font-size: 0.85rem;
+}
+
+.domain-progress {
+  font-weight: 650;
+}
+
+.domain-actions {
+  display: flex;
+  gap: 10px;
+}
+
+@media (prefers-color-scheme: dark) {
+  .dns-records {
+    border-color: #3a403c;
+    background: #191c1a;
+  }
+}
+
+.domain-apex summary {
+  cursor: pointer;
+  font-size: 0.9rem;
+  color: var(--muted, #586059);
+}
+
+.domain-apex > .dns-records {
+  margin-top: 8px;
 }
