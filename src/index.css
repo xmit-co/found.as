@@ -1067,7 +1067,7 @@ h2 {
 
 .link-edit-panel {
   display: grid;
-  gap: 12px;
+  gap: 14px;
   margin-left: 44px;
   padding: 12px;
   border: 1px solid #d7dcd5;
@@ -1083,6 +1083,24 @@ h2 {
   color: #596059;
   font-size: 0.86rem;
   font-weight: 700;
+}
+
+/* A control and the help text that explains it, visually attached. */
+.panel-group {
+  display: grid;
+  gap: 2px;
+}
+
+.panel-group .show-toggle {
+  min-height: 28px;
+}
+
+.panel-group .show-toggle + .help {
+  margin-left: 22px;
+}
+
+.link-edit-panel .help {
+  font-size: 0.85rem;
 }
 
 .show-toggle input {

@@ -275,9 +275,14 @@ const kindDefaultIcons: Partial<Record<LinkKind, string>> = {
   custom: "🔗",
 };
 
-// Kinds whose link points at a profile that is "also you" — published with
-// rel="me" so Mastodon and other IndieWeb sites can verify page ownership.
+// Kinds whose link points at something that is "also you" — a profile,
+// address, or number — published with rel="me" identity metadata, which also
+// lets Mastodon and other IndieWeb sites verify page ownership.
 const identityKinds = new Set<LinkKind>([
+  "email",
+  "phone",
+  "whatsapp",
+  "signal",
   "website",
   "instagram",
   "tiktok",
@@ -1545,7 +1550,7 @@ function linkTreeToHtml(
   const linkRelAttr = (link: NormalizedLink) =>
     identityKinds.has(link.item.kind) &&
     link.item.relMe !== false &&
-    /^https?:\/\//i.test(link.href)
+    /^(https?:|mailto:|tel:|sms:)/i.test(link.href)
       ? ' rel="me"'
       : "";
 
@@ -2473,22 +2478,33 @@ function EditableLink({
             />
           </label>
           {!sectionItem && (
-            <label className="field stack">
-              <span>{valueLabel}</span>
-              <input
-                id={fieldId}
-                type={link.kind === "email" ? "email" : "text"}
-                value={link.value}
-                placeholder={kindExamples[link.kind]}
-                aria-describedby={`${detailId}-status`}
-                onInput={(e) =>
-                  updateLink({
-                    ...link,
-                    value: (e.target as HTMLInputElement).value,
-                  })
-                }
-              />
-            </label>
+            <div className="panel-group">
+              <label className="field stack">
+                <span>{valueLabel}</span>
+                <input
+                  id={fieldId}
+                  type={link.kind === "email" ? "email" : "text"}
+                  value={link.value}
+                  placeholder={kindExamples[link.kind]}
+                  aria-describedby={`${detailId}-status`}
+                  onInput={(e) =>
+                    updateLink({
+                      ...link,
+                      value: (e.target as HTMLInputElement).value,
+                    })
+                  }
+                />
+              </label>
+              {link.kind === "email" && (
+                <p className="help">
+                  Need a public email address? Create a forwarding alias at{" "}
+                  <a href="https://cc.me/hi" target="_blank" rel="noreferrer">
+                    cc.me/hi
+                  </a>
+                  .
+                </p>
+              )}
+            </div>
           )}
           <label className="show-toggle">
             <input
@@ -2517,22 +2533,27 @@ function EditableLink({
             </label>
           )}
           {identityKinds.has(link.kind) && (
-            <label
-              className="show-toggle"
-              title={'Marks the link rel="me" so sites like Mastodon can verify your page.'}
-            >
-              <input
-                type="checkbox"
-                checked={link.relMe !== false}
-                onChange={(e) =>
-                  updateLink({
-                    ...link,
-                    relMe: (e.target as HTMLInputElement).checked,
-                  })
-                }
-              />
-              <span>This is my own account</span>
-            </label>
+            <div className="panel-group">
+              <label className="show-toggle">
+                <input
+                  type="checkbox"
+                  checked={link.relMe !== false}
+                  aria-describedby={`${detailId}-relme`}
+                  onChange={(e) =>
+                    updateLink({
+                      ...link,
+                      relMe: (e.target as HTMLInputElement).checked,
+                    })
+                  }
+                />
+                <span>This is really me</span>
+              </label>
+              <p id={`${detailId}-relme`} className="help">
+                Publishes this link with rel="me", which tells other sites it's
+                yours — Mastodon uses it for its green "verified" check. Untick
+                it if this link isn't your own.
+              </p>
+            </div>
           )}
           {!sectionItem && (
             <div className="link-icon-block">
@@ -2597,15 +2618,6 @@ function EditableLink({
                     : "Show an icon on this button — type any emoji.")}
               </p>
             </div>
-          )}
-          {link.kind === "email" && (
-            <p className="help">
-              Need a public email address? Create a forwarding alias at{" "}
-              <a href="https://cc.me/hi" target="_blank" rel="noreferrer">
-                cc.me/hi
-              </a>
-              .
-            </p>
           )}
           {sectionItem ? (
             <p id={`${detailId}-status`} className="link-status">
@@ -3367,8 +3379,8 @@ function SetupPanel({
           </p>
         )}
         <p className="help recovery-note">
-          There is no password reset. Your address and password are the only
-          keys to this page — save them somewhere safe.
+          There is no password reset. Once you're in, save the recovery kit
+          from the menu — it keeps your address and password somewhere safe.
         </p>
         <div className="action-row">
           <button type="submit" disabled={!canContinue}>
