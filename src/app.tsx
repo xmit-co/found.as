@@ -263,6 +263,45 @@ const kindDefaultValues: Record<LinkKind, string> = {
   section: "",
 };
 
+const kindDefaultIcons: Partial<Record<LinkKind, string>> = {
+  phone: "📞",
+  email: "✉️",
+  website: "🌐",
+  address: "📍",
+  calendly: "📅",
+  custom: "🔗",
+};
+
+const kindIconSites: Partial<Record<LinkKind, string>> = {
+  whatsapp: "https://www.whatsapp.com/",
+  instagram: "https://www.instagram.com/",
+  tiktok: "https://www.tiktok.com/",
+  youtube: "https://www.youtube.com/",
+  linkedin: "https://www.linkedin.com/",
+  x: "https://x.com/",
+  facebook: "https://www.facebook.com/",
+  telegram: "https://telegram.org/",
+  signal: "https://signal.org/",
+  matrix: "https://matrix.org/",
+  github: "https://github.com/",
+  mastodon: "https://joinmastodon.org/",
+  bluesky: "https://bsky.app/",
+  threads: "https://www.threads.net/",
+  reddit: "https://www.reddit.com/",
+  twitch: "https://www.twitch.tv/",
+  spotify: "https://open.spotify.com/",
+  discord: "https://discord.com/",
+  snapchat: "https://www.snapchat.com/",
+  pinterest: "https://www.pinterest.com/",
+  substack: "https://substack.com/",
+  medium: "https://medium.com/",
+  patreon: "https://www.patreon.com/",
+  calendly: "https://calendly.com/",
+  paypal: "https://www.paypal.com/",
+  venmo: "https://venmo.com/",
+  cashapp: "https://cash.app/",
+};
+
 function makeId(): string {
   if (window.crypto.randomUUID) {
     return window.crypto.randomUUID();
@@ -282,6 +321,7 @@ function defaultLinkItem(kind: LinkKind): LinkItem {
     value: kindDefaultValues[kind],
     href: "",
     enabled: true,
+    icon: kindDefaultIcons[kind],
   };
 }
 
@@ -529,6 +569,25 @@ const linkIconMaxRawBytes = 16 * 1024;
 function linkIconSrc(value: string | undefined): string | null {
   const trimmed = value?.trim();
   return trimmed && linkIconPattern.test(trimmed) ? trimmed : null;
+}
+
+function splitGraphemes(value: string): string[] {
+  if (typeof Intl !== "undefined" && Intl.Segmenter) {
+    return [
+      ...new Intl.Segmenter(undefined, { granularity: "grapheme" }).segment(
+        value,
+      ),
+    ].map((part) => part.segment);
+  }
+  return [...value];
+}
+
+function linkIconEmoji(value: string | undefined): string | null {
+  const trimmed = value?.trim();
+  if (!trimmed || trimmed.length > 16 || trimmed.startsWith("data:")) {
+    return null;
+  }
+  return splitGraphemes(trimmed).length === 1 ? trimmed : null;
 }
 
 function canImportLinkIcon(href: string): boolean {
@@ -1229,8 +1288,12 @@ function linkTreeToHtml(tree: LinkTree, url: string): string {
     : "";
   const linkIconHtml = (link: NormalizedLink) => {
     const icon = linkIconSrc(link.item.icon);
-    return icon
-      ? `<img class="link-icon" src="${escapeHtml(icon)}" alt="" width="20" height="20"/>`
+    if (icon) {
+      return `<img class="link-icon" src="${escapeHtml(icon)}" alt="" width="20" height="20"/>`;
+    }
+    const emoji = linkIconEmoji(link.item.icon);
+    return emoji
+      ? `<span class="link-icon-emoji" aria-hidden="true">${escapeHtml(emoji)}</span>`
       : "";
   };
 
@@ -1428,6 +1491,9 @@ img.link-icon {
   border-radius: 4px;
   margin-right: 10px;
   vertical-align: -4px;
+}
+span.link-icon-emoji {
+  margin-right: 10px;
 }
 </style>
 </head>
@@ -1861,14 +1927,19 @@ function EditableLink({
   const featurable = Boolean(normalized.href && !normalized.error);
   const featuredShown = Boolean(link.featured && featurable);
   const iconSrc = linkIconSrc(link.icon);
-  const iconImportable = !sectionItem && canImportLinkIcon(normalized.href);
+  const iconEmoji = linkIconEmoji(link.icon);
+  const iconImportUrl = canImportLinkIcon(normalized.href)
+    ? normalized.href
+    : kindIconSites[link.kind];
+  const iconImportable = !sectionItem && Boolean(iconImportUrl);
   const [importingIcon, setImportingIcon] = useState(false);
   const [iconStatus, setIconStatus] = useState("");
 
   const importIcon = () => {
+    if (!iconImportUrl) return;
     setImportingIcon(true);
     setIconStatus("");
-    importLinkIcon(normalized.href)
+    importLinkIcon(iconImportUrl)
       .then((icon) => {
         setIcon(link.id, icon);
         setIconStatus("Icon saved into your page.");
@@ -1939,7 +2010,13 @@ function EditableLink({
           aria-controls={selected ? detailId : undefined}
           onClick={() => setSelected(selected ? "" : link.id)}
         >
-          {iconSrc && <img className="row-link-icon" src={iconSrc} alt="" />}
+          {iconSrc ? (
+            <img className="row-link-icon" src={iconSrc} alt="" />
+          ) : iconEmoji ? (
+            <span className="row-link-emoji" aria-hidden="true">
+              {iconEmoji}
+            </span>
+          ) : null}
           {featuredShown && (
             <span className="featured-tag">
               <span aria-hidden="true">★ </span>Featured
@@ -2021,27 +2098,50 @@ function EditableLink({
               <span>Feature this link</span>
             </label>
           )}
-          {(iconSrc || iconImportable) && (
+          {!sectionItem && (
             <div className="link-icon-block">
               <div className="link-icon-actions">
-                {iconSrc && (
+                {(iconSrc || iconEmoji) && (
                   <span className="link-icon-preview" aria-hidden="true">
-                    <img src={iconSrc} alt="" />
+                    {iconSrc ? <img src={iconSrc} alt="" /> : iconEmoji}
                   </span>
                 )}
-                <button
-                  type="button"
-                  className="secondary"
-                  disabled={importingIcon || !iconImportable}
-                  onClick={importIcon}
-                >
-                  {importingIcon
-                    ? "Importing…"
-                    : iconSrc
-                      ? "Refresh icon"
-                      : "Import icon"}
-                </button>
-                {iconSrc && (
+                <input
+                  type="text"
+                  className="emoji-input"
+                  aria-label="Emoji icon"
+                  value={iconEmoji ?? ""}
+                  placeholder={kindDefaultIcons[link.kind] ?? "😀"}
+                  onInput={(e) => {
+                    const graphemes = splitGraphemes(
+                      (e.target as HTMLInputElement).value.trim(),
+                    );
+                    const fresh = iconEmoji
+                      ? graphemes.filter((g) => g !== iconEmoji)
+                      : graphemes;
+                    const picked = fresh.length ? fresh : graphemes;
+                    setIcon(
+                      link.id,
+                      picked.length ? picked[picked.length - 1] : undefined,
+                    );
+                    setIconStatus("");
+                  }}
+                />
+                {iconImportable && (
+                  <button
+                    type="button"
+                    className="secondary"
+                    disabled={importingIcon}
+                    onClick={importIcon}
+                  >
+                    {importingIcon
+                      ? "Importing…"
+                      : iconSrc
+                        ? "Refresh icon"
+                        : "Import icon"}
+                  </button>
+                )}
+                {(iconSrc || iconEmoji) && (
                   <button
                     type="button"
                     className="secondary"
@@ -2056,7 +2156,9 @@ function EditableLink({
               </div>
               <p className="help">
                 {iconStatus ||
-                  "Show the site's icon on this button. It's fetched once and saved into your page."}
+                  (iconImportable
+                    ? "Show an icon on this button — type an emoji, or import the site's icon. It's fetched once and saved into your page."
+                    : "Show an icon on this button — type any emoji.")}
               </p>
             </div>
           )}
@@ -2364,6 +2466,9 @@ function LinkTreeEditor({
                 {kindLabels[kind]}
               </button>
             ))}
+          </div>
+          <span className="add-label">Organize</span>
+          <div className="add-chips">
             <button
               type="button"
               className="add-link-item"

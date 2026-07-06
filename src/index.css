@@ -924,6 +924,10 @@ h2 {
   text-transform: uppercase;
 }
 
+.add-section .add-label:not(:first-child) {
+  margin-top: 8px;
+}
+
 .add-chips {
   display: flex;
   flex-wrap: wrap;
@@ -1037,6 +1041,10 @@ h2 {
   vertical-align: -3px;
 }
 
+.row-link-emoji {
+  margin-right: 8px;
+}
+
 .link-icon-block {
   display: grid;
   gap: 6px;
@@ -1057,6 +1065,14 @@ h2 {
   border: 1px solid #d7dcd5;
   border-radius: 8px;
   background: #ffffff;
+  font-size: 18px;
+  line-height: 1;
+}
+
+.emoji-input {
+  width: 76px;
+  min-height: 38px;
+  text-align: center;
 }
 
 .link-icon-preview img {
