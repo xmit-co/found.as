@@ -97,6 +97,7 @@ interface Public {
   html?: string;
   mime?: string;
   bytes?: Uint8Array;
+  subs?: Record<string, { mime: string; bytes: Uint8Array }>;
 }
 
 interface NormalizedLink {
@@ -3377,8 +3378,8 @@ function SetupPanel({
           </p>
         )}
         <p className="help recovery-note">
-          There is no password reset. Once you're in, save the recovery kit
-          from the menu — it keeps your address and password somewhere safe.
+          There is no password reset. Once you're in, save the recovery kit from
+          the menu — it keeps your address and password somewhere safe.
         </p>
         <div className="action-row">
           <button type="submit" disabled={!canContinue}>
@@ -3798,7 +3799,9 @@ function DomainPopover({
       <div className="dns-records">
         <DnsRow type="ALIAS" value={p.target} />
       </div>
-      <p className="help">Then add this record so we know the domain is yours:</p>
+      <p className="help">
+        Then add this record so we know the domain is yours:
+      </p>
       <div className="dns-records">
         <DnsRow type="TXT" value={`found=${p.label}`} />
       </div>
@@ -3820,8 +3823,8 @@ function DomainPopover({
     if (s.reachable && !s.bound) {
       return (
         <p className="help domain-progress" aria-live="polite">
-          ✓ {p.domain} is reaching us. Now add the record that proves it's
-          yours — the {p.isApex ? "TXT record" : "CNAME"} below.
+          ✓ {p.domain} is reaching us. Now add the record that proves it's yours
+          — the {p.isApex ? "TXT record" : "CNAME"} below.
         </p>
       );
     }
@@ -3857,23 +3860,25 @@ function DomainPopover({
   );
 
   return (
-    <div popover="auto" id="customDomain" className="popover-panel domain-popover">
+    <div
+      popover="auto"
+      id="customDomain"
+      className="popover-panel domain-popover"
+    >
       <div className="popover-heading">
         <h2>Custom domains</h2>
         <button
           type="button"
           className="icon-button"
           aria-label="Close"
-          onClick={() =>
-            document.getElementById("customDomain")?.hidePopover()
-          }
+          onClick={() => document.getElementById("customDomain")?.hidePopover()}
         >
           <span aria-hidden="true">×</span>
         </button>
       </div>
       <p className="help">
-        A domain you own can show this page. Your found.as address keeps
-        working — the domain is an extra way in, and you can remove it anytime.
+        A domain you own can show this page. Your found.as address keeps working
+        — the domain is an extra way in, and you can remove it anytime.
       </p>
       {domains === null ? (
         <p className="help">Loading…</p>
@@ -3883,11 +3888,7 @@ function DomainPopover({
             const status = statuses[domain];
             return (
               <div className="domain-row" key={domain}>
-                <a
-                  href={`https://${domain}/`}
-                  target="_blank"
-                  rel="noreferrer"
-                >
+                <a href={`https://${domain}/`} target="_blank" rel="noreferrer">
                   {domain}
                 </a>
                 <span className="help">
@@ -4004,7 +4005,9 @@ function DomainPopover({
                   type="text"
                   value={input}
                   placeholder="yourname.com"
-                  onInput={(e) => setInput((e.target as HTMLInputElement).value)}
+                  onInput={(e) =>
+                    setInput((e.target as HTMLInputElement).value)
+                  }
                 />
               </label>
               <div className="popover-actions">
@@ -4344,10 +4347,10 @@ export function App() {
     try {
       let pubToSend = pub;
       if (priv.value.type === Type.LINK_TREE) {
-        // The preview image lives at <path>/og, claimed with keys derived
-        // from the same password, and is published before the page so the
-        // page never references an image that is not there yet.
+        // The preview image rides the page's pub record as the `og`
+        // subresource, served at <path>/og — one atomic publish.
         let ogUrl: string | undefined;
+        let subs: Public["subs"];
         const wantAutoImage =
           (tree.social?.autoImage ?? true) &&
           !socialImageUrl(tree.social?.imageUrl);
@@ -4355,25 +4358,18 @@ export function App() {
           try {
             const bytes = await renderOgImage(tree, shareDisplay);
             if (bytes) {
-              const ogPath = `${path}/og`;
-              const ogKp = await deriveKP(ogPath, pw);
-              await updateData(
-                ogKp,
-                ogPath,
-                { type: Type.BYTES, md: "", html: "", redir: "" },
-                { mime: "image/png", bytes },
-              );
+              subs = { og: { mime: "image/png", bytes } };
               const digest = new Uint8Array(
                 await subtle.digest("SHA-256", bytes.slice()),
               );
               const version = Array.from(digest.slice(0, 4), (b) =>
                 b.toString(16).padStart(2, "0"),
               ).join("");
-              ogUrl = `${publicPageUrl(`${path.trim()}/og`)}?v=${version}`;
+              ogUrl = `${publicPageUrl(path.trim())}/og?v=${version}`;
             }
           } catch {
             showError(
-              "Couldn't publish the social preview image — publishing the page without it.",
+              "Couldn't render the social preview image — publishing the page without it.",
             );
           }
         }
@@ -4384,6 +4380,9 @@ export function App() {
             ogUrl,
           ),
         };
+        if (subs) {
+          pubToSend.subs = subs;
+        }
       } else if (pubToSend === null) {
         pubToSend = {
           bytes: new Uint8Array(await file!.arrayBuffer()),
