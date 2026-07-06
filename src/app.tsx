@@ -3306,6 +3306,11 @@ function SetupPanel({
               }
             : null;
 
+  // Capitals and punctuation work, but make a link harder to type and share
+  // (and the address is case-sensitive), so nudge toward a clean slug.
+  const pathTrimmed = path.trim();
+  const pathDiscouraged = pathTrimmed !== "" && /[^a-z0-9/-]/.test(pathTrimmed);
+
   return (
     <section className="setup-panel" aria-labelledby="setup-title">
       <div className="setup-copy">
@@ -3339,6 +3344,12 @@ function SetupPanel({
             />
           </span>
         </label>
+        {pathDiscouraged && (
+          <p className="help warning-text">
+            Lowercase letters, numbers and hyphens make the best address —
+            capitals and special characters are harder to type and share.
+          </p>
+        )}
         {availability && (
           <p id="setup-path-status" className={availability.className}>
             {availability.text}
