@@ -63,12 +63,14 @@ interface LinkItem {
   enabled: boolean;
   featured?: boolean;
   icon?: string;
+  relMe?: boolean;
 }
 
 interface SocialPreview {
   title?: string;
   description?: string;
   imageUrl?: string;
+  autoImage?: boolean;
 }
 
 interface LinkTree {
@@ -76,6 +78,7 @@ interface LinkTree {
   bio: string;
   avatarUrl?: string;
   theme: "system" | "light" | "dark" | "warm" | "clean";
+  accent?: string;
   social?: SocialPreview;
   showVcard?: boolean;
   links: LinkItem[];
@@ -272,6 +275,32 @@ const kindDefaultIcons: Partial<Record<LinkKind, string>> = {
   custom: "🔗",
 };
 
+// Kinds whose link points at a profile that is "also you" — published with
+// rel="me" so Mastodon and other IndieWeb sites can verify page ownership.
+const identityKinds = new Set<LinkKind>([
+  "website",
+  "instagram",
+  "tiktok",
+  "youtube",
+  "linkedin",
+  "x",
+  "facebook",
+  "telegram",
+  "matrix",
+  "github",
+  "mastodon",
+  "bluesky",
+  "threads",
+  "reddit",
+  "twitch",
+  "spotify",
+  "snapchat",
+  "pinterest",
+  "substack",
+  "medium",
+  "patreon",
+]);
+
 const kindIconSites: Partial<Record<LinkKind, string>> = {
   whatsapp: "https://www.whatsapp.com/",
   instagram: "https://www.instagram.com/",
@@ -351,10 +380,12 @@ function ensureLinkTree(tree: LinkTree | undefined): LinkTree {
     bio: current.bio ?? "",
     avatarUrl: current.avatarUrl ?? "",
     theme: current.theme ?? "system",
+    accent: accentPair(current.accent) ? current.accent : "",
     social: {
       title: current.social?.title ?? "",
       description: current.social?.description ?? "",
       imageUrl: current.social?.imageUrl ?? "",
+      autoImage: current.social?.autoImage ?? true,
     },
     showVcard: current.showVcard ?? true,
     links: current.links ?? [],
@@ -409,6 +440,42 @@ function avatarImageSrc(value: string | undefined): string | null {
   const normalized = normalizeUrl(trimmed);
   return URL.canParse(normalized) ? normalized : null;
 }
+
+// Accent choices are curated light/dark pairs rather than a free color picker:
+// the accent doubles as text and borders on the page background, and the
+// System theme flips that background with the OS. Each variant is tuned to
+// WCAG AA both as text on its page background and under its button label
+// (white on light variants, near-black on dark ones) — see palette.mjs.
+interface AccentPair {
+  light: string;
+  dark: string;
+}
+
+const accentLightText = "#ffffff";
+const accentDarkText = "#10130f";
+
+const accentPalette: Record<string, AccentPair> = {
+  ocean: { light: "#426ae0", dark: "#5177e8" },
+  violet: { light: "#8e52d4", dark: "#9b61de" },
+  magenta: { light: "#cf307f", dark: "#da418e" },
+  crimson: { light: "#d72f3d", dark: "#e24451" },
+  rust: { light: "#b6561e", dark: "#cd5c1b" },
+  forest: { light: "#12814a", dark: "#14b866" },
+  gold: { light: "#926a0c", dark: "#c28b0a" },
+  graphite: { light: "#687480", dark: "#6c8093" },
+};
+
+function accentPair(value: string | undefined): AccentPair | null {
+  return (value && accentPalette[value]) || null;
+}
+
+const themeAccentDefaults: Record<LinkTree["theme"], string> = {
+  system: "#007f73",
+  light: "#007f73",
+  dark: "#4fc3b3",
+  warm: "#9a4f24",
+  clean: "#146c5d",
+};
 
 function socialImageUrl(value: string | undefined): string | null {
   const trimmed = value?.trim();
@@ -1225,7 +1292,11 @@ function vcardEligible(tree: LinkTree): boolean {
   );
 }
 
-function buildVcard(tree: LinkTree, pageUrl: string): string | null {
+function buildVcard(
+  tree: LinkTree,
+  pageUrl: string,
+  includePhoto = true,
+): string | null {
   const name = tree.displayName.trim();
   if (!name) return null;
   const tels: string[] = [];
@@ -1253,7 +1324,7 @@ function buildVcard(tree: LinkTree, pageUrl: string): string | null {
   }
   if (!tels.length && !emails.length) return null;
   const bio = tree.bio.trim();
-  const photo = vcardPhotoLine(tree.avatarUrl);
+  const photo = includePhoto ? vcardPhotoLine(tree.avatarUrl) : null;
   const lines = [
     "BEGIN:VCARD",
     "VERSION:3.0",
@@ -1271,17 +1342,192 @@ function buildVcard(tree: LinkTree, pageUrl: string): string | null {
   return lines.map(foldVcardLine).join("\r\n");
 }
 
-function linkTreeToHtml(tree: LinkTree, url: string): string {
+interface OgColors {
+  bg: string;
+  text: string;
+  muted: string;
+  accent: string;
+  accentText: string;
+}
+
+// og:image renders one fixed look per theme; System renders as light.
+function ogColors(tree: LinkTree): OgColors {
+  const pair = accentPair(tree.accent);
+  if (tree.theme === "dark") {
+    return {
+      bg: "#101112",
+      text: "#f5f5f0",
+      muted: "#c1c1ba",
+      accent: pair?.dark ?? "#4fc3b3",
+      accentText: pair ? accentDarkText : "#07100f",
+    };
+  }
+  const defaults: Record<string, { bg: string; accent: string }> = {
+    warm: { bg: "#fbf8f0", accent: "#9a4f24" },
+    clean: { bg: "#f7faf8", accent: "#146c5d" },
+  };
+  const d = defaults[tree.theme] ?? { bg: "#fbfbf8", accent: "#007f73" };
+  return {
+    bg: d.bg,
+    text: "#181818",
+    muted: "#595959",
+    accent: pair?.light ?? d.accent,
+    accentText: pair ? accentLightText : "#ffffff",
+  };
+}
+
+function wrapCanvasText(
+  ctx: CanvasRenderingContext2D,
+  text: string,
+  maxWidth: number,
+  maxLines: number,
+): string[] {
+  const words = text.split(/\s+/);
+  const lines: string[] = [];
+  let line = "";
+  for (const word of words) {
+    const candidate = line ? `${line} ${word}` : word;
+    if (ctx.measureText(candidate).width <= maxWidth) {
+      line = candidate;
+      continue;
+    }
+    if (line) lines.push(line);
+    line = word;
+    if (lines.length > maxLines) break;
+  }
+  if (line) lines.push(line);
+  if (lines.length > maxLines) {
+    lines.length = maxLines;
+    lines[maxLines - 1] += "…";
+  }
+  return lines;
+}
+
+async function renderOgImage(
+  tree: LinkTree,
+  path: string,
+): Promise<Uint8Array | null> {
+  const canvas = document.createElement("canvas");
+  canvas.width = 1200;
+  canvas.height = 630;
+  const ctx = canvas.getContext("2d");
+  if (!ctx) return null;
+  const colors = ogColors(tree);
+  const display = `found.as/${path}`;
+  const name = tree.displayName.trim() || display;
+  const bio = tree.bio.trim();
+  const font = (weight: number, size: number) =>
+    `${weight} ${size}px ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif`;
+
+  ctx.fillStyle = colors.bg;
+  ctx.fillRect(0, 0, 1200, 630);
+
+  // Only data: avatars are drawn — a remote avatar would taint the canvas.
+  const avatarSrc = tree.avatarUrl?.trim().startsWith("data:")
+    ? avatarImageSrc(tree.avatarUrl)
+    : null;
+  let nameY = 230;
+  if (avatarSrc) {
+    try {
+      const img = await new Promise<HTMLImageElement>((resolve, reject) => {
+        const image = new Image();
+        image.onload = () => resolve(image);
+        image.onerror = () => reject(new Error("Could not read the photo."));
+        image.src = avatarSrc;
+      });
+      ctx.save();
+      ctx.beginPath();
+      ctx.arc(600, 168, 90, 0, Math.PI * 2);
+      ctx.clip();
+      const scale = Math.max(180 / img.width, 180 / img.height);
+      const w = img.width * scale;
+      const h = img.height * scale;
+      ctx.drawImage(img, 600 - w / 2, 168 - h / 2, w, h);
+      ctx.restore();
+      nameY = 330;
+    } catch {
+      // Render without the photo.
+    }
+  }
+
+  ctx.textAlign = "center";
+  ctx.textBaseline = "middle";
+  let nameSize = 68;
+  ctx.font = font(800, nameSize);
+  while (ctx.measureText(name).width > 1040 && nameSize > 34) {
+    nameSize -= 4;
+    ctx.font = font(800, nameSize);
+  }
+  ctx.fillStyle = colors.text;
+  ctx.fillText(name, 600, nameY);
+
+  if (bio) {
+    ctx.font = font(500, 34);
+    ctx.fillStyle = colors.muted;
+    const lines = wrapCanvasText(ctx, bio, 980, 2);
+    lines.forEach((line, i) => ctx.fillText(line, 600, nameY + 66 + i * 46));
+  }
+
+  ctx.font = font(700, 32);
+  const labelWidth = ctx.measureText(display).width;
+  const pillWidth = labelWidth + 72;
+  const pillHeight = 76;
+  const pillY = 630 - pillHeight - 52;
+  ctx.fillStyle = colors.accent;
+  ctx.beginPath();
+  ctx.roundRect(600 - pillWidth / 2, pillY, pillWidth, pillHeight, 38);
+  ctx.fill();
+  ctx.fillStyle = colors.accentText;
+  ctx.fillText(display, 600, pillY + pillHeight / 2 + 2);
+
+  const blob = await new Promise<Blob | null>((resolve) =>
+    canvas.toBlob(resolve, "image/png"),
+  );
+  if (!blob) return null;
+  return new Uint8Array(await blob.arrayBuffer());
+}
+
+function linkTreeToHtml(
+  tree: LinkTree,
+  url: string,
+  generatedOgUrl?: string,
+): string {
   const safeName = tree.displayName.trim() || "Contact";
   const safeBio = tree.bio.trim();
   const avatar = avatarImageSrc(tree.avatarUrl);
   const metaTitle = tree.social?.title?.trim() || safeName;
   const metaDescription =
     tree.social?.description?.trim() || safeBio || `${safeName} on found.as`;
-  const ogImage = socialImageUrl(tree.social?.imageUrl);
+  const ogImage = socialImageUrl(tree.social?.imageUrl) ?? generatedOgUrl;
   const featured = featuredLink(tree);
   const entries = linkTreeListedEntries(tree);
   const themeClass = `theme-${tree.theme || "system"}`;
+  const accent = accentPair(tree.accent);
+  const accentCss = !accent
+    ? ""
+    : tree.theme === "dark"
+      ? `html.theme-dark {
+  --accent: ${accent.dark};
+  --accent-text: ${accentDarkText};
+}
+`
+      : tree.theme === "system" || !tree.theme
+        ? `html.theme-system {
+  --accent: ${accent.light};
+  --accent-text: ${accentLightText};
+}
+@media (prefers-color-scheme: dark) {
+  html.theme-system {
+    --accent: ${accent.dark};
+    --accent-text: ${accentDarkText};
+  }
+}
+`
+        : `html.${themeClass} {
+  --accent: ${accent.light};
+  --accent-text: ${accentLightText};
+}
+`;
   const vcard = tree.showVcard !== false ? buildVcard(tree, url) : null;
   const vcardHref = vcard
     ? `data:text/vcard;charset=utf-8,${encodeURIComponent(vcard)}`
@@ -1296,6 +1542,12 @@ function linkTreeToHtml(tree: LinkTree, url: string): string {
       ? `<span class="link-icon-emoji" aria-hidden="true">${escapeHtml(emoji)}</span>`
       : "";
   };
+  const linkRelAttr = (link: NormalizedLink) =>
+    identityKinds.has(link.item.kind) &&
+    link.item.relMe !== false &&
+    /^https?:\/\//i.test(link.href)
+      ? ' rel="me"'
+      : "";
 
   return `<!DOCTYPE html>
 <html lang="en" class="${themeClass}">
@@ -1363,7 +1615,7 @@ ${ogImage ? `<meta property="og:image" content="${escapeHtml(ogImage)}"/>\n` : "
     --accent-text: #07100f;
   }
 }
-* { box-sizing: border-box; }
+${accentCss}* { box-sizing: border-box; }
 body {
   margin: 0;
   min-height: 100svh;
@@ -1515,13 +1767,13 @@ span.link-icon-emoji {
     ${[
       ...(featured
         ? [
-            `<a class="contact-link featured" href="${escapeHtml(featured.href)}">${linkIconHtml(featured)}${escapeHtml(featured.label)}</a>`,
+            `<a class="contact-link featured" href="${escapeHtml(featured.href)}"${linkRelAttr(featured)}>${linkIconHtml(featured)}${escapeHtml(featured.label)}</a>`,
           ]
         : []),
       ...entries.map((entry) =>
         entry.kind === "section"
           ? `<h2 class="link-section">${escapeHtml(entry.title)}</h2>`
-          : `<a class="contact-link" href="${escapeHtml(entry.link.href)}">${linkIconHtml(entry.link)}${escapeHtml(entry.link.label)}</a>`,
+          : `<a class="contact-link" href="${escapeHtml(entry.link.href)}"${linkRelAttr(entry.link)}>${linkIconHtml(entry.link)}${escapeHtml(entry.link.label)}</a>`,
       ),
     ].join("\n    ")}
   </nav>`
@@ -1553,6 +1805,172 @@ function buildQrModel(value: string): QrModel {
     }
   }
   return { dim, cells };
+}
+
+function qrSvgString(value: string, size: string): string {
+  const model = buildQrModel(value);
+  const rects = model.cells
+    .map((cell) => `<rect x="${cell.x}" y="${cell.y}" width="1" height="1"/>`)
+    .join("");
+  return `<svg xmlns="http://www.w3.org/2000/svg" width="${size}" height="${size}" viewBox="0 0 ${model.dim} ${model.dim}" shape-rendering="crispEdges" role="img" aria-label="QR code"><rect width="${model.dim}" height="${model.dim}" fill="#ffffff"/><g fill="#111111">${rects}</g></svg>`;
+}
+
+function downloadFile(filename: string, blob: Blob): void {
+  const objectUrl = URL.createObjectURL(blob);
+  const anchor = document.createElement("a");
+  anchor.href = objectUrl;
+  anchor.download = filename;
+  document.body.appendChild(anchor);
+  anchor.click();
+  anchor.remove();
+  URL.revokeObjectURL(objectUrl);
+}
+
+function recoveryKitHtml(path: string, pw: string, url: string): string {
+  let qr = "";
+  try {
+    qr = qrSvgString(url, "128");
+  } catch {
+    // Without a QR the kit is still complete.
+  }
+  const editUrl = `https://be.found.as/${encodePath(path)}`;
+  const date = new Date().toLocaleDateString(undefined, {
+    year: "numeric",
+    month: "long",
+    day: "numeric",
+  });
+  return `<!doctype html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Recovery kit — found.as/${escapeHtml(path)}</title>
+<style>
+body { margin: 0; padding: 40px 24px; font-family: ui-sans-serif, system-ui, sans-serif; color: #181818; background: #ffffff; line-height: 1.6; }
+main { max-width: 560px; margin-inline: auto; }
+h1 { font-size: 1.6rem; margin: 0 0 4px; }
+.date { color: #595959; margin: 0 0 24px; }
+dl { display: grid; grid-template-columns: max-content 1fr; gap: 8px 16px; margin: 0 0 24px; }
+dt { font-weight: 700; }
+dd { margin: 0; overflow-wrap: anywhere; }
+code { padding: 2px 8px; border: 1px solid #d7d7d0; border-radius: 6px; background: #f6f6f2; font-size: 1.05em; }
+.warning { padding: 12px 16px; border: 1px solid #d7d7d0; border-left: 4px solid #9a4f24; border-radius: 6px; background: #fbf8f0; }
+.qr { margin-top: 24px; }
+@media print { body { padding: 0; } }
+</style>
+</head>
+<body>
+<main>
+<h1>👋 found.as recovery kit</h1>
+<p class="date">Saved on ${escapeHtml(date)}</p>
+<dl>
+<dt>Your page</dt><dd><a href="${escapeHtml(url)}">${escapeHtml(url)}</a></dd>
+<dt>Edit it at</dt><dd><a href="${escapeHtml(editUrl)}">${escapeHtml(editUrl)}</a></dd>
+<dt>Password</dt><dd>${pw ? `<code>${escapeHtml(pw)}</code>` : "<em>blank — no password was set</em>"}</dd>
+</dl>
+<p class="warning"><strong>Keep this file private.</strong> Anyone who has it can edit your page. found.as has no password reset — if you forget your password, this file is the only way back in. Keep it in your password manager, or print it and keep it somewhere safe.</p>
+<p class="qr">${qr}</p>
+</main>
+</body>
+</html>`;
+}
+
+// Accents legible on white for print, per theme (the dark theme's on-screen
+// accent is too pale for paper, so it borrows the system pair's light variant).
+const printAccents: Record<LinkTree["theme"], string> = {
+  system: "#007f73",
+  light: "#007f73",
+  dark: "#007f73",
+  warm: "#9a4f24",
+  clean: "#146c5d",
+};
+
+function printablesHtml(tree: LinkTree, url: string, path: string): string {
+  const display = `found.as/${path}`;
+  const name = tree.displayName.trim() || display;
+  const bio = tree.bio.trim();
+  const accent = accentPair(tree.accent)?.light ?? printAccents[tree.theme];
+  const avatar = avatarImageSrc(tree.avatarUrl);
+  let cardQr = "";
+  let posterQr = "";
+  try {
+    cardQr = qrSvgString(url, "26mm");
+    posterQr = qrSvgString(url, "56mm");
+  } catch {
+    // Cards still work without a QR.
+  }
+  const card = `<div class="card">
+  <div class="card-text">
+    <p class="card-name">${escapeHtml(name)}</p>
+    ${bio ? `<p class="card-bio">${escapeHtml(bio)}</p>` : ""}
+    <p class="card-url">${escapeHtml(display)}</p>
+  </div>
+  ${cardQr}
+</div>`;
+  // Cut-line ticks at the sheet margins: rule a line between matching ticks
+  // and cut edge to edge; no ink ends up on the cards themselves.
+  const cutMarks = [
+    ...[0, 85, 170].flatMap((x) => [
+      `<i class="mark mark-v" style="left:${x}mm;top:-8mm"></i>`,
+      `<i class="mark mark-v" style="left:${x}mm;bottom:-8mm"></i>`,
+    ]),
+    ...[0, 55, 110, 165, 220].flatMap((y) => [
+      `<i class="mark mark-h" style="top:${y}mm;left:-8mm"></i>`,
+      `<i class="mark mark-h" style="top:${y}mm;right:-8mm"></i>`,
+    ]),
+  ].join("");
+  return `<!doctype html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<title>Print — ${escapeHtml(display)}</title>
+<style>
+/* margin: 0 also removes the browser's default page headers and footers;
+   the sheet carries its own padding so content clears printer margins. */
+@page { margin: 0; }
+* { box-sizing: border-box; }
+body { margin: 0; font-family: ui-sans-serif, system-ui, sans-serif; color: #181818; background: #ffffff; }
+.toolbar { display: flex; align-items: center; justify-content: center; gap: 16px; padding: 12px 16px; border-bottom: 1px solid #d7d7d0; background: #f6f6f2; }
+.toolbar p { margin: 0; color: #595959; }
+.toolbar button { min-height: 40px; padding: 8px 20px; border: 0; border-radius: 8px; background: ${accent}; color: #ffffff; font-weight: 700; font-size: 1rem; cursor: pointer; }
+.sheet { position: relative; width: 170mm; margin: 12mm auto; display: grid; grid-template-columns: repeat(2, 85mm); }
+.card { width: 85mm; height: 55mm; display: flex; align-items: center; gap: 4mm; padding: 6mm; break-inside: avoid; }
+.mark { position: absolute; }
+.mark-v { width: 0; height: 6mm; border-left: 0.2mm solid #9a9a94; }
+.mark-h { width: 6mm; height: 0; border-top: 0.2mm solid #9a9a94; }
+.card svg { flex: none; }
+.card-text { flex: 1; min-width: 0; }
+.card-name { margin: 0; font-size: 12pt; font-weight: 800; line-height: 1.25; }
+.card-bio { margin: 1mm 0 0; color: #595959; font-size: 8pt; line-height: 1.4; display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
+.card-url { margin: 2mm 0 0; color: ${accent}; font-size: 9pt; font-weight: 700; overflow-wrap: anywhere; }
+.poster { break-before: page; min-height: 250mm; display: grid; place-content: center; justify-items: center; gap: 5mm; text-align: center; padding: 14mm 10mm; }
+.poster-avatar { width: 30mm; height: 30mm; border-radius: 50%; object-fit: cover; margin-bottom: 2mm; }
+.poster-name { margin: 0; font-size: 24pt; font-weight: 800; }
+.poster-bio { margin: 0; max-width: 120mm; color: #595959; font-size: 12pt; }
+.poster-cta { margin: 8mm 0 1mm; color: ${accent}; font-size: 10pt; font-weight: 800; letter-spacing: 0.14em; text-transform: uppercase; }
+.poster-url { margin: 0; font-size: 13pt; font-weight: 700; color: ${accent}; }
+@media print { .toolbar { display: none; } .sheet { padding: 0; } }
+</style>
+</head>
+<body>
+<header class="toolbar">
+<p>Business cards — cut straight lines between the edge marks. Poster on the second page. Print at 100% scale.</p>
+<button type="button" onclick="print()">Print</button>
+</header>
+<section class="sheet" aria-label="Business cards">
+${cutMarks}
+${Array.from({ length: 8 }, () => card).join("\n")}
+</section>
+<section class="poster" aria-label="Poster">
+${avatar ? `<img class="poster-avatar" src="${escapeHtml(avatar)}" alt=""/>` : ""}
+<h1 class="poster-name">${escapeHtml(name)}</h1>
+${bio ? `<p class="poster-bio">${escapeHtml(bio)}</p>` : ""}
+<p class="poster-cta">Scan to reach me</p>
+${posterQr}
+<p class="poster-url">${escapeHtml(display)}</p>
+</section>
+</body>
+</html>`;
 }
 
 function downloadQrPng(value: string, filename: string): void {
@@ -2098,6 +2516,24 @@ function EditableLink({
               <span>Feature this link</span>
             </label>
           )}
+          {identityKinds.has(link.kind) && (
+            <label
+              className="show-toggle"
+              title={'Marks the link rel="me" so sites like Mastodon can verify your page.'}
+            >
+              <input
+                type="checkbox"
+                checked={link.relMe !== false}
+                onChange={(e) =>
+                  updateLink({
+                    ...link,
+                    relMe: (e.target as HTMLInputElement).checked,
+                  })
+                }
+              />
+              <span>This is my own account</span>
+            </label>
+          )}
           {!sectionItem && (
             <div className="link-icon-block">
               <div className="link-icon-actions">
@@ -2278,9 +2714,11 @@ function AvatarUpload({
 
 function LinkTreeEditor({
   priv,
+  path,
   onError,
 }: {
   priv: Signal<Private>;
+  path: string;
   onError: (message: string) => void;
 }) {
   const tree = ensureLinkTree(priv.value.linkTree);
@@ -2288,6 +2726,49 @@ function LinkTreeEditor({
   const [draggingId, setDraggingId] = useState("");
   const [dragOverId, setDragOverId] = useState("");
   const [selectedLinkId, setSelectedLinkId] = useState("");
+  const [ogPreview, setOgPreview] = useState("");
+
+  const autoImageOn =
+    (tree.social?.autoImage ?? true) &&
+    !socialImageUrl(tree.social?.imageUrl) &&
+    priv.value.type === Type.LINK_TREE;
+  useEffect(() => {
+    if (!autoImageOn) {
+      setOgPreview((prev) => {
+        if (prev) URL.revokeObjectURL(prev);
+        return "";
+      });
+      return;
+    }
+    let cancelled = false;
+    const timeout = window.setTimeout(() => {
+      renderOgImage(ensureLinkTree(priv.value.linkTree), path)
+        .then((bytes) => {
+          if (cancelled || !bytes) return;
+          setOgPreview((prev) => {
+            if (prev) URL.revokeObjectURL(prev);
+            return URL.createObjectURL(
+              new Blob([bytes as Uint8Array<ArrayBuffer>], {
+                type: "image/png",
+              }),
+            );
+          });
+        })
+        .catch(() => {});
+    }, 400);
+    return () => {
+      cancelled = true;
+      window.clearTimeout(timeout);
+    };
+  }, [
+    autoImageOn,
+    path,
+    tree.displayName,
+    tree.bio,
+    tree.theme,
+    tree.accent,
+    tree.avatarUrl,
+  ]);
 
   const updateTree = (nextTree: LinkTree) => {
     priv.value = {
@@ -2384,7 +2865,17 @@ function LinkTreeEditor({
 
   return (
     <section className="live-editor" aria-label="Contact page editor">
-      <div className={`live-page theme-${tree.theme || "system"}`}>
+      <div
+        className={`live-page theme-${tree.theme || "system"} ${accentPair(tree.accent) ? "accent-custom" : ""}`}
+        style={
+          accentPair(tree.accent)
+            ? {
+                "--pv-a-light": accentPair(tree.accent)!.light,
+                "--pv-a-dark": accentPair(tree.accent)!.dark,
+              }
+            : undefined
+        }
+      >
         <div className="live-profile">
           <AvatarUpload
             value={tree.avatarUrl}
@@ -2499,6 +2990,43 @@ function LinkTreeEditor({
             <span>{theme[0].toUpperCase() + theme.slice(1)}</span>
           </label>
         ))}
+        <div className="accent-row">
+          <span className="accent-row-label">Accent</span>
+          <label className="accent-choice" title="Theme default">
+            <input
+              type="radio"
+              name="accent"
+              checked={!accentPair(tree.accent)}
+              onChange={() => updateTree({ ...tree, accent: "" })}
+            />
+            <span
+              className="accent-dot"
+              style={{ background: themeAccentDefaults[tree.theme] }}
+            ></span>
+            <span className="sr-only">Theme default</span>
+          </label>
+          {Object.entries(accentPalette).map(([key, pair]) => (
+            <label
+              className="accent-choice"
+              key={key}
+              title={key[0].toUpperCase() + key.slice(1)}
+            >
+              <input
+                type="radio"
+                name="accent"
+                checked={tree.accent === key}
+                onChange={() => updateTree({ ...tree, accent: key })}
+              />
+              <span
+                className="accent-dot"
+                style={{
+                  background: `linear-gradient(135deg, ${pair.light} 50%, ${pair.dark} 50%)`,
+                }}
+              ></span>
+              <span className="sr-only">{key}</span>
+            </label>
+          ))}
+        </div>
       </fieldset>
 
       <div className="vcard-toggle-panel">
@@ -2528,6 +3056,27 @@ function LinkTreeEditor({
           Shown when someone shares found.as links on X, LinkedIn, iMessage, and
           similar apps. Leave fields blank to use your name and description.
         </p>
+        <label className="show-toggle">
+          <input
+            type="checkbox"
+            checked={social.autoImage ?? true}
+            onChange={(e) =>
+              updateSocial({
+                autoImage: (e.target as HTMLInputElement).checked,
+              })
+            }
+          />
+          <span>Create a preview image automatically</span>
+        </label>
+        {ogPreview && (
+          <img
+            className="og-preview"
+            src={ogPreview}
+            alt="Preview image that will be published"
+            width={1200}
+            height={630}
+          />
+        )}
         <label className="field stack">
           <span>Preview title</span>
           <input
@@ -2573,7 +3122,7 @@ function LinkTreeEditor({
         >
           {socialImageInvalid
             ? "Enter a full https:// image URL, or leave it blank."
-            : "Optional. A hosted https image, ideally 1200×630 pixels. Your uploaded photo cannot be used here — social networks need a hosted image URL."}
+            : "Optional — replaces the automatic image. A hosted https image, ideally 1200×630 pixels."}
         </p>
       </details>
     </section>
@@ -2939,7 +3488,9 @@ export function App() {
   const [lastAdvancedType, setLastAdvancedType] = useState<Type>(Type.REDIR);
   const [toast, setToast] = useState<string>("");
   const [copied, setCopied] = useState<boolean>(false);
-  const [published, setPublished] = useState<boolean>(false);
+  const [shareOpen, setShareOpen] = useState<boolean>(false);
+  const [justPublished, setJustPublished] = useState<boolean>(false);
+  const [qrMode, setQrMode] = useState<"link" | "vcard">("link");
 
   const showError = (message: string) => {
     setToast(message);
@@ -3016,6 +3567,8 @@ export function App() {
     };
   }, [priv.value, file, path]);
   const url = publicPageUrl(path.trim());
+  const qrVcard =
+    priv.value.type === Type.LINK_TREE ? buildVcard(tree, url, false) : null;
   const signatureAvailable =
     priv.value.type === Type.LINK_TREE &&
     Boolean(tree.displayName.trim() || path.trim());
@@ -3146,16 +3699,40 @@ export function App() {
     }
   };
 
+  const vcardQrShown = qrMode === "vcard" && Boolean(qrVcard);
+
+  const openPrintables = () => {
+    const win = window.open("", "_blank");
+    if (!win) {
+      showError("Allow pop-ups to open the print page.");
+      return;
+    }
+    win.document.write(printablesHtml(tree, url, path.trim()));
+    win.document.close();
+  };
+
+  const saveRecoveryKit = () => {
+    const slug = path.trim().replace(/\//g, "-") || "found-as";
+    downloadFile(
+      `${slug}-recovery-kit.html`,
+      new Blob([recoveryKitHtml(path.trim(), pw, url)], { type: "text/html" }),
+    );
+  };
+
   const saveQr = () => {
     const slug = path.trim().replace(/\//g, "-") || "found-as";
     try {
-      downloadQrPng(url, `${slug}-found-as-qr.png`);
+      if (vcardQrShown) {
+        downloadQrPng(qrVcard!, `${slug}-contact-qr.png`);
+      } else {
+        downloadQrPng(url, `${slug}-found-as-qr.png`);
+      }
     } catch (e) {
       showError((e as Error).message);
     }
   };
 
-  const publish = () => {
+  const publish = async () => {
     if (!kp || !canPublish) {
       return;
     }
@@ -3174,27 +3751,67 @@ export function App() {
           }
         : priv.value;
 
-    (pub !== null
-      ? updateData(kp, path, privateValue, pub)
-      : (async () =>
-          updateData(kp, path, privateValue, {
-            bytes: new Uint8Array(await file!.arrayBuffer()),
-            mime: file!.type,
-          }))()
-    )
-      .then(() => {
-        setPathIsNew(false);
-        setStatusMessage(
-          `Your ${modeSummary(priv.value.type).toLowerCase()} is live.`,
-        );
-        setPublished(true);
-      })
-      .catch((e) => {
-        showError(e.message);
-      })
-      .finally(() => {
-        setWorking(false);
-      });
+    try {
+      let pubToSend = pub;
+      if (priv.value.type === Type.LINK_TREE) {
+        // The preview image lives at <path>/og, claimed with keys derived
+        // from the same password, and is published before the page so the
+        // page never references an image that is not there yet.
+        let ogUrl: string | undefined;
+        const wantAutoImage =
+          (tree.social?.autoImage ?? true) &&
+          !socialImageUrl(tree.social?.imageUrl);
+        if (wantAutoImage) {
+          try {
+            const bytes = await renderOgImage(tree, path.trim());
+            if (bytes) {
+              const ogPath = `${path}/og`;
+              const ogKp = await deriveKP(ogPath, pw);
+              await updateData(
+                ogKp,
+                ogPath,
+                { type: Type.BYTES, md: "", html: "", redir: "" },
+                { mime: "image/png", bytes },
+              );
+              const digest = new Uint8Array(
+                await subtle.digest("SHA-256", bytes.slice()),
+              );
+              const version = Array.from(digest.slice(0, 4), (b) =>
+                b.toString(16).padStart(2, "0"),
+              ).join("");
+              ogUrl = `${publicPageUrl(`${path.trim()}/og`)}?v=${version}`;
+            }
+          } catch {
+            showError(
+              "Couldn't publish the social preview image — publishing the page without it.",
+            );
+          }
+        }
+        pubToSend = {
+          html: linkTreeToHtml(
+            ensureLinkTree(privateValue.linkTree),
+            url,
+            ogUrl,
+          ),
+        };
+      } else if (pubToSend === null) {
+        pubToSend = {
+          bytes: new Uint8Array(await file!.arrayBuffer()),
+          mime: file!.type,
+        };
+      }
+      await updateData(kp, path, privateValue, pubToSend);
+      setPathIsNew(false);
+      setStatusMessage(
+        `Your ${modeSummary(priv.value.type).toLowerCase()} is live.`,
+      );
+      setJustPublished(true);
+      setShareOpen(true);
+    } catch (e) {
+      showError((e as Error).message);
+    } finally {
+      setWorking(false);
+    }
   };
 
   if (!setupComplete || pwStatus !== true) {
@@ -3230,34 +3847,18 @@ export function App() {
           </a>
         </div>
         <div className="topbar-actions">
-          <button
-            type="button"
-            className="secondary"
-            onClick={copyPublicUrl}
-            aria-live="polite"
-          >
-            {copied ? "Copied ✓" : "Copy link"}
-          </button>
-          <a
-            className="button-link secondary"
-            href={url}
-            target="_blank"
-            rel="noreferrer"
-          >
-            Open
-          </a>
-          {signatureAvailable && (
+          {!pathIsNew && (
             <button
               type="button"
-              className="secondary"
-              popovertarget="emailSignature"
+              className="secondary topbar-share"
+              onClick={() => {
+                setJustPublished(false);
+                setShareOpen(true);
+              }}
             >
-              Email signature
+              Share
             </button>
           )}
-          <button type="button" className="secondary" popovertarget="changePw">
-            Password
-          </button>
           <button
             type="button"
             className="secondary topbar-menu-button"
@@ -3269,23 +3870,6 @@ export function App() {
       </header>
 
       <div popover="auto" id="topbarMenu" className="popover-panel topbar-menu">
-        <button
-          type="button"
-          className="secondary"
-          onClick={copyPublicUrl}
-          aria-live="polite"
-        >
-          {copied ? "Copied ✓" : "Copy link"}
-        </button>
-        <a
-          className="button-link secondary"
-          href={url}
-          target="_blank"
-          rel="noreferrer"
-          onClick={() => document.getElementById("topbarMenu")?.hidePopover()}
-        >
-          Open
-        </a>
         {signatureAvailable && (
           <button
             type="button"
@@ -3298,6 +3882,28 @@ export function App() {
             Email signature
           </button>
         )}
+        {priv.value.type === Type.LINK_TREE && (
+          <button
+            type="button"
+            className="secondary"
+            onClick={() => {
+              document.getElementById("topbarMenu")?.hidePopover();
+              openPrintables();
+            }}
+          >
+            Print cards &amp; poster
+          </button>
+        )}
+        <button
+          type="button"
+          className="secondary"
+          onClick={() => {
+            document.getElementById("topbarMenu")?.hidePopover();
+            saveRecoveryKit();
+          }}
+        >
+          Save recovery kit
+        </button>
         <button
           type="button"
           className="secondary"
@@ -3320,7 +3926,7 @@ export function App() {
           />
 
           {priv.value.type === Type.LINK_TREE ? (
-            <LinkTreeEditor priv={priv} onError={showError} />
+            <LinkTreeEditor priv={priv} path={path.trim()} onError={showError} />
           ) : priv.value.type === Type.REDIR ? (
             <RedirectEditor priv={priv} />
           ) : priv.value.type === Type.BYTES ? (
@@ -3391,7 +3997,9 @@ export function App() {
                 .then(() => {
                   setPw(newPw);
                   setNewPw("");
-                  setStatusMessage("Update password changed.");
+                  setStatusMessage(
+                    "Password changed — save a fresh recovery kit.",
+                  );
                   document.getElementById("changePw")?.hidePopover();
                 })
                 .catch((e) => {
@@ -3414,28 +4022,30 @@ export function App() {
         </div>
       </div>
 
-      {signatureAvailable && !published && (
+      {signatureAvailable && !shareOpen && (
         <EmailSignaturePopover tree={tree} url={url} onError={showError} />
       )}
 
-      {published && (
+      {shareOpen && (
         <div
           className="publish-success-backdrop"
           role="dialog"
           aria-modal="true"
           aria-labelledby="publish-success-title"
           onClick={(e) => {
-            if (e.target === e.currentTarget) setPublished(false);
+            if (e.target === e.currentTarget) setShareOpen(false);
           }}
         >
           <div className="publish-success">
             <div className="popover-heading">
-              <h2 id="publish-success-title">You're live 🎉</h2>
+              <h2 id="publish-success-title">
+                {justPublished ? "You're live 🎉" : "Share your page"}
+              </h2>
               <button
                 type="button"
                 className="icon-button"
                 aria-label="Close"
-                onClick={() => setPublished(false)}
+                onClick={() => setShareOpen(false)}
               >
                 <span aria-hidden="true">×</span>
               </button>
@@ -3446,8 +4056,34 @@ export function App() {
               onClick={saveQr}
               title="Save QR code"
             >
-              <QrCode value={url} />
+              <QrCode value={vcardQrShown ? qrVcard! : url} />
             </button>
+            {qrVcard && (
+              <div className="qr-mode" role="group" aria-label="QR code type">
+                <button
+                  type="button"
+                  className="secondary"
+                  aria-pressed={!vcardQrShown}
+                  onClick={() => setQrMode("link")}
+                >
+                  Page link
+                </button>
+                <button
+                  type="button"
+                  className="secondary"
+                  aria-pressed={vcardQrShown}
+                  onClick={() => setQrMode("vcard")}
+                >
+                  Contact card
+                </button>
+              </div>
+            )}
+            {vcardQrShown && (
+              <p className="help qr-mode-help">
+                Scanning saves your contact card directly — even without
+                internet.
+              </p>
+            )}
             <a
               className="success-url"
               href={url}
@@ -3457,11 +4093,18 @@ export function App() {
               {url}
             </a>
             <div className="success-actions">
-              <button type="button" onClick={sharePublicUrl}>
-                {canShare ? "Share" : "Copy link"}
+              <button type="button" onClick={sharePublicUrl} aria-live="polite">
+                {canShare ? "Share" : copied ? "Copied ✓" : "Copy link"}
               </button>
               <button type="button" className="secondary" onClick={saveQr}>
                 Save QR
+              </button>
+              <button
+                type="button"
+                className="secondary"
+                onClick={saveRecoveryKit}
+              >
+                Save recovery kit
               </button>
               {signatureAvailable && (
                 <button
@@ -3472,13 +4115,15 @@ export function App() {
                   Email signature
                 </button>
               )}
-              <button
-                type="button"
-                className="secondary"
-                onClick={copyPublicUrl}
-              >
-                {copied ? "Copied ✓" : "Copy link"}
-              </button>
+              {priv.value.type === Type.LINK_TREE && (
+                <button
+                  type="button"
+                  className="secondary"
+                  onClick={openPrintables}
+                >
+                  Print cards &amp; poster
+                </button>
+              )}
               <a
                 className="button-link secondary"
                 href={url}
