@@ -3328,7 +3328,7 @@ function SetupPanel({
         }}
       >
         <label className="field stack">
-          <span>Page URL</span>
+          <span>Your address</span>
           <span className="path-field">
             <span className="path-prefix">found.as/</span>
             <input
@@ -3446,6 +3446,39 @@ async function updatePw(
       encode([new Date().getTime() / 1000, path, newKey.publicKey]),
       keyPair.secretKey,
     ),
+  ]);
+  if (!response.ok) {
+    throw new Error(`${response.status} (${await response.text()})`);
+  }
+}
+
+async function renamePage(
+  keyPair: SignKeyPair,
+  path: string,
+  newPath: string,
+  pw: string,
+): Promise<void> {
+  // The page key is derived from the path, so the new address is keyed with the
+  // key its own password derives — the same password keeps working after.
+  const newKey = await deriveKP(newPath, pw);
+  const response = await post([
+    8,
+    keyPair.publicKey,
+    sign(
+      encode([new Date().getTime() / 1000, path, newPath, newKey.publicKey]),
+      keyPair.secretKey,
+    ),
+  ]);
+  if (!response.ok) {
+    throw new Error(`${response.status} (${await response.text()})`);
+  }
+}
+
+async function deletePage(keyPair: SignKeyPair, path: string): Promise<void> {
+  const response = await post([
+    9,
+    keyPair.publicKey,
+    sign(encode([new Date().getTime() / 1000, path]), keyPair.secretKey),
   ]);
   if (!response.ok) {
     throw new Error(`${response.status} (${await response.text()})`);
@@ -4058,6 +4091,9 @@ async function deriveKP(path: string, pw: string) {
 export function App() {
   const priv = useSignal<Private>(createDefaultPrivate());
   const fetchSeq = useRef(0);
+  // Set just before a rename moves `path`, so the path-change effect keeps the
+  // editor open instead of bouncing back to the unlock screen.
+  const renamingRef = useRef(false);
 
   const [working, setWorking] = useState<boolean>(false);
   const [pw, setPw] = useState<string>("");
@@ -4078,6 +4114,8 @@ export function App() {
   const [justPublished, setJustPublished] = useState<boolean>(false);
   const [qrMode, setQrMode] = useState<"link" | "vcard">("link");
   const [shareDomain, setShareDomain] = useState<string | null>(null);
+  const [renameTo, setRenameTo] = useState<string>("");
+  const [deleteConfirm, setDeleteConfirm] = useState<string>("");
 
   const showError = (message: string) => {
     setToast(message);
@@ -4160,6 +4198,8 @@ export function App() {
   const shareUrl = shareDomain ? `https://${shareDomain}/` : url;
   // Address without scheme, for display (the QR pill in the generated preview).
   const shareDisplay = shareDomain ?? `found.as/${path.trim()}`;
+  const renameDiscouraged =
+    renameTo.trim() !== "" && /[^a-z0-9/-]/.test(renameTo.trim());
   const qrVcard =
     priv.value.type === Type.LINK_TREE
       ? buildVcard(tree, shareUrl, false)
@@ -4181,6 +4221,12 @@ export function App() {
 
   useEffect(() => {
     window.history.replaceState(null, "", path ? `/${encodePath(path)}` : "/");
+    if (renamingRef.current) {
+      // A rename just moved the page; the new key derives from the same
+      // password, so stay in the editor rather than re-prompting.
+      renamingRef.current = false;
+      return;
+    }
     setSetupComplete(false);
     setStatusMessage("");
   }, [path]);
@@ -4522,6 +4568,33 @@ export function App() {
         >
           Password
         </button>
+        {!pathIsNew && (
+          <>
+            <hr className="menu-divider" />
+            <button
+              type="button"
+              className="secondary"
+              onClick={() => {
+                document.getElementById("topbarMenu")?.hidePopover();
+                setRenameTo("");
+                document.getElementById("renamePage")?.showPopover();
+              }}
+            >
+              Change address
+            </button>
+            <button
+              type="button"
+              className="secondary menu-danger"
+              onClick={() => {
+                document.getElementById("topbarMenu")?.hidePopover();
+                setDeleteConfirm("");
+                document.getElementById("deletePage")?.showPopover();
+              }}
+            >
+              Delete page
+            </button>
+          </>
+        )}
       </div>
 
       <section className="workspace workspace-compact">
@@ -4628,6 +4701,145 @@ export function App() {
             type="button"
             className="secondary"
             onClick={() => document.getElementById("changePw")?.hidePopover()}
+          >
+            Cancel
+          </button>
+        </div>
+      </div>
+
+      <div popover="auto" id="renamePage" className="popover-panel">
+        <div className="popover-heading">
+          <h2>Change address</h2>
+          <button
+            type="button"
+            className="icon-button"
+            aria-label="Close"
+            onClick={() => document.getElementById("renamePage")?.hidePopover()}
+          >
+            <span aria-hidden="true">×</span>
+          </button>
+        </div>
+        <label className="field stack">
+          <span>New address</span>
+          <span className="path-field">
+            <span className="path-prefix">found.as/</span>
+            <input
+              type="text"
+              aria-label="New page path"
+              maxLength={64}
+              value={renameTo}
+              autoComplete="off"
+              autoCapitalize="off"
+              spellcheck={false}
+              placeholder={path.trim()}
+              onInput={(e) => setRenameTo((e.target as HTMLInputElement).value)}
+            />
+          </span>
+        </label>
+        {renameDiscouraged && (
+          <p className="help warning-text">
+            Lowercase letters, numbers and hyphens make the best address —
+            capitals and special characters are harder to type and share.
+          </p>
+        )}
+        <p className="help">
+          Your page moves to the new address. The old one stops working, and any
+          custom domains follow automatically.
+        </p>
+        <div className="popover-actions">
+          <button
+            type="button"
+            disabled={
+              working ||
+              !renameTo.trim() ||
+              renameTo.trim() === path.trim()
+            }
+            onClick={() => {
+              if (!kp) {
+                return;
+              }
+              const target = renameTo.trim();
+              setWorking(true);
+              renamePage(kp, path, target, pw)
+                .then(() => {
+                  document.getElementById("renamePage")?.hidePopover();
+                  setPathIsNew(false);
+                  renamingRef.current = true;
+                  setPath(target);
+                  setStatusMessage(`Now at found.as/${target}.`);
+                })
+                .catch((e) => showError(e.message))
+                .finally(() => setWorking(false));
+            }}
+          >
+            Move page
+          </button>
+          <button
+            type="button"
+            className="secondary"
+            onClick={() => document.getElementById("renamePage")?.hidePopover()}
+          >
+            Cancel
+          </button>
+        </div>
+      </div>
+
+      <div popover="auto" id="deletePage" className="popover-panel">
+        <div className="popover-heading">
+          <h2>Delete page</h2>
+          <button
+            type="button"
+            className="icon-button"
+            aria-label="Close"
+            onClick={() => document.getElementById("deletePage")?.hidePopover()}
+          >
+            <span aria-hidden="true">×</span>
+          </button>
+        </div>
+        <p className="help warning-text">
+          This permanently removes found.as/{path.trim()} and releases any custom
+          domains. There's no undo.
+        </p>
+        <label className="field stack">
+          <span>
+            Type <strong>{path.trim()}</strong> to confirm
+          </span>
+          <input
+            type="text"
+            autoComplete="off"
+            autoCapitalize="off"
+            spellcheck={false}
+            value={deleteConfirm}
+            onInput={(e) =>
+              setDeleteConfirm((e.target as HTMLInputElement).value)
+            }
+          />
+        </label>
+        <div className="popover-actions">
+          <button
+            type="button"
+            disabled={working || deleteConfirm.trim() !== path.trim()}
+            onClick={() => {
+              if (!kp) {
+                return;
+              }
+              setWorking(true);
+              deletePage(kp, path)
+                .then(() => {
+                  window.location.href = "https://be.found.as/";
+                })
+                .catch((e) => {
+                  showError(e.message);
+                  setWorking(false);
+                });
+            }}
+          >
+            Delete permanently
+          </button>
+          <button
+            type="button"
+            className="secondary"
+            onClick={() => document.getElementById("deletePage")?.hidePopover()}
           >
             Cancel
           </button>
