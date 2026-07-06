@@ -62,6 +62,7 @@ interface LinkItem {
   href: string;
   enabled: boolean;
   featured?: boolean;
+  icon?: string;
 }
 
 interface SocialPreview {
@@ -76,6 +77,7 @@ interface LinkTree {
   avatarUrl?: string;
   theme: "system" | "light" | "dark" | "warm" | "clean";
   social?: SocialPreview;
+  showVcard?: boolean;
   links: LinkItem[];
 }
 
@@ -314,6 +316,7 @@ function ensureLinkTree(tree: LinkTree | undefined): LinkTree {
       description: current.social?.description ?? "",
       imageUrl: current.social?.imageUrl ?? "",
     },
+    showVcard: current.showVcard ?? true,
     links: current.links ?? [],
   };
 }
@@ -403,7 +406,7 @@ function signatureText(tree: LinkTree, url: string): string {
     .join("\n");
 }
 
-async function copyRichSignature(html: string, text: string): Promise<void> {
+async function copyRichSignature(html: string, text: string): Promise<boolean> {
   if (
     navigator.clipboard &&
     "write" in navigator.clipboard &&
@@ -416,12 +419,13 @@ async function copyRichSignature(html: string, text: string): Promise<void> {
           "text/plain": new Blob([text], { type: "text/plain" }),
         }),
       ]);
-      return;
+      return true;
     } catch {
       // Fall through to plain-text copy below.
     }
   }
   await navigator.clipboard.writeText(text);
+  return false;
 }
 
 function canvasToBlob(
@@ -517,6 +521,78 @@ async function compressAvatar(file: File): Promise<CompressedAvatar> {
   }
 
   throw new Error("Could not compress that image.");
+}
+
+const linkIconPattern = /^data:image\/[a-z0-9.+-]+;base64,[a-z0-9+/=]+$/i;
+const linkIconMaxRawBytes = 16 * 1024;
+
+function linkIconSrc(value: string | undefined): string | null {
+  const trimmed = value?.trim();
+  return trimmed && linkIconPattern.test(trimmed) ? trimmed : null;
+}
+
+function canImportLinkIcon(href: string): boolean {
+  return /^https?:\/\//i.test(href);
+}
+
+async function reencodeLinkIcon(blob: Blob): Promise<string> {
+  const image = await loadImageForCanvas(
+    new File([blob], "icon", { type: blob.type }),
+  );
+  const sourceWidth = Number("width" in image ? image.width : 0);
+  const sourceHeight = Number("height" in image ? image.height : 0);
+  if (!sourceWidth || !sourceHeight) {
+    throw new Error("Could not read that icon.");
+  }
+  const scale = Math.min(1, 64 / Math.max(sourceWidth, sourceHeight));
+  const canvas = document.createElement("canvas");
+  canvas.width = Math.max(1, Math.round(sourceWidth * scale));
+  canvas.height = Math.max(1, Math.round(sourceHeight * scale));
+  const ctx = canvas.getContext("2d");
+  if (!ctx) {
+    throw new Error("Could not prepare the icon.");
+  }
+  ctx.drawImage(image, 0, 0, canvas.width, canvas.height);
+  if (image instanceof ImageBitmap) {
+    image.close();
+  }
+  const png = await new Promise<Blob | null>((resolve) => {
+    canvas.toBlob(resolve, "image/png");
+  });
+  if (!png) {
+    throw new Error("Could not prepare the icon.");
+  }
+  return blobToDataUrl(png);
+}
+
+async function importLinkIcon(href: string): Promise<string> {
+  const response = await fetch(
+    `https://cc.me/icon?url=${encodeURIComponent(href)}`,
+  );
+  if (response.status === 404) {
+    throw new Error("No icon found for that site.");
+  }
+  if (!response.ok) {
+    throw new Error(`Icon lookup failed (${response.status}).`);
+  }
+  const blob = await response.blob();
+  if (!blob.type.startsWith("image/")) {
+    throw new Error("That site did not return an icon.");
+  }
+  if (blob.type === "image/svg+xml") {
+    if (blob.size > linkIconMaxRawBytes) {
+      throw new Error("That icon is too large.");
+    }
+    return blobToDataUrl(blob);
+  }
+  try {
+    return await reencodeLinkIcon(blob);
+  } catch {
+    if (blob.size <= linkIconMaxRawBytes) {
+      return blobToDataUrl(blob);
+    }
+    throw new Error("Could not read that icon.");
+  }
 }
 
 function intoDoc(fragment: string, attrs: Record<string, any>) {
@@ -918,7 +994,7 @@ function normalizedLinks(tree: LinkTree): NormalizedLink[] {
 
 function shownSectionIds(tree: LinkTree): Set<string> {
   const ids = new Set<string>();
-  for (const entry of linkTreeRenderEntries(tree)) {
+  for (const entry of linkTreeListedEntries(tree)) {
     if (entry.kind === "section") {
       ids.add(entry.id);
     }
@@ -964,6 +1040,25 @@ function linkTreeRenderEntries(tree: LinkTree): RenderEntry[] {
   );
 }
 
+function featuredLink(tree: LinkTree): NormalizedLink | undefined {
+  return activeValidLinks(tree).find(
+    (link) => link.item.featured && canFeature(link.item),
+  );
+}
+
+function linkTreeListedEntries(tree: LinkTree): RenderEntry[] {
+  const featured = featuredLink(tree);
+  const listed = featured
+    ? linkTreeRenderEntries(tree).filter(
+        (entry) => entry.kind !== "link" || entry.link.item !== featured.item,
+      )
+    : linkTreeRenderEntries(tree);
+  return listed.filter(
+    (entry, index) =>
+      entry.kind !== "section" || listed[index + 1]?.kind === "link",
+  );
+}
+
 function linkTreeHasPublishableContent(tree: LinkTree): boolean {
   return Boolean(
     tree.displayName.trim() ||
@@ -997,6 +1092,10 @@ function escapeVcardValue(value: string): string {
     .replace(/;/g, "\\;")
     .replace(/,/g, "\\,")
     .replace(/\r\n|\r|\n/g, "\\n");
+}
+
+function vcardUriValue(value: string): string {
+  return value.replace(/[\r\n]/g, "");
 }
 
 function utf8Octets(codePoint: number): number {
@@ -1042,7 +1141,7 @@ function vcardPhotoLine(avatarUrl: string | undefined): string | null {
     return `PHOTO;ENCODING=b;TYPE=${type}:${embedded[2]}`;
   }
   if (/^https?:\/\//i.test(src)) {
-    return `PHOTO;VALUE=URI:${escapeVcardValue(src)}`;
+    return `PHOTO;VALUE=URI:${vcardUriValue(src)}`;
   }
   return null;
 }
@@ -1053,6 +1152,18 @@ function vcardFileName(displayName: string): string {
     .replace(/[\\/:*?"<>|]+/g, "")
     .trim();
   return `${base || "contact"}.vcf`;
+}
+
+function vcardEligible(tree: LinkTree): boolean {
+  return (
+    Boolean(tree.displayName.trim()) &&
+    activeValidLinks(tree).some(
+      (link) =>
+        link.item.kind === "phone" ||
+        link.item.kind === "whatsapp" ||
+        link.item.kind === "email",
+    )
+  );
 }
 
 function buildVcard(tree: LinkTree, pageUrl: string): string | null {
@@ -1092,8 +1203,8 @@ function buildVcard(tree: LinkTree, pageUrl: string): string | null {
     ...(bio ? [`NOTE:${escapeVcardValue(bio)}`] : []),
     ...tels.map((tel) => `TEL;TYPE=CELL:${escapeVcardValue(tel)}`),
     ...emails.map((email) => `EMAIL;TYPE=INTERNET:${escapeVcardValue(email)}`),
-    ...urls.map((url) => `URL:${escapeVcardValue(url)}`),
-    ...(pageUrl ? [`URL:${escapeVcardValue(pageUrl)}`] : []),
+    ...urls.map((url) => `URL:${vcardUriValue(url)}`),
+    ...(pageUrl ? [`URL:${vcardUriValue(pageUrl)}`] : []),
     ...addresses.map((adr) => `ADR;TYPE=HOME:;;${escapeVcardValue(adr)};;;;`),
     ...(photo ? [photo] : []),
     "END:VCARD",
@@ -1109,23 +1220,19 @@ function linkTreeToHtml(tree: LinkTree, url: string): string {
   const metaDescription =
     tree.social?.description?.trim() || safeBio || `${safeName} on found.as`;
   const ogImage = socialImageUrl(tree.social?.imageUrl);
-  const featured = activeValidLinks(tree).find(
-    (link) => link.item.featured && canFeature(link.item),
-  );
-  const listed = featured
-    ? linkTreeRenderEntries(tree).filter(
-        (entry) => entry.kind !== "link" || entry.link.item !== featured.item,
-      )
-    : linkTreeRenderEntries(tree);
-  const entries = listed.filter(
-    (entry, index) =>
-      entry.kind !== "section" || listed[index + 1]?.kind === "link",
-  );
+  const featured = featuredLink(tree);
+  const entries = linkTreeListedEntries(tree);
   const themeClass = `theme-${tree.theme || "system"}`;
-  const vcard = buildVcard(tree, url);
+  const vcard = tree.showVcard !== false ? buildVcard(tree, url) : null;
   const vcardHref = vcard
     ? `data:text/vcard;charset=utf-8,${encodeURIComponent(vcard)}`
     : "";
+  const linkIconHtml = (link: NormalizedLink) => {
+    const icon = linkIconSrc(link.item.icon);
+    return icon
+      ? `<img class="link-icon" src="${escapeHtml(icon)}" alt="" width="20" height="20"/>`
+      : "";
+  };
 
   return `<!DOCTYPE html>
 <html lang="en" class="${themeClass}">
@@ -1247,14 +1354,14 @@ nav {
 }
 a.contact-link {
   min-height: 48px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
+  display: block;
+  align-content: center;
   padding: 12px 16px;
   border: 1px solid var(--border);
   border-radius: 8px;
   background: var(--panel);
   color: var(--text);
+  text-align: center;
   text-decoration: none;
   font-weight: 650;
 }
@@ -1285,7 +1392,7 @@ a.vcard-button:hover {
   background: color-mix(in srgb, var(--accent) 12%, var(--bg));
 }
 a.vcard-button:focus-visible {
-  outline: 3px solid color-mix(in srgb, var(--accent), transparent 70%);
+  outline: 3px solid var(--text);
   outline-offset: 2px;
 }
 a.contact-link.featured {
@@ -1299,6 +1406,10 @@ a.contact-link.featured:hover {
   border-color: color-mix(in srgb, var(--accent) 85%, var(--text));
   background: color-mix(in srgb, var(--accent) 85%, var(--text));
 }
+a.contact-link.featured:focus-visible {
+  outline: 3px solid var(--text);
+  outline-offset: 2px;
+}
 h2.link-section {
   margin: 14px 0 0;
   font-size: 0.82rem;
@@ -1310,6 +1421,13 @@ h2.link-section {
 }
 h2.link-section:first-child {
   margin-top: 0;
+}
+img.link-icon {
+  width: 20px;
+  height: 20px;
+  border-radius: 4px;
+  margin-right: 10px;
+  vertical-align: -4px;
 }
 </style>
 </head>
@@ -1331,13 +1449,13 @@ h2.link-section:first-child {
     ${[
       ...(featured
         ? [
-            `<a class="contact-link featured" href="${escapeHtml(featured.href)}">${escapeHtml(featured.label)}</a>`,
+            `<a class="contact-link featured" href="${escapeHtml(featured.href)}">${linkIconHtml(featured)}${escapeHtml(featured.label)}</a>`,
           ]
         : []),
       ...entries.map((entry) =>
         entry.kind === "section"
           ? `<h2 class="link-section">${escapeHtml(entry.title)}</h2>`
-          : `<a class="contact-link" href="${escapeHtml(entry.link.href)}">${escapeHtml(entry.link.label)}</a>`,
+          : `<a class="contact-link" href="${escapeHtml(entry.link.href)}">${linkIconHtml(entry.link)}${escapeHtml(entry.link.label)}</a>`,
       ),
     ].join("\n    ")}
   </nav>`
@@ -1446,11 +1564,13 @@ function EmailSignaturePopover({
   url: string;
   onError: (message: string) => void;
 }) {
-  const [copiedKind, setCopiedKind] = useState<"" | "rich" | "plain">("");
+  const [copiedKind, setCopiedKind] = useState<
+    "" | "rich" | "richPlain" | "plain"
+  >("");
   const html = signatureHtml(tree, url);
   const text = signatureText(tree, url);
 
-  const flashCopied = (kind: "rich" | "plain") => {
+  const flashCopied = (kind: "rich" | "richPlain" | "plain") => {
     setCopiedKind(kind);
     window.setTimeout(() => setCopiedKind(""), 1800);
   };
@@ -1489,11 +1609,15 @@ function EmailSignaturePopover({
           aria-live="polite"
           onClick={() => {
             copyRichSignature(html, text)
-              .then(() => flashCopied("rich"))
+              .then((rich) => flashCopied(rich ? "rich" : "richPlain"))
               .catch((e) => onError(e.message));
           }}
         >
-          {copiedKind === "rich" ? "Copied ✓" : "Copy signature"}
+          {copiedKind === "rich"
+            ? "Copied ✓"
+            : copiedKind === "richPlain"
+              ? "Copied as plain text"
+              : "Copy signature"}
         </button>
         <button
           type="button"
@@ -1694,6 +1818,8 @@ function EditableLink({
   total,
   updateLink,
   setFeatured,
+  setIcon,
+  onError,
   removeLink,
   moveTo,
   moveBy,
@@ -1710,6 +1836,8 @@ function EditableLink({
   total: number;
   updateLink: (link: LinkItem) => void;
   setFeatured: (id: string, featured: boolean) => void;
+  setIcon: (id: string, icon: string | undefined) => void;
+  onError: (message: string) => void;
   removeLink: () => void;
   moveTo: (draggedId: string, targetId: string) => void;
   moveBy: (id: string, delta: number) => void;
@@ -1730,9 +1858,26 @@ function EditableLink({
   const optionalIncomplete = Boolean(
     normalized.error && isDefaultLinkValue(link),
   );
-  const featuredShown = Boolean(
-    link.featured && normalized.href && !normalized.error,
-  );
+  const featurable = Boolean(normalized.href && !normalized.error);
+  const featuredShown = Boolean(link.featured && featurable);
+  const iconSrc = linkIconSrc(link.icon);
+  const iconImportable = !sectionItem && canImportLinkIcon(normalized.href);
+  const [importingIcon, setImportingIcon] = useState(false);
+  const [iconStatus, setIconStatus] = useState("");
+
+  const importIcon = () => {
+    setImportingIcon(true);
+    setIconStatus("");
+    importLinkIcon(normalized.href)
+      .then((icon) => {
+        setIcon(link.id, icon);
+        setIconStatus("Icon saved into your page.");
+      })
+      .catch((error) => {
+        onError((error as Error).message);
+      })
+      .finally(() => setImportingIcon(false));
+  };
 
   return (
     <article
@@ -1794,6 +1939,7 @@ function EditableLink({
           aria-controls={selected ? detailId : undefined}
           onClick={() => setSelected(selected ? "" : link.id)}
         >
+          {iconSrc && <img className="row-link-icon" src={iconSrc} alt="" />}
           {featuredShown && (
             <span className="featured-tag">
               <span aria-hidden="true">★ </span>Featured
@@ -1867,12 +2013,52 @@ function EditableLink({
               <input
                 type="checkbox"
                 checked={Boolean(link.featured)}
+                disabled={!link.featured && !featurable}
                 onChange={(e) =>
                   setFeatured(link.id, (e.target as HTMLInputElement).checked)
                 }
               />
               <span>Feature this link</span>
             </label>
+          )}
+          {(iconSrc || iconImportable) && (
+            <div className="link-icon-block">
+              <div className="link-icon-actions">
+                {iconSrc && (
+                  <span className="link-icon-preview" aria-hidden="true">
+                    <img src={iconSrc} alt="" />
+                  </span>
+                )}
+                <button
+                  type="button"
+                  className="secondary"
+                  disabled={importingIcon || !iconImportable}
+                  onClick={importIcon}
+                >
+                  {importingIcon
+                    ? "Importing…"
+                    : iconSrc
+                      ? "Refresh icon"
+                      : "Import icon"}
+                </button>
+                {iconSrc && (
+                  <button
+                    type="button"
+                    className="secondary"
+                    onClick={() => {
+                      setIcon(link.id, undefined);
+                      setIconStatus("");
+                    }}
+                  >
+                    Remove icon
+                  </button>
+                )}
+              </div>
+              <p className="help">
+                {iconStatus ||
+                  "Show the site's icon on this button. It's fetched once and saved into your page."}
+              </p>
+            </div>
           )}
           {link.kind === "email" && (
             <p className="help">
@@ -1906,7 +2092,11 @@ function EditableLink({
             >
               {(optionalIncomplete ? undefined : normalized.error) ??
                 normalized.warning ??
-                (normalized.href ? normalized.href : "Hidden until complete.")}
+                (normalized.href
+                  ? normalized.href
+                  : link.featured
+                    ? "Featured — hidden until complete."
+                    : "Hidden until complete.")}
             </p>
           )}
         </div>
@@ -2034,6 +2224,16 @@ function LinkTreeEditor({
     });
   };
 
+  const setIcon = (id: string, icon: string | undefined) => {
+    const current = ensureLinkTree(priv.value.linkTree);
+    updateTree({
+      ...current,
+      links: current.links.map((link) =>
+        link.id === id ? { ...link, icon } : link,
+      ),
+    });
+  };
+
   const addLinkOfKind = (kind: LinkKind) => {
     const link = defaultLinkItem(kind);
     updateTree({
@@ -2127,6 +2327,8 @@ function LinkTreeEditor({
                 total={tree.links.length}
                 updateLink={updateLink}
                 setFeatured={setFeatured}
+                setIcon={setIcon}
+                onError={onError}
                 removeLink={() => removeLink(link.id)}
                 moveTo={moveLinkTo}
                 moveBy={moveLinkBy}
@@ -2193,6 +2395,27 @@ function LinkTreeEditor({
           </label>
         ))}
       </fieldset>
+
+      <div className="vcard-toggle-panel">
+        <label className="show-toggle">
+          <input
+            type="checkbox"
+            checked={tree.showVcard !== false}
+            onChange={(e) =>
+              updateTree({
+                ...tree,
+                showVcard: (e.target as HTMLInputElement).checked,
+              })
+            }
+          />
+          <span>Show a "Save contact" button</span>
+        </label>
+        <p className="help">
+          {vcardEligible(tree)
+            ? "Lets visitors download a contact card (.vcf) with your details."
+            : "Lets visitors download a contact card (.vcf). The button appears once your page has a name and a shown phone or email."}
+        </p>
+      </div>
 
       <details className="social-preview-panel">
         <summary>Social preview</summary>
@@ -2930,8 +3153,57 @@ export function App() {
           <button type="button" className="secondary" popovertarget="changePw">
             Password
           </button>
+          <button
+            type="button"
+            className="secondary topbar-menu-button"
+            popovertarget="topbarMenu"
+          >
+            Menu
+          </button>
         </div>
       </header>
+
+      <div popover="auto" id="topbarMenu" className="popover-panel topbar-menu">
+        <button
+          type="button"
+          className="secondary"
+          onClick={copyPublicUrl}
+          aria-live="polite"
+        >
+          {copied ? "Copied ✓" : "Copy link"}
+        </button>
+        <a
+          className="button-link secondary"
+          href={url}
+          target="_blank"
+          rel="noreferrer"
+          onClick={() => document.getElementById("topbarMenu")?.hidePopover()}
+        >
+          Open
+        </a>
+        {signatureAvailable && (
+          <button
+            type="button"
+            className="secondary"
+            onClick={() => {
+              document.getElementById("topbarMenu")?.hidePopover();
+              document.getElementById("emailSignature")?.showPopover();
+            }}
+          >
+            Email signature
+          </button>
+        )}
+        <button
+          type="button"
+          className="secondary"
+          onClick={() => {
+            document.getElementById("topbarMenu")?.hidePopover();
+            document.getElementById("changePw")?.showPopover();
+          }}
+        >
+          Password
+        </button>
+      </div>
 
       <section className="workspace workspace-compact">
         <div className="editor-panel">
@@ -3037,7 +3309,7 @@ export function App() {
         </div>
       </div>
 
-      {signatureAvailable && (
+      {signatureAvailable && !published && (
         <EmailSignaturePopover tree={tree} url={url} onError={showError} />
       )}
 
@@ -3111,6 +3383,13 @@ export function App() {
                 Open
               </a>
             </div>
+            {signatureAvailable && (
+              <EmailSignaturePopover
+                tree={tree}
+                url={url}
+                onError={showError}
+              />
+            )}
           </div>
         </div>
       )}

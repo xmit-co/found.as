@@ -332,6 +332,19 @@ h2 {
   min-width: 0;
 }
 
+.topbar-menu-button {
+  display: none;
+}
+
+.topbar-menu:popover-open {
+  gap: 8px;
+}
+
+.topbar-menu button,
+.topbar-menu .button-link {
+  width: 100%;
+}
+
 .page-url {
   display: inline-flex;
   align-items: baseline;
@@ -1016,6 +1029,42 @@ h2 {
   overflow-wrap: anywhere;
 }
 
+.row-link-icon {
+  width: 18px;
+  height: 18px;
+  border-radius: 4px;
+  margin-right: 8px;
+  vertical-align: -3px;
+}
+
+.link-icon-block {
+  display: grid;
+  gap: 6px;
+}
+
+.link-icon-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.link-icon-preview {
+  width: 34px;
+  height: 34px;
+  display: grid;
+  place-items: center;
+  border: 1px solid #d7dcd5;
+  border-radius: 8px;
+  background: #ffffff;
+}
+
+.link-icon-preview img {
+  width: 20px;
+  height: 20px;
+  border-radius: 4px;
+}
+
 .empty-list {
   display: grid;
   gap: 4px;
@@ -1033,6 +1082,13 @@ h2 {
   width: min(100%, 560px);
   margin-inline: auto;
   padding-top: 4px;
+}
+
+.vcard-toggle-panel {
+  width: min(100%, 560px);
+  margin-inline: auto;
+  display: grid;
+  gap: 2px;
 }
 
 .edit-and-preview {
@@ -1256,6 +1312,18 @@ iframe.preview {
     grid-template-columns: 1fr;
   }
 
+  .topbar {
+    align-items: center;
+  }
+
+  .topbar-actions > :not(.topbar-menu-button) {
+    display: none;
+  }
+
+  .topbar-menu-button {
+    display: block;
+  }
+
   .setup-panel {
     width: min(100%, 540px);
     gap: 24px;
@@ -1281,7 +1349,6 @@ iframe.preview {
     padding-block: 84px 32px;
   }
 
-  .topbar,
   .publish-bar {
     grid-template-columns: 1fr;
     display: grid;
@@ -1293,14 +1360,12 @@ iframe.preview {
   }
 
   .action-row,
-  .topbar-actions,
   .publish-actions,
   .popover-actions {
     align-items: stretch;
   }
 
   .action-row > *,
-  .topbar-actions > *,
   .publish-actions > *,
   .popover-actions > * {
     width: 100%;
@@ -1360,6 +1425,7 @@ iframe.preview {
   .empty-list,
   .link-field,
   .link-edit-panel,
+  .link-icon-preview,
   .icon-button,
   button.secondary,
   .button-link.secondary,
