@@ -40,8 +40,19 @@ type LinkKind =
   | "reddit"
   | "twitch"
   | "spotify"
+  | "discord"
+  | "snapchat"
+  | "pinterest"
+  | "substack"
+  | "medium"
+  | "patreon"
+  | "calendly"
+  | "paypal"
+  | "venmo"
+  | "cashapp"
   | "address"
-  | "custom";
+  | "custom"
+  | "section";
 
 interface LinkItem {
   id: string;
@@ -50,6 +61,13 @@ interface LinkItem {
   value: string;
   href: string;
   enabled: boolean;
+  featured?: boolean;
+}
+
+interface SocialPreview {
+  title?: string;
+  description?: string;
+  imageUrl?: string;
 }
 
 interface LinkTree {
@@ -57,6 +75,7 @@ interface LinkTree {
   bio: string;
   avatarUrl?: string;
   theme: "system" | "light" | "dark" | "warm" | "clean";
+  social?: SocialPreview;
   links: LinkItem[];
 }
 
@@ -120,6 +139,16 @@ const additionalKinds: LinkKind[] = [
   "reddit",
   "twitch",
   "spotify",
+  "discord",
+  "snapchat",
+  "pinterest",
+  "substack",
+  "medium",
+  "patreon",
+  "calendly",
+  "paypal",
+  "venmo",
+  "cashapp",
   "matrix",
   "address",
 ];
@@ -145,8 +174,19 @@ const kindLabels: Record<LinkKind, string> = {
   reddit: "Reddit",
   twitch: "Twitch",
   spotify: "Spotify",
+  discord: "Discord",
+  snapchat: "Snapchat",
+  pinterest: "Pinterest",
+  substack: "Substack",
+  medium: "Medium",
+  patreon: "Patreon",
+  calendly: "Calendly",
+  paypal: "PayPal",
+  venmo: "Venmo",
+  cashapp: "Cash App",
   address: "Address",
   custom: "Custom link",
+  section: "Section header",
 };
 
 const kindExamples: Record<LinkKind, string> = {
@@ -170,8 +210,19 @@ const kindExamples: Record<LinkKind, string> = {
   reddit: "found",
   twitch: "found",
   spotify: "found",
+  discord: "discord.gg/found",
+  snapchat: "@found",
+  pinterest: "@found",
+  substack: "found.substack.com",
+  medium: "@found",
+  patreon: "patreon.com/found",
+  calendly: "calendly.com/found",
+  paypal: "paypal.me/found",
+  venmo: "found",
+  cashapp: "$found",
   address: "1 Rue de Rivoli, Paris",
   custom: "https://example.com",
+  section: "Work",
 };
 
 const kindDefaultValues: Record<LinkKind, string> = {
@@ -195,8 +246,19 @@ const kindDefaultValues: Record<LinkKind, string> = {
   reddit: "https://www.reddit.com/user/",
   twitch: "https://www.twitch.tv/",
   spotify: "https://open.spotify.com/user/",
+  discord: "https://discord.gg/",
+  snapchat: "https://www.snapchat.com/add/",
+  pinterest: "https://www.pinterest.com/",
+  substack: "",
+  medium: "https://medium.com/@",
+  patreon: "https://www.patreon.com/",
+  calendly: "https://calendly.com/",
+  paypal: "https://paypal.me/",
+  venmo: "https://venmo.com/u/",
+  cashapp: "https://cash.app/$",
   address: "",
   custom: "https://",
+  section: "",
 };
 
 function makeId(): string {
@@ -206,11 +268,15 @@ function makeId(): string {
   return `${Date.now()}-${Math.random().toString(36).slice(2)}`;
 }
 
+function isSection(item: LinkItem): boolean {
+  return item.kind === "section";
+}
+
 function defaultLinkItem(kind: LinkKind): LinkItem {
   return {
     id: makeId(),
     kind,
-    label: kindLabels[kind],
+    label: kind === "section" ? "" : kindLabels[kind],
     value: kindDefaultValues[kind],
     href: "",
     enabled: true,
@@ -243,6 +309,11 @@ function ensureLinkTree(tree: LinkTree | undefined): LinkTree {
     bio: current.bio ?? "",
     avatarUrl: current.avatarUrl ?? "",
     theme: current.theme ?? "system",
+    social: {
+      title: current.social?.title ?? "",
+      description: current.social?.description ?? "",
+      imageUrl: current.social?.imageUrl ?? "",
+    },
     links: current.links ?? [],
   };
 }
@@ -294,6 +365,63 @@ function avatarImageSrc(value: string | undefined): string | null {
   }
   const normalized = normalizeUrl(trimmed);
   return URL.canParse(normalized) ? normalized : null;
+}
+
+function socialImageUrl(value: string | undefined): string | null {
+  const trimmed = value?.trim();
+  if (!trimmed) return null;
+  if (!URL.canParse(trimmed)) return null;
+  return new URL(trimmed).protocol === "https:" ? trimmed : null;
+}
+
+function signatureAvatarSrc(value: string | undefined): string | null {
+  const src = avatarImageSrc(value);
+  if (!src || !/^https:\/\//i.test(src)) return null;
+  return src;
+}
+
+function signatureHtml(tree: LinkTree, url: string): string {
+  const name = tree.displayName.trim();
+  const bio = tree.bio.trim();
+  const avatar = signatureAvatarSrc(tree.avatarUrl);
+  const safeUrl = escapeHtml(url);
+  const avatarCell = avatar
+    ? `<td style="padding:0 14px 0 0;vertical-align:top;"><img src="${escapeHtml(avatar)}" alt="" width="56" height="56" style="display:block;width:56px;height:56px;border-radius:50%;"/></td>`
+    : "";
+  const nameLine = name
+    ? `<div style="font-weight:bold;font-size:14px;line-height:1.4;color:#181818;">${escapeHtml(name)}</div>`
+    : "";
+  const bioLine = bio
+    ? `<div style="font-size:12px;line-height:1.4;color:#595959;">${escapeHtml(bio)}</div>`
+    : "";
+  return `<table cellpadding="0" cellspacing="0" border="0" style="border-collapse:collapse;font-family:Helvetica,Arial,sans-serif;"><tr>${avatarCell}<td style="vertical-align:top;">${nameLine}${bioLine}<div style="font-size:12px;line-height:1.6;"><a href="${safeUrl}" target="_blank" rel="noreferrer" style="color:#007f73;font-weight:bold;text-decoration:underline;">${safeUrl}</a></div></td></tr></table>`;
+}
+
+function signatureText(tree: LinkTree, url: string): string {
+  return [tree.displayName.trim(), tree.bio.trim(), url]
+    .filter(Boolean)
+    .join("\n");
+}
+
+async function copyRichSignature(html: string, text: string): Promise<void> {
+  if (
+    navigator.clipboard &&
+    "write" in navigator.clipboard &&
+    typeof ClipboardItem !== "undefined"
+  ) {
+    try {
+      await navigator.clipboard.write([
+        new ClipboardItem({
+          "text/html": new Blob([html], { type: "text/html" }),
+          "text/plain": new Blob([text], { type: "text/plain" }),
+        }),
+      ]);
+      return;
+    } catch {
+      // Fall through to plain-text copy below.
+    }
+  }
+  await navigator.clipboard.writeText(text);
 }
 
 function canvasToBlob(
@@ -565,7 +693,9 @@ function normalizeMastodon(
   };
 }
 
-function normalizeMatrix(value: string): Omit<NormalizedLink, "item" | "label"> {
+function normalizeMatrix(
+  value: string,
+): Omit<NormalizedLink, "item" | "label"> {
   const trimmed = value.trim();
   if (!trimmed) {
     return { href: "", error: "Enter a Matrix ID or URL." };
@@ -583,6 +713,48 @@ function normalizeMatrix(value: string): Omit<NormalizedLink, "item" | "label"> 
     href: "",
     error: "Use @you:server.org, or paste a matrix.to link.",
   };
+}
+
+function normalizeSubstack(
+  value: string,
+): Omit<NormalizedLink, "item" | "label"> {
+  const trimmed = value.trim();
+  if (!trimmed) {
+    return { href: "", error: "Enter a Substack name or URL." };
+  }
+  if (trimmed.includes(".") || trimmed.includes("://")) {
+    const normalized = normalizeUrl(trimmed);
+    if (!URL.canParse(normalized)) {
+      return { href: "", error: "Enter a valid Substack URL." };
+    }
+    return { href: normalized };
+  }
+  const name = normalizeSocialUsername(trimmed);
+  if (!name || !/^[a-z0-9-]+$/i.test(name)) {
+    return { href: "", error: "Enter a Substack name or URL." };
+  }
+  return { href: `https://${name.toLowerCase()}.substack.com` };
+}
+
+function normalizeCashApp(
+  value: string,
+): Omit<NormalizedLink, "item" | "label"> {
+  const trimmed = value.trim();
+  if (!trimmed || trimmed === "https://cash.app/$") {
+    return { href: "", error: "Enter a Cash App cashtag or URL." };
+  }
+  if (trimmed.includes(".") || trimmed.includes("://")) {
+    const normalized = normalizeUrl(trimmed);
+    if (!URL.canParse(normalized)) {
+      return { href: "", error: "Enter a valid Cash App URL." };
+    }
+    return { href: normalized };
+  }
+  const tag = trimmed.replace(/^\$+/, "");
+  if (!tag) {
+    return { href: "", error: "Enter a Cash App cashtag." };
+  }
+  return { href: `https://cash.app/$${encodeURIComponent(tag)}` };
 }
 
 function normalizeMap(value: string): Omit<NormalizedLink, "item" | "label"> {
@@ -666,6 +838,34 @@ function normalizeByKind(
         "https://www.threads.net/@",
         "Threads",
       );
+    case "discord":
+      return normalizeUsernameUrl(value, "https://discord.gg/", "Discord");
+    case "snapchat":
+      return normalizeUsernameUrl(
+        value,
+        "https://www.snapchat.com/add/",
+        "Snapchat",
+      );
+    case "pinterest":
+      return normalizeUsernameUrl(
+        value,
+        "https://www.pinterest.com/",
+        "Pinterest",
+      );
+    case "medium":
+      return normalizeUsernameUrl(value, "https://medium.com/@", "Medium");
+    case "patreon":
+      return normalizeUsernameUrl(value, "https://www.patreon.com/", "Patreon");
+    case "calendly":
+      return normalizeUsernameUrl(value, "https://calendly.com/", "Calendly");
+    case "paypal":
+      return normalizeUsernameUrl(value, "https://paypal.me/", "PayPal");
+    case "venmo":
+      return normalizeUsernameUrl(value, "https://venmo.com/u/", "Venmo");
+    case "substack":
+      return normalizeSubstack(value);
+    case "cashapp":
+      return normalizeCashApp(value);
     case "bluesky":
       return normalizeBluesky(value);
     case "mastodon":
@@ -679,18 +879,51 @@ function normalizeByKind(
   }
 }
 
+function isAllowedHref(href: string): boolean {
+  if (!URL.canParse(href)) return false;
+  const protocol = new URL(href).protocol;
+  return (
+    protocol === "https:" ||
+    protocol === "http:" ||
+    protocol === "mailto:" ||
+    protocol === "tel:"
+  );
+}
+
 function normalizeLink(item: LinkItem): NormalizedLink {
   const label = item.label.trim() || kindLabels[item.kind];
+  if (item.kind === "section") {
+    return { item, label, href: "" };
+  }
   const value = item.value.trim();
   if (!item.enabled || !value) {
     return { item, label, href: "" };
   }
 
-  return { item, label, ...normalizeByKind(item.kind, value, label) };
+  const normalized = normalizeByKind(item.kind, value, label);
+  if (normalized.href && !isAllowedHref(normalized.href)) {
+    return {
+      item,
+      label,
+      href: "",
+      error: `Enter an https:// ${label} URL.`,
+    };
+  }
+  return { item, label, ...normalized };
 }
 
 function normalizedLinks(tree: LinkTree): NormalizedLink[] {
   return tree.links.map(normalizeLink);
+}
+
+function shownSectionIds(tree: LinkTree): Set<string> {
+  const ids = new Set<string>();
+  for (const entry of linkTreeRenderEntries(tree)) {
+    if (entry.kind === "section") {
+      ids.add(entry.id);
+    }
+  }
+  return ids;
 }
 
 function isDefaultLinkValue(link: LinkItem): boolean {
@@ -703,6 +936,34 @@ function activeValidLinks(tree: LinkTree): NormalizedLink[] {
   return normalizedLinks(tree).filter((link) => link.href && !link.error);
 }
 
+function canFeature(link: LinkItem): boolean {
+  return !isSection(link);
+}
+
+type RenderEntry =
+  | { kind: "section"; title: string; id: string }
+  | { kind: "link"; link: NormalizedLink };
+
+function linkTreeRenderEntries(tree: LinkTree): RenderEntry[] {
+  const entries: RenderEntry[] = [];
+  for (const normalized of normalizedLinks(tree)) {
+    if (isSection(normalized.item)) {
+      const title = normalized.item.label.trim();
+      if (normalized.item.enabled && title) {
+        entries.push({ kind: "section", title, id: normalized.item.id });
+      }
+      continue;
+    }
+    if (normalized.href && !normalized.error) {
+      entries.push({ kind: "link", link: normalized });
+    }
+  }
+  return entries.filter(
+    (entry, index) =>
+      entry.kind !== "section" || entries[index + 1]?.kind === "link",
+  );
+}
+
 function linkTreeHasPublishableContent(tree: LinkTree): boolean {
   return Boolean(
     tree.displayName.trim() ||
@@ -713,7 +974,7 @@ function linkTreeHasPublishableContent(tree: LinkTree): boolean {
 }
 
 function linkTreeErrors(tree: LinkTree): string[] {
-  return normalizedLinks(tree)
+  const errors = normalizedLinks(tree)
     .filter(
       (link) =>
         link.error &&
@@ -722,22 +983,162 @@ function linkTreeErrors(tree: LinkTree): string[] {
         !isDefaultLinkValue(link.item),
     )
     .map((link) => `${link.label}: ${link.error}`);
+  if (tree.social?.imageUrl?.trim() && !socialImageUrl(tree.social.imageUrl)) {
+    errors.push(
+      "Social preview image: enter a full https:// image URL, or leave it blank.",
+    );
+  }
+  return errors;
 }
 
-function linkTreeToHtml(tree: LinkTree): string {
+function escapeVcardValue(value: string): string {
+  return value
+    .replace(/\\/g, "\\\\")
+    .replace(/;/g, "\\;")
+    .replace(/,/g, "\\,")
+    .replace(/\r\n|\r|\n/g, "\\n");
+}
+
+function utf8Octets(codePoint: number): number {
+  if (codePoint < 0x80) return 1;
+  if (codePoint < 0x800) return 2;
+  if (codePoint < 0x10000) return 3;
+  return 4;
+}
+
+function foldVcardLine(line: string): string {
+  const parts: string[] = [];
+  let current = "";
+  let octets = 0;
+  for (const char of line) {
+    const size = utf8Octets(char.codePointAt(0)!);
+    if (octets + size > 75) {
+      parts.push(current);
+      current = " ";
+      octets = 1;
+    }
+    current += char;
+    octets += size;
+  }
+  if (current) parts.push(current);
+  return parts.join("\r\n");
+}
+
+function vcardNameLine(displayName: string): string {
+  const parts = displayName.trim().split(/\s+/);
+  const family = parts.length > 1 ? parts[parts.length - 1] : "";
+  const given = parts.length > 1 ? parts.slice(0, -1).join(" ") : parts[0];
+  return `N:${escapeVcardValue(family)};${escapeVcardValue(given)};;;`;
+}
+
+function vcardPhotoLine(avatarUrl: string | undefined): string | null {
+  const src = avatarImageSrc(avatarUrl);
+  if (!src) return null;
+  const embedded = src.match(
+    /^data:image\/(jpeg|jpg|png);base64,([A-Za-z0-9+/=]+)$/i,
+  );
+  if (embedded) {
+    const type = embedded[1].toLowerCase() === "png" ? "PNG" : "JPEG";
+    return `PHOTO;ENCODING=b;TYPE=${type}:${embedded[2]}`;
+  }
+  if (/^https?:\/\//i.test(src)) {
+    return `PHOTO;VALUE=URI:${escapeVcardValue(src)}`;
+  }
+  return null;
+}
+
+function vcardFileName(displayName: string): string {
+  const base = displayName
+    .trim()
+    .replace(/[\\/:*?"<>|]+/g, "")
+    .trim();
+  return `${base || "contact"}.vcf`;
+}
+
+function buildVcard(tree: LinkTree, pageUrl: string): string | null {
+  const name = tree.displayName.trim();
+  if (!name) return null;
+  const tels: string[] = [];
+  const emails: string[] = [];
+  const urls: string[] = [];
+  const addresses: string[] = [];
+  for (const link of activeValidLinks(tree)) {
+    const kind = link.item.kind;
+    const value = link.item.value.trim();
+    if (kind === "phone" || kind === "whatsapp") {
+      const cleaned = value.replace(/[^\d+]/g, "");
+      if (cleaned && !tels.includes(cleaned)) tels.push(cleaned);
+    } else if (kind === "email") {
+      const address = value.replace(/^mailto:/i, "");
+      if (address && !emails.includes(address)) emails.push(address);
+    } else if (kind === "website" || kind === "custom") {
+      if (!urls.includes(link.href)) urls.push(link.href);
+    } else if (kind === "address") {
+      if (value.includes("://")) {
+        if (!urls.includes(link.href)) urls.push(link.href);
+      } else if (!addresses.includes(value)) {
+        addresses.push(value);
+      }
+    }
+  }
+  if (!tels.length && !emails.length) return null;
+  const bio = tree.bio.trim();
+  const photo = vcardPhotoLine(tree.avatarUrl);
+  const lines = [
+    "BEGIN:VCARD",
+    "VERSION:3.0",
+    `FN:${escapeVcardValue(name)}`,
+    vcardNameLine(name),
+    ...(bio ? [`NOTE:${escapeVcardValue(bio)}`] : []),
+    ...tels.map((tel) => `TEL;TYPE=CELL:${escapeVcardValue(tel)}`),
+    ...emails.map((email) => `EMAIL;TYPE=INTERNET:${escapeVcardValue(email)}`),
+    ...urls.map((url) => `URL:${escapeVcardValue(url)}`),
+    ...(pageUrl ? [`URL:${escapeVcardValue(pageUrl)}`] : []),
+    ...addresses.map((adr) => `ADR;TYPE=HOME:;;${escapeVcardValue(adr)};;;;`),
+    ...(photo ? [photo] : []),
+    "END:VCARD",
+  ];
+  return lines.map(foldVcardLine).join("\r\n");
+}
+
+function linkTreeToHtml(tree: LinkTree, url: string): string {
   const safeName = tree.displayName.trim() || "Contact";
   const safeBio = tree.bio.trim();
   const avatar = avatarImageSrc(tree.avatarUrl);
-  const links = activeValidLinks(tree);
+  const metaTitle = tree.social?.title?.trim() || safeName;
+  const metaDescription =
+    tree.social?.description?.trim() || safeBio || `${safeName} on found.as`;
+  const ogImage = socialImageUrl(tree.social?.imageUrl);
+  const featured = activeValidLinks(tree).find(
+    (link) => link.item.featured && canFeature(link.item),
+  );
+  const listed = featured
+    ? linkTreeRenderEntries(tree).filter(
+        (entry) => entry.kind !== "link" || entry.link.item !== featured.item,
+      )
+    : linkTreeRenderEntries(tree);
+  const entries = listed.filter(
+    (entry, index) =>
+      entry.kind !== "section" || listed[index + 1]?.kind === "link",
+  );
   const themeClass = `theme-${tree.theme || "system"}`;
+  const vcard = buildVcard(tree, url);
+  const vcardHref = vcard
+    ? `data:text/vcard;charset=utf-8,${encodeURIComponent(vcard)}`
+    : "";
 
   return `<!DOCTYPE html>
 <html lang="en" class="${themeClass}">
 <head>
 <meta charset="UTF-8"/>
 <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-<meta name="description" content="${escapeHtml(safeBio || `${safeName} on found.as`)}"/>
-<title>${escapeHtml(safeName)}</title>
+<meta name="description" content="${escapeHtml(metaDescription)}"/>
+<meta property="og:title" content="${escapeHtml(metaTitle)}"/>
+<meta property="og:description" content="${escapeHtml(metaDescription)}"/>
+<meta property="og:type" content="website"/>
+<meta property="og:url" content="${escapeHtml(url)}"/>
+${ogImage ? `<meta property="og:image" content="${escapeHtml(ogImage)}"/>\n` : ""}<meta name="twitter:card" content="${ogImage ? "summary_large_image" : "summary"}"/>
+<title>${escapeHtml(metaTitle)}</title>
 <style>
 :root {
   color-scheme: light dark;
@@ -760,7 +1161,11 @@ function linkTreeToHtml(tree: LinkTree): string {
   --accent: #4fc3b3;
   --accent-text: #07100f;
 }
+.theme-light {
+  color-scheme: light;
+}
 .theme-warm {
+  color-scheme: light;
   --bg: #fbf8f0;
   --text: #221b13;
   --muted: #665b4c;
@@ -769,6 +1174,7 @@ function linkTreeToHtml(tree: LinkTree): string {
   --accent: #9a4f24;
 }
 .theme-clean {
+  color-scheme: light;
   --bg: #f7faf8;
   --text: #15201d;
   --muted: #52615c;
@@ -861,6 +1267,50 @@ a.contact-link:focus-visible {
   outline: 3px solid color-mix(in srgb, var(--accent), transparent 70%);
   outline-offset: 2px;
 }
+a.vcard-button {
+  min-height: 44px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0 0 16px;
+  padding: 10px 16px;
+  border: 1px solid var(--accent);
+  border-radius: 8px;
+  background: transparent;
+  color: var(--accent);
+  text-decoration: none;
+  font-weight: 650;
+}
+a.vcard-button:hover {
+  background: color-mix(in srgb, var(--accent) 12%, var(--bg));
+}
+a.vcard-button:focus-visible {
+  outline: 3px solid color-mix(in srgb, var(--accent), transparent 70%);
+  outline-offset: 2px;
+}
+a.contact-link.featured {
+  min-height: 60px;
+  border-color: var(--accent);
+  background: var(--accent);
+  color: var(--accent-text);
+  font-size: 1.08rem;
+}
+a.contact-link.featured:hover {
+  border-color: color-mix(in srgb, var(--accent) 85%, var(--text));
+  background: color-mix(in srgb, var(--accent) 85%, var(--text));
+}
+h2.link-section {
+  margin: 14px 0 0;
+  font-size: 0.82rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  text-align: center;
+  color: var(--muted);
+}
+h2.link-section:first-child {
+  margin-top: 0;
+}
 </style>
 </head>
 <body>
@@ -871,14 +1321,25 @@ a.contact-link:focus-visible {
     ${safeBio ? `<p>${escapeHtml(safeBio)}</p>` : ""}
   </section>
   ${
-    links.length
+    vcard
+      ? `<a class="vcard-button" href="${escapeHtml(vcardHref)}" download="${escapeHtml(vcardFileName(tree.displayName))}">Save contact</a>`
+      : ""
+  }
+  ${
+    featured || entries.length
       ? `<nav aria-label="Contact links">
-    ${links
-      .map(
-        (link) =>
-          `<a class="contact-link" href="${escapeHtml(link.href)}">${escapeHtml(link.label)}</a>`,
-      )
-      .join("\n    ")}
+    ${[
+      ...(featured
+        ? [
+            `<a class="contact-link featured" href="${escapeHtml(featured.href)}">${escapeHtml(featured.label)}</a>`,
+          ]
+        : []),
+      ...entries.map((entry) =>
+        entry.kind === "section"
+          ? `<h2 class="link-section">${escapeHtml(entry.title)}</h2>`
+          : `<a class="contact-link" href="${escapeHtml(entry.link.href)}">${escapeHtml(entry.link.label)}</a>`,
+      ),
+    ].join("\n    ")}
   </nav>`
       : ""
   }
@@ -973,6 +1434,82 @@ function QrCode({ value, size = 168 }: { value: string; size?: number }) {
         />
       ))}
     </svg>
+  );
+}
+
+function EmailSignaturePopover({
+  tree,
+  url,
+  onError,
+}: {
+  tree: LinkTree;
+  url: string;
+  onError: (message: string) => void;
+}) {
+  const [copiedKind, setCopiedKind] = useState<"" | "rich" | "plain">("");
+  const html = signatureHtml(tree, url);
+  const text = signatureText(tree, url);
+
+  const flashCopied = (kind: "rich" | "plain") => {
+    setCopiedKind(kind);
+    window.setTimeout(() => setCopiedKind(""), 1800);
+  };
+
+  return (
+    <div
+      popover="auto"
+      id="emailSignature"
+      className="popover-panel signature-popover"
+    >
+      <div className="popover-heading">
+        <h2>Email signature</h2>
+        <button
+          type="button"
+          className="icon-button"
+          aria-label="Close"
+          onClick={() =>
+            document.getElementById("emailSignature")?.hidePopover()
+          }
+        >
+          <span aria-hidden="true">×</span>
+        </button>
+      </div>
+      <div
+        className="signature-preview"
+        role="region"
+        aria-label="Signature preview"
+        dangerouslySetInnerHTML={{ __html: html }}
+      ></div>
+      <p className="help">
+        Copy, then paste into your email app's signature settings.
+      </p>
+      <div className="popover-actions">
+        <button
+          type="button"
+          aria-live="polite"
+          onClick={() => {
+            copyRichSignature(html, text)
+              .then(() => flashCopied("rich"))
+              .catch((e) => onError(e.message));
+          }}
+        >
+          {copiedKind === "rich" ? "Copied ✓" : "Copy signature"}
+        </button>
+        <button
+          type="button"
+          className="secondary"
+          aria-live="polite"
+          onClick={() => {
+            navigator.clipboard
+              .writeText(text)
+              .then(() => flashCopied("plain"))
+              .catch((e) => onError(e.message));
+          }}
+        >
+          {copiedKind === "plain" ? "Copied ✓" : "Copy plain text"}
+        </button>
+      </div>
+    </div>
   );
 }
 
@@ -1128,12 +1665,22 @@ const handleKinds: LinkKind[] = [
   "reddit",
   "twitch",
   "spotify",
+  "snapchat",
+  "pinterest",
+  "medium",
+  "patreon",
+  "calendly",
+  "paypal",
+  "venmo",
 ];
 
 function linkValueLabel(kind: LinkKind): string {
   if (kind === "phone" || kind === "whatsapp") return "Number";
   if (kind === "email") return "Email address";
   if (kind === "address") return "Address or map URL";
+  if (kind === "discord") return "Invite link or URL";
+  if (kind === "cashapp") return "Cashtag or URL";
+  if (kind === "substack") return "Publication or URL";
   if (kind === "mastodon" || kind === "matrix" || kind === "bluesky") {
     return "Handle or URL";
   }
@@ -1146,6 +1693,7 @@ function EditableLink({
   index,
   total,
   updateLink,
+  setFeatured,
   removeLink,
   moveTo,
   moveBy,
@@ -1155,11 +1703,13 @@ function EditableLink({
   setDragOver,
   selected,
   setSelected,
+  sectionShown,
 }: {
   link: LinkItem;
   index: number;
   total: number;
   updateLink: (link: LinkItem) => void;
+  setFeatured: (id: string, featured: boolean) => void;
   removeLink: () => void;
   moveTo: (draggedId: string, targetId: string) => void;
   moveBy: (id: string, delta: number) => void;
@@ -1169,8 +1719,10 @@ function EditableLink({
   setDragOver: (id: string) => void;
   selected: boolean;
   setSelected: (id: string) => void;
+  sectionShown: boolean;
 }) {
   const normalized = normalizeLink(link);
+  const sectionItem = isSection(link);
   const fieldId = `link-${link.id}`;
   const detailId = `${fieldId}-detail`;
   const valueLabel = linkValueLabel(link.kind);
@@ -1178,10 +1730,13 @@ function EditableLink({
   const optionalIncomplete = Boolean(
     normalized.error && isDefaultLinkValue(link),
   );
+  const featuredShown = Boolean(
+    link.featured && normalized.href && !normalized.error,
+  );
 
   return (
     <article
-      className={`editable-link ${selected ? "is-selected" : ""} ${dragging ? "is-dragging" : ""} ${dropTarget ? "is-drop-target" : ""} ${link.enabled ? "" : "is-disabled"}`}
+      className={`editable-link ${selected ? "is-selected" : ""} ${dragging ? "is-dragging" : ""} ${dropTarget ? "is-drop-target" : ""} ${link.enabled ? "" : "is-disabled"} ${sectionItem ? "is-section" : ""} ${featuredShown ? "is-featured" : ""}`}
       draggable
       onDragStart={(event) => {
         if (!event.dataTransfer) return;
@@ -1239,6 +1794,11 @@ function EditableLink({
           aria-controls={selected ? detailId : undefined}
           onClick={() => setSelected(selected ? "" : link.id)}
         >
+          {featuredShown && (
+            <span className="featured-tag">
+              <span aria-hidden="true">★ </span>Featured
+            </span>
+          )}
           {label}
         </button>
         <button
@@ -1255,11 +1815,14 @@ function EditableLink({
       {selected && (
         <div className="link-edit-panel" id={detailId}>
           <label className="field stack">
-            <span>Button text</span>
+            <span>{sectionItem ? "Section text" : "Button text"}</span>
             <input
               type="text"
               value={link.label}
-              placeholder={kindLabels[link.kind]}
+              placeholder={
+                sectionItem ? kindExamples.section : kindLabels[link.kind]
+              }
+              aria-describedby={sectionItem ? `${detailId}-status` : undefined}
               onInput={(e) =>
                 updateLink({
                   ...link,
@@ -1268,22 +1831,24 @@ function EditableLink({
               }
             />
           </label>
-          <label className="field stack">
-            <span>{valueLabel}</span>
-            <input
-              id={fieldId}
-              type={link.kind === "email" ? "email" : "text"}
-              value={link.value}
-              placeholder={kindExamples[link.kind]}
-              aria-describedby={`${detailId}-status`}
-              onInput={(e) =>
-                updateLink({
-                  ...link,
-                  value: (e.target as HTMLInputElement).value,
-                })
-              }
-            />
-          </label>
+          {!sectionItem && (
+            <label className="field stack">
+              <span>{valueLabel}</span>
+              <input
+                id={fieldId}
+                type={link.kind === "email" ? "email" : "text"}
+                value={link.value}
+                placeholder={kindExamples[link.kind]}
+                aria-describedby={`${detailId}-status`}
+                onInput={(e) =>
+                  updateLink({
+                    ...link,
+                    value: (e.target as HTMLInputElement).value,
+                  })
+                }
+              />
+            </label>
+          )}
           <label className="show-toggle">
             <input
               type="checkbox"
@@ -1297,6 +1862,18 @@ function EditableLink({
             />
             <span>Show on page</span>
           </label>
+          {canFeature(link) && (
+            <label className="show-toggle">
+              <input
+                type="checkbox"
+                checked={Boolean(link.featured)}
+                onChange={(e) =>
+                  setFeatured(link.id, (e.target as HTMLInputElement).checked)
+                }
+              />
+              <span>Feature this link</span>
+            </label>
+          )}
           {link.kind === "email" && (
             <p className="help">
               Need a public email address? Create a forwarding alias at{" "}
@@ -1306,20 +1883,32 @@ function EditableLink({
               .
             </p>
           )}
-          <p
-            id={`${detailId}-status`}
-            className={`link-status ${
-              normalized.error && !optionalIncomplete
-                ? "error-text"
-                : normalized.warning
-                  ? "warning-text"
-                  : ""
-            }`}
-          >
-            {(optionalIncomplete ? undefined : normalized.error) ??
-              normalized.warning ??
-              (normalized.href ? normalized.href : "Hidden until complete.")}
-          </p>
+          {sectionItem ? (
+            <p id={`${detailId}-status`} className="link-status">
+              {sectionShown
+                ? "Shown as a heading."
+                : !link.label.trim()
+                  ? "Hidden until it has text."
+                  : link.enabled
+                    ? "Hidden until a link below it is shown."
+                    : "Hidden."}
+            </p>
+          ) : (
+            <p
+              id={`${detailId}-status`}
+              className={`link-status ${
+                normalized.error && !optionalIncomplete
+                  ? "error-text"
+                  : normalized.warning
+                    ? "warning-text"
+                    : ""
+              }`}
+            >
+              {(optionalIncomplete ? undefined : normalized.error) ??
+                normalized.warning ??
+                (normalized.href ? normalized.href : "Hidden until complete.")}
+            </p>
+          )}
         </div>
       )}
       <span className="sr-only">
@@ -1403,6 +1992,7 @@ function LinkTreeEditor({
   onError: (message: string) => void;
 }) {
   const tree = ensureLinkTree(priv.value.linkTree);
+  const shownSections = shownSectionIds(tree);
   const [draggingId, setDraggingId] = useState("");
   const [dragOverId, setDragOverId] = useState("");
   const [selectedLinkId, setSelectedLinkId] = useState("");
@@ -1415,6 +2005,14 @@ function LinkTreeEditor({
     };
   };
 
+  const social = tree.social ?? {};
+  const updateSocial = (patch: Partial<SocialPreview>) => {
+    updateTree({ ...tree, social: { ...social, ...patch } });
+  };
+  const socialImageInvalid = Boolean(
+    social.imageUrl?.trim() && !socialImageUrl(social.imageUrl),
+  );
+
   const updateLink = (link: LinkItem) => {
     updateTree({
       ...tree,
@@ -1423,6 +2021,16 @@ function LinkTreeEditor({
           ? { ...link, href: normalizeLink(link).href }
           : current,
       ),
+    });
+  };
+
+  const setFeatured = (id: string, featured: boolean) => {
+    updateTree({
+      ...tree,
+      links: tree.links.map((link) => ({
+        ...link,
+        featured: featured && link.id === id ? true : undefined,
+      })),
     });
   };
 
@@ -1518,6 +2126,7 @@ function LinkTreeEditor({
                 index={index}
                 total={tree.links.length}
                 updateLink={updateLink}
+                setFeatured={setFeatured}
                 removeLink={() => removeLink(link.id)}
                 moveTo={moveLinkTo}
                 moveBy={moveLinkBy}
@@ -1527,6 +2136,7 @@ function LinkTreeEditor({
                 setDragOver={setDragOverId}
                 selected={selectedLinkId === link.id}
                 setSelected={setSelectedLinkId}
+                sectionShown={shownSections.has(link.id)}
               />
             ))
           ) : (
@@ -1552,6 +2162,16 @@ function LinkTreeEditor({
                 {kindLabels[kind]}
               </button>
             ))}
+            <button
+              type="button"
+              className="add-link-item"
+              onClick={() => addLinkOfKind("section")}
+            >
+              <span className="add-link-plus" aria-hidden="true">
+                +
+              </span>
+              {kindLabels.section}
+            </button>
           </div>
         </div>
       </div>
@@ -1573,6 +2193,61 @@ function LinkTreeEditor({
           </label>
         ))}
       </fieldset>
+
+      <details className="social-preview-panel">
+        <summary>Social preview</summary>
+        <p className="help">
+          Shown when someone shares found.as links on X, LinkedIn, iMessage, and
+          similar apps. Leave fields blank to use your name and description.
+        </p>
+        <label className="field stack">
+          <span>Preview title</span>
+          <input
+            type="text"
+            value={social.title ?? ""}
+            placeholder={tree.displayName.trim() || "Ada Lovelace"}
+            onInput={(e) =>
+              updateSocial({ title: (e.target as HTMLInputElement).value })
+            }
+          />
+        </label>
+        <label className="field stack">
+          <span>Preview description</span>
+          <input
+            type="text"
+            value={social.description ?? ""}
+            placeholder={
+              tree.bio.trim() || "Mathematician · first computer programmer"
+            }
+            onInput={(e) =>
+              updateSocial({
+                description: (e.target as HTMLInputElement).value,
+              })
+            }
+          />
+        </label>
+        <label className="field stack">
+          <span>Preview image URL</span>
+          <input
+            type="url"
+            value={social.imageUrl ?? ""}
+            placeholder="https://example.com/card.jpg"
+            aria-describedby="social-image-help"
+            aria-invalid={socialImageInvalid}
+            onInput={(e) =>
+              updateSocial({ imageUrl: (e.target as HTMLInputElement).value })
+            }
+          />
+        </label>
+        <p
+          id="social-image-help"
+          className={socialImageInvalid ? "help error-text" : "help"}
+        >
+          {socialImageInvalid
+            ? "Enter a full https:// image URL, or leave it blank."
+            : "Optional. A hosted https image, ideally 1200×630 pixels. Your uploaded photo cannot be used here — social networks need a hosted image URL."}
+        </p>
+      </details>
     </section>
   );
 }
@@ -1969,7 +2644,10 @@ export function App() {
   const pub = useMemo<Public | null>(() => {
     if (priv.value.type === Type.LINK_TREE) {
       return {
-        html: linkTreeToHtml(ensureLinkTree(priv.value.linkTree)),
+        html: linkTreeToHtml(
+          ensureLinkTree(priv.value.linkTree),
+          publicPageUrl(path.trim()),
+        ),
       };
     }
 
@@ -2010,6 +2688,9 @@ export function App() {
     };
   }, [priv.value, file, path]);
   const url = publicPageUrl(path.trim());
+  const signatureAvailable =
+    priv.value.type === Type.LINK_TREE &&
+    Boolean(tree.displayName.trim() || path.trim());
   const wideEditor =
     priv.value.type === Type.HTML_PAGE ||
     priv.value.type === Type.MARKDOWN_PAGE;
@@ -2237,6 +2918,15 @@ export function App() {
           >
             Open
           </a>
+          {signatureAvailable && (
+            <button
+              type="button"
+              className="secondary"
+              popovertarget="emailSignature"
+            >
+              Email signature
+            </button>
+          )}
           <button type="button" className="secondary" popovertarget="changePw">
             Password
           </button>
@@ -2347,6 +3037,10 @@ export function App() {
         </div>
       </div>
 
+      {signatureAvailable && (
+        <EmailSignaturePopover tree={tree} url={url} onError={showError} />
+      )}
+
       {published && (
         <div
           className="publish-success-backdrop"
@@ -2392,6 +3086,15 @@ export function App() {
               <button type="button" className="secondary" onClick={saveQr}>
                 Save QR
               </button>
+              {signatureAvailable && (
+                <button
+                  type="button"
+                  className="secondary"
+                  popovertarget="emailSignature"
+                >
+                  Email signature
+                </button>
+              )}
               <button
                 type="button"
                 className="secondary"
