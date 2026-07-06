@@ -50,17 +50,25 @@
         --border: #e2e6e0;
         --panel: #ffffff;
         --accent: #007f73;
+        --accent-2: #0a9bb0;
         --accent-text: #ffffff;
+        --grad: linear-gradient(115deg, #007f73 0%, #0a9d8f 45%, #1aa34a 100%);
+        --glow: rgba(0, 127, 115, 0.28);
+        --shadow: rgba(20, 22, 20, 0.13);
       }
       @media (prefers-color-scheme: dark) {
         :root {
-          --bg: #111312;
+          --bg: #0d0f0e;
           --text: #f2f4ef;
           --muted: #aeb6ae;
-          --border: #2f3531;
-          --panel: #191b1d;
+          --border: #2a302c;
+          --panel: #161917;
           --accent: #4fc3b3;
-          --accent-text: #07100f;
+          --accent-2: #5bd0d6;
+          --accent-text: #06100f;
+          --grad: linear-gradient(115deg, #4fc3b3 0%, #5ad1c4 45%, #7ce08c 100%);
+          --glow: rgba(79, 195, 179, 0.24);
+          --shadow: rgba(0, 0, 0, 0.4);
         }
       }
       * {
@@ -68,7 +76,9 @@
       }
       body {
         margin: 0;
-        padding: 64px 20px;
+        padding: 56px 20px 72px;
+        position: relative;
+        overflow-x: hidden;
         background: var(--bg);
         color: var(--text);
         font-family:
@@ -81,198 +91,388 @@
         font-size: 17px;
         line-height: 1.6;
       }
+
       main {
-        width: min(100%, 720px);
+        width: min(100%, 960px);
         margin-inline: auto;
       }
-      h1 {
-        margin: 0 0 20px;
-        font-size: 2.75rem;
-        line-height: 1;
-        letter-spacing: -0.01em;
-      }
-      h2 {
-        margin: 40px 0 8px;
-        font-size: 1.05rem;
-        font-weight: 750;
-      }
-      p {
-        margin: 0 0 16px;
-      }
-      ul {
-        margin: 0 0 16px;
-        padding-left: 22px;
-      }
-      li {
-        margin-bottom: 8px;
-      }
+
       a {
         color: var(--accent);
       }
       strong {
-        font-weight: 700;
-      }
-      .lead {
-        font-size: 1.12rem;
+        font-weight: 750;
       }
       .muted {
         color: var(--muted);
       }
-      hr {
-        margin: 40px 0;
-        border: 0;
-        border-top: 1px solid var(--border);
+
+      /* Hero */
+      .hero {
+        display: grid;
+        grid-template-columns: 1fr;
+        gap: 40px;
+        align-items: center;
+      }
+      @media (min-width: 720px) {
+        .hero {
+          grid-template-columns: 1.08fr 0.92fr;
+          gap: 48px;
+        }
+      }
+      .eyebrow {
+        margin: 0 0 16px;
+        font-size: 0.78rem;
+        font-weight: 800;
+        letter-spacing: 0.16em;
+        text-transform: uppercase;
+        color: var(--accent);
+      }
+      .wordmark {
+        margin: 0 0 20px;
+        font-size: clamp(3rem, 11vw, 5.25rem);
+        line-height: 0.92;
+        letter-spacing: -0.035em;
+        font-weight: 850;
+      }
+      .wordmark .grad {
+        background: var(--grad);
+        -webkit-background-clip: text;
+        background-clip: text;
+        color: transparent;
+        -webkit-text-fill-color: transparent;
+      }
+      .wave {
+        display: inline-block;
+        transform-origin: 72% 72%;
+        animation: wave 2.6s ease-in-out infinite;
+      }
+      @keyframes wave {
+        0%,
+        62%,
+        100% {
+          transform: rotate(0deg);
+        }
+        10% {
+          transform: rotate(14deg);
+        }
+        20% {
+          transform: rotate(-8deg);
+        }
+        30% {
+          transform: rotate(14deg);
+        }
+        40% {
+          transform: rotate(-4deg);
+        }
+        50% {
+          transform: rotate(10deg);
+        }
+      }
+      .lead {
+        margin: 0 0 26px;
+        font-size: clamp(1.12rem, 2.3vw, 1.36rem);
+        line-height: 1.5;
+        max-width: 34ch;
       }
       .cta {
         display: flex;
         flex-wrap: wrap;
         align-items: center;
         gap: 16px;
-        margin-top: 8px;
       }
       .button {
         display: inline-flex;
         align-items: center;
-        min-height: 48px;
-        padding: 12px 22px;
-        border-radius: 8px;
-        background: var(--accent);
+        gap: 8px;
+        min-height: 54px;
+        padding: 14px 28px;
+        border-radius: 12px;
+        background: var(--grad);
         color: var(--accent-text);
-        font-weight: 700;
+        font-weight: 750;
+        font-size: 1.06rem;
         text-decoration: none;
+        box-shadow: 0 12px 30px var(--glow);
+        transition:
+          transform 0.18s ease,
+          box-shadow 0.18s ease,
+          filter 0.18s ease;
       }
       .button:hover {
-        filter: brightness(1.06);
+        transform: translateY(-2px) scale(1.015);
+        box-shadow: 0 18px 44px var(--glow);
+        filter: brightness(1.05);
       }
-      .trust {
-        margin: 16px 0 0;
-        color: var(--muted);
+      .button .arr {
+        transition: transform 0.18s ease;
+      }
+      .button:hover .arr {
+        transform: translateX(4px);
+      }
+      .chips {
+        list-style: none;
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+        padding: 0;
+        margin: 26px 0 0;
+      }
+      .chips li {
+        font-size: 0.85rem;
         font-weight: 650;
+        padding: 6px 13px;
+        border-radius: 999px;
+        border: 1px solid var(--border);
+        background: var(--panel);
+        color: var(--muted);
       }
 
-      .hero {
-        display: grid;
-        grid-template-columns: 1fr;
-        gap: 36px;
-        align-items: center;
+      /* Phone preview */
+      .preview {
+        justify-self: center;
       }
-      @media (min-width: 680px) {
-        .hero {
-          grid-template-columns: 1.05fr 0.95fr;
-          gap: 44px;
+      .phone {
+        width: min(100%, 316px);
+        margin-inline: auto;
+        padding: 12px;
+        border-radius: 38px;
+        border: 1px solid var(--border);
+        background: linear-gradient(165deg, var(--panel), var(--bg));
+        box-shadow: 0 34px 70px var(--shadow);
+      }
+      @media (min-width: 720px) {
+        .phone {
+          transform: rotate(2.2deg);
+          transition:
+            transform 0.4s ease,
+            box-shadow 0.4s ease;
+        }
+        .phone:hover {
+          transform: rotate(0deg) translateY(-4px);
+          box-shadow: 0 44px 90px var(--shadow);
         }
       }
-
       .preview-frame {
         display: block;
-        width: min(100%, 320px);
-        height: 750px;
-        margin-inline: auto;
-        border: 1px solid var(--border);
-        border-radius: 22px;
+        width: 100%;
+        height: 800px;
+        border: 0;
+        border-radius: 26px;
         background: var(--bg);
-        box-shadow: 0 20px 50px rgba(20, 22, 20, 0.13);
+      }
+      .preview-caption {
+        margin: 14px 0 0;
+        text-align: center;
+        font-size: 0.9rem;
       }
       .preview-caption a {
         color: var(--muted);
+        text-decoration: none;
       }
       .preview-caption a:hover {
         color: var(--accent);
       }
-      .preview-caption {
-        margin: 12px 0 0;
-        text-align: center;
-        font-size: 0.9rem;
-      }
 
+      /* Feature cards */
       .features {
-        margin-top: 44px;
+        margin-top: 72px;
         display: grid;
         grid-template-columns: 1fr;
-        gap: 14px;
+        gap: 16px;
       }
       @media (min-width: 560px) {
         .features {
           grid-template-columns: 1fr 1fr;
-          gap: 16px;
+        }
+      }
+      @media (min-width: 860px) {
+        .features {
+          grid-template-columns: repeat(3, 1fr);
         }
       }
       .feature {
+        position: relative;
+        overflow: hidden;
         background: var(--panel);
         border: 1px solid var(--border);
-        border-radius: 12px;
-        padding: 18px 20px;
+        border-radius: 16px;
+        padding: 22px 22px 24px;
+        transition:
+          transform 0.2s ease,
+          box-shadow 0.2s ease,
+          border-color 0.2s ease;
+      }
+      .feature::before {
+        content: "";
+        position: absolute;
+        inset: 0 0 auto 0;
+        height: 3px;
+        background: var(--grad);
+        transform: scaleX(0);
+        transform-origin: left;
+        transition: transform 0.28s ease;
+      }
+      .feature:hover {
+        transform: translateY(-5px);
+        border-color: color-mix(in srgb, var(--accent) 50%, var(--border));
+        box-shadow: 0 18px 44px var(--shadow);
+      }
+      .feature:hover::before {
+        transform: scaleX(1);
+      }
+      .feature-icon {
+        display: block;
+        font-size: 1.7rem;
+        line-height: 1;
+        margin-bottom: 12px;
       }
       .feature h3 {
         margin: 0 0 6px;
-        font-size: 1.02rem;
+        font-size: 1.05rem;
         font-weight: 750;
       }
       .feature p {
         margin: 0;
         color: var(--muted);
-        font-size: 0.96rem;
+        font-size: 0.95rem;
       }
 
+      /* Why */
       .section-h {
-        margin: 48px 0 14px;
-        font-size: 1.35rem;
-        font-weight: 800;
-        letter-spacing: -0.01em;
+        margin: 72px 0 18px;
+        font-size: clamp(1.5rem, 3.4vw, 2rem);
+        font-weight: 850;
+        letter-spacing: -0.02em;
+      }
+      .section-h .grad {
+        background: var(--grad);
+        -webkit-background-clip: text;
+        background-clip: text;
+        color: transparent;
+        -webkit-text-fill-color: transparent;
       }
       .why {
         list-style: none;
         margin: 0;
         padding: 0;
         display: grid;
-        gap: 10px;
+        gap: 12px;
+      }
+      @media (min-width: 620px) {
+        .why {
+          grid-template-columns: 1fr 1fr;
+          gap: 12px 32px;
+        }
       }
       .why li {
         position: relative;
         margin: 0;
-        padding-left: 28px;
+        padding-left: 32px;
       }
       .why li::before {
         content: "✓";
         position: absolute;
         left: 0;
-        top: -0.02em;
-        color: var(--accent);
+        top: 0.05em;
+        width: 22px;
+        height: 22px;
+        display: grid;
+        place-items: center;
+        border-radius: 50%;
+        background: var(--grad);
+        color: var(--accent-text);
+        font-size: 0.78rem;
         font-weight: 800;
+      }
+
+      /* Entrance */
+      .reveal {
+        animation: rise 0.7s cubic-bezier(0.2, 0.7, 0.2, 1) both;
+      }
+      .reveal-2 {
+        animation-delay: 0.1s;
+      }
+      .feature {
+        animation: rise 0.6s cubic-bezier(0.2, 0.7, 0.2, 1) both;
+      }
+      .feature:nth-child(2) {
+        animation-delay: 0.06s;
+      }
+      .feature:nth-child(3) {
+        animation-delay: 0.12s;
+      }
+      .feature:nth-child(4) {
+        animation-delay: 0.18s;
+      }
+      .feature:nth-child(5) {
+        animation-delay: 0.24s;
+      }
+      .feature:nth-child(6) {
+        animation-delay: 0.3s;
+      }
+      @keyframes rise {
+        from {
+          opacity: 0;
+          transform: translateY(18px);
+        }
+        to {
+          opacity: 1;
+          transform: none;
+        }
+      }
+
+      @media (prefers-reduced-motion: reduce) {
+        *,
+        *::before {
+          animation: none !important;
+          transition: none !important;
+        }
+        .phone {
+          transform: none !important;
+        }
       }
     </style>
   </head>
   <body>
     <main>
       <div class="hero">
-        <div class="hero-copy">
-          <h1>👋 found.as</h1>
+        <div class="hero-copy reveal">
+          <p class="eyebrow">Contact page · digital business card</p>
+          <h1 class="wordmark">
+            <span class="wave">👋</span> <span class="grad">found.as</span>
+          </h1>
           <p class="lead">
-            One little web page for all the ways to reach you — your phone, your
-            email, and the apps you already use. It's your contact page and
-            digital business card in one, at <strong>found.as/yourname</strong>.
-            Share it with a link or a QR code. Nothing to install.
+            One little page for every way to reach you — your phone, your email,
+            and the apps you already use. Live at
+            <strong>found.as/yourname</strong>, shared with a link or a QR code.
+            Nothing to install.
           </p>
           <div class="cta">
             <a class="button" href="https://be.found.as"
-              >Make yours — it's free</a
+              >Make yours — it's free <span class="arr">→</span></a
             >
             <span class="muted">Ready in about a minute.</span>
           </div>
-          <p class="trust">
-            🇪🇺 Hosted in the European Union, on renewable energy.
-          </p>
+          <ul class="chips">
+            <li>🇪🇺 EU-hosted</li>
+            <li>🔋 Renewable energy</li>
+            <li>🚫 No tracking</li>
+            <li>✨ Free forever</li>
+          </ul>
         </div>
-        <div class="preview">
-          <iframe
-            class="preview-frame"
-            src="https://found.as/ada"
-            title="Ada Lovelace's found.as page"
-            loading="lazy"
-          ></iframe>
+        <div class="preview reveal reveal-2">
+          <div class="phone">
+            <iframe
+              class="preview-frame"
+              src="https://found.as/ada"
+              title="Ada Lovelace's found.as page"
+              loading="lazy"
+            ></iframe>
+          </div>
           <p class="preview-caption">
             <a href="https://found.as/ada" target="_blank" rel="noopener"
-              >found.as/ada</a
+              >found.as/ada ↗</a
             >
           </p>
         </div>
@@ -280,6 +480,7 @@
 
       <div class="features">
         <div class="feature">
+          <span class="feature-icon" aria-hidden="true">🔗</span>
           <h3>Everything, one tap away</h3>
           <p>
             Type a username or paste a link — WhatsApp, Instagram, your site,
@@ -288,6 +489,7 @@
           </p>
         </div>
         <div class="feature">
+          <span class="feature-icon" aria-hidden="true">🎨</span>
           <h3>Make it yours</h3>
           <p>
             Themes, an accent color, your photo, button icons. Shared anywhere,
@@ -295,6 +497,7 @@
           </p>
         </div>
         <div class="feature">
+          <span class="feature-icon" aria-hidden="true">💳</span>
           <h3>A real business card</h3>
           <p>
             A QR for your link, and one that saves your contact to a phone with
@@ -303,6 +506,7 @@
           </p>
         </div>
         <div class="feature">
+          <span class="feature-icon" aria-hidden="true">🌐</span>
           <h3>Bring your own domain</h3>
           <p>
             Point <strong>yourname.com</strong> at your page: one DNS record for
@@ -311,6 +515,7 @@
           </p>
         </div>
         <div class="feature">
+          <span class="feature-icon" aria-hidden="true">✨</span>
           <h3>More than a bio link</h3>
           <p>
             Send visitors to another site, publish a short write-up, or hand out
@@ -318,6 +523,7 @@
           </p>
         </div>
         <div class="feature">
+          <span class="feature-icon" aria-hidden="true">🛡️</span>
           <h3>Nothing changes behind your back</h3>
           <p>
             Your page updates only when you publish. Take your time — visitors
@@ -326,7 +532,7 @@
         </div>
       </div>
 
-      <h2 class="section-h">Why found.as?</h2>
+      <h2 class="section-h">Why <span class="grad">found.as</span>?</h2>
       <ul class="why">
         <li>
           <strong>No account.</strong> An address and a password — no email, no
