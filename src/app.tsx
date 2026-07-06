@@ -826,13 +826,13 @@ function normalizeInstagram(
     /^https?:\/\/(www\.)?instagram\.com\/?$/i.test(trimmed) ||
     trimmed === "@"
   ) {
-    return { href: "", error: "Finish the Instagram URL or username." };
+    return { href: "", error: "Finish the Instagram link or username." };
   }
   const username =
     valueFromKnownHost(value, ["instagram.com"]) ??
     normalizeSocialUsername(value);
   if (!username) {
-    return { href: "", error: "Enter an Instagram username or URL." };
+    return { href: "", error: "Enter an Instagram username or link." };
   }
   return { href: `https://www.instagram.com/${encodeURIComponent(username)}` };
 }
@@ -844,12 +844,12 @@ function normalizeUsernameUrl(
 ): Omit<NormalizedLink, "item" | "label"> {
   const trimmed = value.trim();
   if (!trimmed || trimmed === baseUrl) {
-    return { href: "", error: `Enter a ${service} username or URL.` };
+    return { href: "", error: `Enter a ${service} username or link.` };
   }
   if (trimmed.includes(".") || trimmed.includes("://")) {
     const normalized = normalizeUrl(trimmed);
     if (!URL.canParse(normalized)) {
-      return { href: "", error: `Enter a valid ${service} URL.` };
+      return { href: "", error: `Enter a valid ${service} link.` };
     }
     return { href: normalized };
   }
@@ -865,12 +865,12 @@ function normalizeBluesky(
 ): Omit<NormalizedLink, "item" | "label"> {
   const trimmed = value.trim();
   if (!trimmed || trimmed === "https://bsky.app/profile/") {
-    return { href: "", error: "Enter a Bluesky handle or URL." };
+    return { href: "", error: "Enter a Bluesky handle or link." };
   }
   if (trimmed.includes("://")) {
     return URL.canParse(trimmed)
       ? { href: trimmed }
-      : { href: "", error: "Enter a valid Bluesky URL." };
+      : { href: "", error: "Enter a valid Bluesky link." };
   }
   const handle = trimmed.replace(/^@+/, "");
   if (!handle) {
@@ -884,12 +884,12 @@ function normalizeMastodon(
 ): Omit<NormalizedLink, "item" | "label"> {
   const trimmed = value.trim();
   if (!trimmed) {
-    return { href: "", error: "Enter a Mastodon address or URL." };
+    return { href: "", error: "Enter a Mastodon address or link." };
   }
   if (trimmed.includes("://")) {
     return URL.canParse(trimmed)
       ? { href: trimmed }
-      : { href: "", error: "Enter a valid Mastodon URL." };
+      : { href: "", error: "Enter a valid Mastodon link." };
   }
   const [user, host] = trimmed.replace(/^@+/, "").split("@");
   if (user && host) {
@@ -897,7 +897,7 @@ function normalizeMastodon(
   }
   return {
     href: "",
-    error: "Use @you@server, or paste your profile URL.",
+    error: "Use @you@server, or paste your profile link.",
   };
 }
 
@@ -906,12 +906,12 @@ function normalizeMatrix(
 ): Omit<NormalizedLink, "item" | "label"> {
   const trimmed = value.trim();
   if (!trimmed) {
-    return { href: "", error: "Enter a Matrix ID or URL." };
+    return { href: "", error: "Enter a Matrix ID or link." };
   }
   if (trimmed.includes("://")) {
     return URL.canParse(trimmed)
       ? { href: trimmed }
-      : { href: "", error: "Enter a valid Matrix URL." };
+      : { href: "", error: "Enter a valid Matrix link." };
   }
   const id = trimmed.replace(/^@+/, "");
   if (id.includes(":")) {
@@ -928,18 +928,18 @@ function normalizeSubstack(
 ): Omit<NormalizedLink, "item" | "label"> {
   const trimmed = value.trim();
   if (!trimmed) {
-    return { href: "", error: "Enter a Substack name or URL." };
+    return { href: "", error: "Enter a Substack name or link." };
   }
   if (trimmed.includes(".") || trimmed.includes("://")) {
     const normalized = normalizeUrl(trimmed);
     if (!URL.canParse(normalized)) {
-      return { href: "", error: "Enter a valid Substack URL." };
+      return { href: "", error: "Enter a valid Substack link." };
     }
     return { href: normalized };
   }
   const name = normalizeSocialUsername(trimmed);
   if (!name || !/^[a-z0-9-]+$/i.test(name)) {
-    return { href: "", error: "Enter a Substack name or URL." };
+    return { href: "", error: "Enter a Substack name or link." };
   }
   return { href: `https://${name.toLowerCase()}.substack.com` };
 }
@@ -949,12 +949,12 @@ function normalizeCashApp(
 ): Omit<NormalizedLink, "item" | "label"> {
   const trimmed = value.trim();
   if (!trimmed || trimmed === "https://cash.app/$") {
-    return { href: "", error: "Enter a Cash App cashtag or URL." };
+    return { href: "", error: "Enter a Cash App cashtag or link." };
   }
   if (trimmed.includes(".") || trimmed.includes("://")) {
     const normalized = normalizeUrl(trimmed);
     if (!URL.canParse(normalized)) {
-      return { href: "", error: "Enter a valid Cash App URL." };
+      return { href: "", error: "Enter a valid Cash App link." };
     }
     return { href: normalized };
   }
@@ -968,11 +968,11 @@ function normalizeCashApp(
 function normalizeMap(value: string): Omit<NormalizedLink, "item" | "label"> {
   const trimmed = value.trim();
   if (!trimmed) {
-    return { href: "", error: "Enter an address or map URL." };
+    return { href: "", error: "Enter an address or map link." };
   }
   if (trimmed.includes("://")) {
     if (!URL.canParse(trimmed)) {
-      return { href: "", error: "Enter a valid map URL." };
+      return { href: "", error: "Enter a valid map link." };
     }
     return { href: trimmed };
   }
@@ -992,14 +992,14 @@ function normalizeGenericLink(
     unfinished &&
     trimmed.replace(/\/$/, "") === unfinished.replace(/\/$/, "")
   ) {
-    return { href: "", error: `Finish the ${label.toLowerCase()} URL.` };
+    return { href: "", error: `Finish the ${label.toLowerCase()} link.` };
   }
   const normalized = normalizeUrl(value);
   if (!normalized) {
-    return { href: "", error: `Enter a ${label.toLowerCase()} URL.` };
+    return { href: "", error: `Enter a ${label.toLowerCase()} link.` };
   }
   if (!URL.canParse(normalized)) {
-    return { href: "", error: `Enter a valid ${label.toLowerCase()} URL.` };
+    return { href: "", error: `Enter a valid ${label.toLowerCase()} link.` };
   }
   return { href: normalized };
 }
@@ -1114,7 +1114,7 @@ function normalizeLink(item: LinkItem): NormalizedLink {
       item,
       label,
       href: "",
-      error: `Enter an https:// ${label} URL.`,
+      error: `Enter an https:// ${label} link.`,
     };
   }
   return { item, label, ...normalized };
@@ -1212,7 +1212,7 @@ function linkTreeErrors(tree: LinkTree): string[] {
     .map((link) => `${link.label}: ${link.error}`);
   if (tree.social?.imageUrl?.trim() && !socialImageUrl(tree.social.imageUrl)) {
     errors.push(
-      "Social preview image: enter a full https:// image URL, or leave it blank.",
+      "Social preview image: enter a full https:// image address, or leave it blank.",
     );
   }
   return errors;
@@ -2217,7 +2217,7 @@ function RedirectEditor({ priv }: { priv: Signal<Private> }) {
         />
       </label>
       <p id="redirect-help" className={valid ? "help" : "help error-text"}>
-        {valid ? normalizedUrl : "Enter a valid destination URL."}
+        {valid ? normalizedUrl : "Enter a valid web address."}
       </p>
     </section>
   );
@@ -2287,15 +2287,15 @@ const handleKinds: LinkKind[] = [
 function linkValueLabel(kind: LinkKind): string {
   if (kind === "phone" || kind === "whatsapp") return "Number";
   if (kind === "email") return "Email address";
-  if (kind === "address") return "Address or map URL";
-  if (kind === "discord") return "Invite link or URL";
-  if (kind === "cashapp") return "Cashtag or URL";
-  if (kind === "substack") return "Publication or URL";
+  if (kind === "address") return "Address or map link";
+  if (kind === "discord") return "Invite link";
+  if (kind === "cashapp") return "Cashtag or link";
+  if (kind === "substack") return "Publication or link";
   if (kind === "mastodon" || kind === "matrix" || kind === "bluesky") {
-    return "Handle or URL";
+    return "Handle or link";
   }
-  if (handleKinds.includes(kind)) return "Username or URL";
-  return "URL";
+  if (handleKinds.includes(kind)) return "Username or link";
+  return "Link";
 }
 
 function EditableLink({
@@ -3113,7 +3113,7 @@ function LinkTreeEditor({
           />
         </label>
         <label className="field stack">
-          <span>Preview image URL</span>
+          <span>Preview image address</span>
           <input
             type="url"
             value={social.imageUrl ?? ""}
@@ -3130,7 +3130,7 @@ function LinkTreeEditor({
           className={socialImageInvalid ? "help error-text" : "help"}
         >
           {socialImageInvalid
-            ? "Enter a full https:// image URL, or leave it blank."
+            ? "Enter a full https:// image address, or leave it blank."
             : "Optional — replaces the automatic image. A hosted https image, ideally 1200×630 pixels."}
         </p>
       </details>
@@ -3201,7 +3201,7 @@ function AdvancedModePicker({
     {
       type: Type.REDIR,
       label: "Redirect",
-      description: "Send visitors to one destination URL.",
+      description: "Send visitors to one web address.",
     },
     {
       type: Type.MARKDOWN_PAGE,
