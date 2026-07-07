@@ -625,6 +625,20 @@ h2 {
   color: #00594f;
 }
 
+/* Light/dark preview switch shown when the theme is Auto. */
+.preview-mode {
+  flex-basis: 100%;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.preview-mode button[aria-pressed="true"] {
+  border-color: #007f73;
+  background: #edf8f6;
+  color: #00594f;
+}
+
 .qr-mode-help {
   margin: 0;
   text-align: center;
@@ -726,7 +740,9 @@ h2 {
   --pv-panel: #ffffff;
   --pv-border: #d7d7d0;
   --pv-accent: #007f73;
-  width: min(100%, 560px);
+  /* 440 content + 28px padding each side, to match the published page width so
+     the cover crop previews exactly. */
+  width: min(100%, 496px);
   margin-inline: auto;
   display: grid;
   gap: 18px;
@@ -738,7 +754,10 @@ h2 {
   box-shadow: 0 16px 40px rgba(24, 25, 24, 0.08);
 }
 
-.live-page.theme-dark {
+/* Auto (system) theme previews as light or dark via the editor's Preview
+   toggle — .pv-dark is set by the toggle, defaulting to the OS preference. */
+.live-page.theme-dark,
+.live-page.theme-system.pv-dark {
   --pv-bg: #101112;
   --pv-text: #f5f5f0;
   --pv-muted: #c1c1ba;
@@ -765,15 +784,22 @@ h2 {
   --pv-accent: #146c5d;
 }
 
-@media (prefers-color-scheme: dark) {
-  .live-page.theme-system {
-    --pv-bg: #101112;
-    --pv-text: #f5f5f0;
-    --pv-muted: #c1c1ba;
-    --pv-panel: #191b1d;
-    --pv-border: #33373a;
-    --pv-accent: #4fc3b3;
-  }
+/* Custom background image: URLs and the lighten/darken amounts are set inline
+   on the element. Light themes lighten the image by --pv-lighten (white
+   overlay); dark themes swap in the dark image, or darken the light one by
+   --pv-shade (black overlay) — the same overlays the published page bakes in. */
+.live-page.has-bg-image {
+  --pv-overlay: rgb(255 255 255 / var(--pv-lighten, 0));
+  --pv-bg-img: var(--pv-bg-light);
+  background:
+    linear-gradient(var(--pv-overlay), var(--pv-overlay)),
+    var(--pv-bg-img) center / cover no-repeat var(--pv-bg);
+}
+
+.live-page.has-bg-image.theme-dark,
+.live-page.has-bg-image.theme-system.pv-dark {
+  --pv-overlay: rgb(0 0 0 / var(--pv-shade, 0));
+  --pv-bg-img: var(--pv-bg-dark, var(--pv-bg-light));
 }
 
 /* Custom accent: light/dark variant vars are set inline on the element. */
@@ -781,14 +807,9 @@ h2 {
   --pv-accent: var(--pv-a-light);
 }
 
-.live-page.accent-custom.theme-dark {
+.live-page.accent-custom.theme-dark,
+.live-page.accent-custom.theme-system.pv-dark {
   --pv-accent: var(--pv-a-dark);
-}
-
-@media (prefers-color-scheme: dark) {
-  .live-page.accent-custom.theme-system {
-    --pv-accent: var(--pv-a-dark);
-  }
 }
 
 /* Preview surface follows the chosen page theme, not the OS. */
@@ -815,9 +836,20 @@ h2 {
 }
 
 .live-page .contact-button-preview {
-  background: var(--pv-panel);
-  border-color: var(--pv-border);
+  background: color-mix(in srgb, var(--pv-accent) 7%, var(--pv-panel));
+  border-color: color-mix(in srgb, var(--pv-accent) 45%, var(--pv-border));
   color: var(--pv-text);
+  font-weight: 650;
+}
+/* Text blocks aren't buttons — never fill/outline them like links. */
+.live-page .editable-link.is-text .contact-button-preview,
+.live-page.btn-filled .editable-link.is-text .contact-button-preview,
+.live-page.btn-outline .editable-link.is-text .contact-button-preview {
+  background: transparent;
+  border-style: dashed;
+  border-color: var(--pv-border);
+  color: var(--pv-muted);
+  font-weight: 500;
 }
 
 .live-page .contact-button-preview:hover,
@@ -915,6 +947,10 @@ h2 {
   border-radius: 3px;
   background: var(--pv-accent);
 }
+.editable-link.is-drop-target.is-drop-after::before {
+  top: auto;
+  bottom: -6px;
+}
 
 .editable-link.is-drop-target .contact-button-preview {
   border-color: var(--pv-accent);
@@ -954,8 +990,8 @@ h2 {
 .live-name {
   padding: 4px;
   color: #181918;
-  font-size: 2.25rem;
-  font-weight: 850;
+  font-size: clamp(2rem, 9vw, 3rem);
+  font-weight: 800;
   line-height: 1;
 }
 
@@ -964,7 +1000,7 @@ h2 {
   resize: none;
   color: #596059;
   font-size: 1rem;
-  line-height: 1.45;
+  line-height: 1.5;
 }
 
 .live-name:hover,
@@ -1832,4 +1868,386 @@ iframe.preview {
 
 .domain-apex > .dns-records {
   margin-top: 8px;
+}
+
+/* Style & content panels */
+.live-editor > .style-picker,
+.live-editor > .content-blocks-panel {
+  width: min(100%, 560px);
+  margin-inline: auto;
+}
+.style-picker legend {
+  font-size: 1.05rem;
+  font-weight: 750;
+  margin-bottom: 10px;
+}
+.style-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: 12px 14px;
+}
+
+/* Cover image upload (wide preview) */
+.live-profile .cover-upload {
+  display: grid;
+  justify-items: center;
+  gap: 10px;
+  width: 100%;
+}
+.live-profile .cover-upload .avatar-upload-controls {
+  justify-items: center;
+}
+.cover-upload .avatar-upload-preview {
+  width: 148px;
+  height: 74px;
+  border-radius: 8px;
+}
+
+/* Status line input in the live preview */
+.live-status {
+  width: 100%;
+  border-color: transparent;
+  background: transparent;
+  text-align: center;
+  padding: 2px 4px;
+  color: #007f73;
+  font-weight: 650;
+  font-size: 0.92rem;
+}
+.live-status::placeholder {
+  color: #9aa39a;
+}
+.live-status:hover,
+.live-status:focus {
+  border-color: #c9cec8;
+  background: #fbfcfa;
+}
+.live-page .live-status {
+  color: var(--pv-accent);
+}
+
+/* Badge & subtitle in the link-row preview */
+.row-badge {
+  display: inline-block;
+  margin-left: 8px;
+  padding: 1px 8px;
+  border-radius: 999px;
+  font-size: 0.7rem;
+  font-weight: 700;
+  background: color-mix(in srgb, var(--pv-accent) 16%, var(--pv-panel));
+  color: var(--pv-accent);
+}
+.row-desc {
+  display: block;
+  margin-top: 3px;
+  font-size: 0.8rem;
+  font-weight: 500;
+  color: var(--pv-muted);
+}
+
+/* Live preview reflects the page's style options instantly */
+.live-page .contact-button-preview {
+  border-radius: var(--radius, 8px);
+}
+.live-page .avatar-upload-preview {
+  border-radius: var(--avatar-radius, 50%);
+}
+.live-page .cover-upload .avatar-upload-preview {
+  border-radius: var(--radius, 8px);
+}
+.live-page.btn-outline
+  .editable-link:not(.is-featured):not(.is-section):not(.is-text)
+  .contact-button-preview {
+  background: transparent;
+  border-color: var(--pv-accent);
+}
+.live-page.btn-filled
+  .editable-link:not(.is-featured):not(.is-section):not(.is-text)
+  .contact-button-preview {
+  background: var(--pv-accent);
+  border-color: var(--pv-accent);
+  color: var(--pv-bg);
+}
+@media (prefers-color-scheme: dark) {
+  .live-status {
+    color: #4fc3b3;
+  }
+  .live-status:hover,
+  .live-status:focus {
+    border-color: #3a403c;
+    background: #191c1a;
+  }
+}
+
+/* Remembered pages on the setup screen */
+.remembered-pages {
+  margin-top: 28px;
+  padding-top: 20px;
+  border-top: 1px solid #e2e6e0;
+}
+.remembered-title {
+  margin: 0 0 10px;
+  font-size: 0.82rem;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: #596059;
+}
+.remembered-pages ul {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 8px;
+}
+.remembered-pages li {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.remembered-open {
+  flex: 1;
+  text-align: left;
+  overflow-wrap: anywhere;
+}
+.remembered-pages li .secondary {
+  flex: none;
+}
+
+@media (prefers-color-scheme: dark) {
+  .remembered-pages {
+    border-top-color: #2f3531;
+  }
+  .remembered-title {
+    color: #aeb6ae;
+  }
+}
+
+.cover-fit-field {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.85rem;
+  color: #596059;
+}
+.cover-fit-field select {
+  width: auto;
+}
+@media (prefers-color-scheme: dark) {
+  .cover-fit-field {
+    color: #aeb6ae;
+  }
+}
+
+.cover-options {
+  display: grid;
+  gap: 8px;
+  justify-items: center;
+}
+/* When the cover stands in for the name, shrink the name field in the preview */
+.live-page.cover-title .live-name {
+  font-size: 1rem;
+  font-weight: 600;
+  opacity: 0.7;
+}
+
+/* Text block rows in the live editor */
+.live-page .editable-link.is-text .contact-button-preview {
+  background: transparent;
+  border-style: dashed;
+  color: var(--pv-muted);
+  font-weight: 500;
+  font-size: 0.92rem;
+  white-space: pre-line;
+  text-align: center;
+}
+
+/* Collapsed "Theme & style" disclosure */
+.live-editor > .design-panel {
+  width: min(100%, 560px);
+  margin-inline: auto;
+}
+.design-panel > summary {
+  cursor: pointer;
+  font-weight: 800;
+  font-size: 1rem;
+  padding: 8px 0;
+}
+.design-panel[open] > summary {
+  margin-bottom: 14px;
+}
+.design-panel > .style-picker {
+  margin-top: 18px;
+}
+
+.favicon-field {
+  margin-bottom: 18px;
+}
+.favicon-field input {
+  max-width: 120px;
+  font-size: 1.2rem;
+  text-align: center;
+}
+
+/* Theme dropdown */
+.theme-select {
+  width: auto;
+  min-width: 150px;
+}
+
+/* WYSIWYG cover editor */
+.cover-editor {
+  display: grid;
+  gap: 10px;
+  justify-items: center;
+  width: 100%;
+}
+.cover-add {
+  display: grid;
+  place-items: center;
+  width: 100%;
+  min-height: 96px;
+  border: 1.5px dashed var(--pv-border, #c9cec8);
+  border-radius: 12px;
+  color: var(--pv-muted, #596059);
+  font-weight: 700;
+  cursor: pointer;
+}
+.cover-add:hover {
+  border-color: var(--pv-accent, #007f73);
+  color: var(--pv-accent, #007f73);
+}
+.cover-frame {
+  position: relative;
+  width: 100%;
+  overflow: hidden;
+  border: 1px solid var(--pv-border, #d7dcd5);
+  background: var(--pv-panel, #ffffff);
+}
+.cover-frame.is-fill {
+  cursor: grab;
+  touch-action: none;
+}
+.cover-height-field {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  max-width: 320px;
+  font-size: 0.85rem;
+  color: var(--pv-muted, #596059);
+}
+.cover-height-field input {
+  flex: 1;
+}
+.cover-frame.is-fill:active {
+  cursor: grabbing;
+}
+.cover-frame.is-fill img {
+  width: 100%;
+  height: 100%;
+  display: block;
+  user-select: none;
+  -webkit-user-drag: none;
+}
+.cover-frame.is-fit img {
+  width: 100%;
+  height: auto;
+  display: block;
+}
+.cover-hint {
+  position: absolute;
+  bottom: 6px;
+  left: 50%;
+  transform: translateX(-50%);
+  padding: 2px 10px;
+  border-radius: 999px;
+  background: rgba(0, 0, 0, 0.55);
+  color: #ffffff;
+  font-size: 0.72rem;
+  font-weight: 600;
+  pointer-events: none;
+}
+.cover-editor-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  justify-content: center;
+  align-items: center;
+}
+
+.bg-image-controls {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-top: 12px;
+}
+
+.bg-image-controls .cover-editor-actions {
+  justify-content: flex-start;
+}
+
+/* Zoom/pan region editor (shared by cover and avatar) */
+.region-frame {
+  position: relative;
+  width: 100%;
+  overflow: hidden;
+  border: 1px solid var(--pv-border, #d7dcd5);
+  background: var(--pv-panel, #ffffff);
+  cursor: grab;
+  touch-action: none;
+}
+.region-frame:active {
+  cursor: grabbing;
+}
+.region-frame img {
+  width: 100%;
+  height: 100%;
+  display: block;
+  user-select: none;
+  -webkit-user-drag: none;
+}
+.region-frame.is-avatar {
+  width: 132px;
+  height: 132px;
+  flex: none;
+}
+.region-zoom {
+  position: absolute;
+  left: 50%;
+  bottom: 8px;
+  transform: translateX(-50%);
+  width: 70%;
+  max-width: 220px;
+  height: 4px;
+  accent-color: #ffffff;
+  opacity: 0.85;
+}
+.region-frame.is-avatar .region-zoom {
+  bottom: 4px;
+  width: 84%;
+}
+
+.avatar-editor {
+  display: grid;
+  gap: 8px;
+  justify-items: center;
+}
+.avatar-editor-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  justify-content: center;
+}
+
+/* "Fit whole image" cover preview */
+.cover-frame.is-fit {
+  width: 100%;
+  overflow: hidden;
+  border: 1px solid var(--pv-border, #d7dcd5);
+}
+.cover-frame.is-fit img {
+  width: 100%;
+  height: auto;
+  display: block;
 }

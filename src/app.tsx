@@ -53,7 +53,8 @@ type LinkKind =
   | "address"
   | "googlereview"
   | "custom"
-  | "section";
+  | "section"
+  | "text";
 
 interface LinkItem {
   id: string;
@@ -68,6 +69,10 @@ interface LinkItem {
   // Print this link's value on the business cards (independent of showing it
   // on the page). Handy for an email or phone number.
   card?: boolean;
+  // A subtitle shown under the button label.
+  desc?: string;
+  // A short tag shown on the button (e.g. "New").
+  badge?: string;
 }
 
 interface SocialPreview {
@@ -77,12 +82,50 @@ interface SocialPreview {
   autoImage?: boolean;
 }
 
+type FontChoice = "system" | "sans" | "serif" | "mono" | "rounded";
+type ButtonStyle = "soft" | "outline" | "filled";
+type Corners = "rounded" | "sharp" | "pill";
+type AvatarShape = "circle" | "rounded";
+type Background = "none" | "gradient" | "dots" | "grid" | "image";
+// How the cover image sits in its band: fill (crop to fill, region chosen by
+// coverPos) or fit the whole image with no cropping.
+type CoverFit = "cover" | "contain";
+
 interface LinkTree {
   displayName: string;
   bio: string;
   avatarUrl?: string;
-  theme: "system" | "light" | "dark" | "warm" | "clean";
+  // Focal point + zoom of the photo within its frame.
+  avatarPos?: string;
+  avatarZoom?: number;
+  coverUrl?: string;
+  coverFit?: CoverFit;
+  // Focal point + zoom of the cover within its band.
+  coverPos?: string;
+  coverZoom?: number;
+  // Height of the cover band in px, when filling.
+  coverHeight?: number;
+  // When set (and a cover is present), the cover stands in for the name, which
+  // is kept only for screen readers and metadata.
+  coverTitle?: boolean;
+  theme: "system" | "light" | "dark";
   accent?: string;
+  font?: FontChoice;
+  buttons?: ButtonStyle;
+  corners?: Corners;
+  avatarShape?: AvatarShape;
+  background?: Background;
+  // Custom background: the uploaded image is served as-is (as a sub). Light
+  // themes show it under a white overlay at bgLighten%; dark ones swap in a
+  // custom upload or lay black at bgShade% — CSS overlays, page and preview.
+  bgUrl?: string;
+  bgDarkUrl?: string;
+  bgShade?: number;
+  bgLighten?: number;
+  // A short "now" status line under the name.
+  status?: string;
+  // An emoji used as the page's favicon (browser tab icon).
+  favicon?: string;
   social?: SocialPreview;
   showVcard?: boolean;
   links: LinkItem[];
@@ -130,38 +173,50 @@ class FourXX extends Error {
   }
 }
 
-const recommendedKinds: LinkKind[] = ["phone", "email", "website", "custom"];
-
-const additionalKinds: LinkKind[] = [
-  "whatsapp",
-  "instagram",
-  "tiktok",
-  "youtube",
-  "linkedin",
-  "x",
-  "facebook",
-  "telegram",
-  "signal",
-  "github",
-  "mastodon",
-  "bluesky",
-  "threads",
-  "reddit",
-  "twitch",
-  "spotify",
-  "discord",
-  "snapchat",
-  "pinterest",
-  "substack",
-  "medium",
-  "patreon",
-  "calendly",
-  "paypal",
-  "venmo",
-  "cashapp",
-  "matrix",
-  "address",
-  "googlereview",
+// The add menu, grouped so generic contact details sit apart from platforms.
+const addGroups: { label: string; kinds: LinkKind[] }[] = [
+  {
+    label: "Contact",
+    kinds: ["phone", "email", "website", "address", "custom"],
+  },
+  {
+    label: "Platforms",
+    kinds: [
+      "whatsapp",
+      "instagram",
+      "tiktok",
+      "youtube",
+      "linkedin",
+      "x",
+      "facebook",
+      "telegram",
+      "signal",
+      "matrix",
+      "github",
+      "mastodon",
+      "bluesky",
+      "threads",
+      "reddit",
+      "twitch",
+      "snapchat",
+      "pinterest",
+      "discord",
+      "spotify",
+      "substack",
+      "medium",
+      "patreon",
+      "calendly",
+      "googlereview",
+    ],
+  },
+  {
+    label: "Payments",
+    kinds: ["paypal", "venmo", "cashapp"],
+  },
+  {
+    label: "Layout",
+    kinds: ["section", "text"],
+  },
 ];
 
 const kindLabels: Record<LinkKind, string> = {
@@ -199,6 +254,7 @@ const kindLabels: Record<LinkKind, string> = {
   googlereview: "Google review",
   custom: "Custom link",
   section: "Section header",
+  text: "Text",
 };
 
 const kindExamples: Record<LinkKind, string> = {
@@ -236,6 +292,7 @@ const kindExamples: Record<LinkKind, string> = {
   googlereview: "g.page/r/…/review",
   custom: "https://example.com",
   section: "Work",
+  text: "A line or two of text",
 };
 
 const kindDefaultValues: Record<LinkKind, string> = {
@@ -273,6 +330,7 @@ const kindDefaultValues: Record<LinkKind, string> = {
   googlereview: "",
   custom: "https://",
   section: "",
+  text: "",
 };
 
 const kindDefaultIcons: Partial<Record<LinkKind, string>> = {
@@ -357,6 +415,16 @@ function isSection(item: LinkItem): boolean {
   return item.kind === "section";
 }
 
+function isText(item: LinkItem): boolean {
+  return item.kind === "text";
+}
+
+// Section headings and text blocks are organizational, not links: they carry no
+// URL and can't be featured, iconed, or printed on a card.
+function isBlock(item: LinkItem): boolean {
+  return isSection(item) || isText(item);
+}
+
 // Contact details worth printing on a business card by default.
 const defaultCardKinds = new Set<LinkKind>(["email", "phone", "whatsapp"]);
 
@@ -364,7 +432,7 @@ function defaultLinkItem(kind: LinkKind): LinkItem {
   return {
     id: makeId(),
     kind,
-    label: kind === "section" ? "" : kindLabels[kind],
+    label: kind === "section" || kind === "text" ? "" : kindLabels[kind],
     value: kindDefaultValues[kind],
     href: "",
     enabled: true,
@@ -398,8 +466,37 @@ function ensureLinkTree(tree: LinkTree | undefined): LinkTree {
     displayName: current.displayName ?? "",
     bio: current.bio ?? "",
     avatarUrl: current.avatarUrl ?? "",
-    theme: current.theme ?? "system",
+    avatarPos: current.avatarPos ?? "50% 50%",
+    avatarZoom: clampZoom(current.avatarZoom),
+    coverUrl: current.coverUrl ?? "",
+    coverFit: current.coverFit === "contain" ? "contain" : "cover",
+    coverZoom: clampZoom(current.coverZoom),
+    coverHeight: clampCoverHeight(current.coverHeight),
+    coverPos:
+      current.coverPos ??
+      // Migrate the retired top/bottom fit values to a focal point.
+      ((current.coverFit as string) === "top"
+        ? "50% 0%"
+        : (current.coverFit as string) === "bottom"
+          ? "50% 100%"
+          : "50% 50%"),
+    coverTitle: current.coverTitle ?? false,
+    theme:
+      current.theme === "light" || current.theme === "dark"
+        ? current.theme
+        : "system",
     accent: accentPair(current.accent) ? current.accent : "",
+    font: current.font ?? "system",
+    buttons: current.buttons ?? "soft",
+    corners: current.corners ?? "rounded",
+    avatarShape: current.avatarShape ?? "circle",
+    background: current.background ?? "none",
+    bgUrl: current.bgUrl ?? "",
+    bgDarkUrl: current.bgDarkUrl ?? "",
+    bgShade: clampShade(current.bgShade),
+    bgLighten: clampLighten(current.bgLighten),
+    status: current.status ?? "",
+    favicon: current.favicon ?? "",
     social: {
       title: current.social?.title ?? "",
       description: current.social?.description ?? "",
@@ -444,6 +541,14 @@ function escapeHtml(value: string): string {
 
 function publicPageUrl(path: string): string {
   return `https://found.as/${encodePath(path)}`;
+}
+
+// pageSubUrl is a root-relative URL for a page's subresource. It resolves
+// same-origin on both found.as/<path>/<sub> and custom-domain/<path>/<sub>, so a
+// custom-domain page loads its own assets (backgrounds, etc.) without a
+// third-party request back to found.as.
+function pageSubUrl(path: string, sub: string, version: string): string {
+  return `/${encodePath(path)}/${sub}?v=${version}`;
 }
 
 function encodePath(path: string): string {
@@ -492,9 +597,90 @@ const themeAccentDefaults: Record<LinkTree["theme"], string> = {
   system: "#007f73",
   light: "#007f73",
   dark: "#4fc3b3",
-  warm: "#9a4f24",
-  clean: "#146c5d",
 };
+
+// Curated system-font stacks — no web fonts, so pages stay request-free.
+const fontStacks: Record<FontChoice, string> = {
+  system: "system-ui, sans-serif",
+  sans: 'ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif',
+  serif: 'ui-serif, Georgia, Cambria, "Times New Roman", serif',
+  mono: 'ui-monospace, SFMono-Regular, Menlo, Consolas, monospace',
+  rounded:
+    'ui-rounded, "SF Pro Rounded", "Hiragino Maru Gothic ProN", "Segoe UI", system-ui, sans-serif',
+};
+
+function fontStack(tree: LinkTree): string {
+  return fontStacks[tree.font ?? "system"];
+}
+
+function cornerRadius(tree: LinkTree): string {
+  return tree.corners === "sharp"
+    ? "3px"
+    : tree.corners === "pill"
+      ? "999px"
+      : "8px";
+}
+
+function avatarRadius(tree: LinkTree): string {
+  return tree.avatarShape === "rounded" ? "22%" : "50%";
+}
+
+// Cover band height in px, clamped to a sane range.
+function clampCoverHeight(h: number | undefined): number {
+  return Math.min(400, Math.max(72, Math.round(Number(h) || 132)));
+}
+
+// Zoom factor for a cover/photo, clamped to 1–4×.
+function clampZoom(z: number | undefined): number {
+  const n = Number(z);
+  return Math.min(4, Math.max(1, Number.isFinite(n) && n > 0 ? n : 1));
+}
+
+// How much to darken a light background to make the dark one, 0–90%.
+function clampShade(s: number | undefined): number {
+  const n = Number(s);
+  return Math.min(90, Math.max(0, Number.isFinite(n) ? Math.round(n) : 55));
+}
+
+// How much to lighten the background's light version, 0–90%. Defaults to 0 so
+// existing pages keep showing the image as uploaded.
+function clampLighten(s: number | undefined): number {
+  const n = Number(s);
+  return Math.min(90, Math.max(0, Number.isFinite(n) ? Math.round(n) : 0));
+}
+
+// Parses a stored "x% y%" focal point, clamped to 0–100, defaulting to center.
+// Sanitized because it is interpolated into CSS.
+function sanitizeObjectPosition(pos: string | undefined): string {
+  const m = (pos ?? "").match(/^(\d{1,3}(?:\.\d+)?)%\s+(\d{1,3}(?:\.\d+)?)%$/);
+  if (!m) return "50% 50%";
+  const x = Math.min(100, Math.max(0, parseFloat(m[1])));
+  const y = Math.min(100, Math.max(0, parseFloat(m[2])));
+  return `${x}% ${y}%`;
+}
+
+// CSS `background` shorthand for the page body, tinted with the accent so
+// patterns track the theme. Pure CSS — no external assets or scripts. Accepts
+// the accent/bg variable names so it works both on the published page (--accent
+// / --bg) and in the editor preview (--pv-accent / --pv-bg).
+function pageBackground(
+  tree: LinkTree,
+  accentVar = "--accent",
+  bgVar = "--bg",
+): string {
+  const a = `var(${accentVar})`;
+  const b = `var(${bgVar})`;
+  switch (tree.background) {
+    case "gradient":
+      return `radial-gradient(120% 90% at 50% 0%, color-mix(in srgb, ${a} 18%, ${b}), ${b} 72%)`;
+    case "dots":
+      return `radial-gradient(color-mix(in srgb, ${a} 26%, transparent) 1.4px, transparent 1.5px) 0 0 / 22px 22px, ${b}`;
+    case "grid":
+      return `linear-gradient(color-mix(in srgb, ${a} 16%, transparent) 1px, transparent 1px) 0 0 / 26px 26px, linear-gradient(90deg, color-mix(in srgb, ${a} 16%, transparent) 1px, transparent 1px) 0 0 / 26px 26px, ${b}`;
+    default:
+      return b;
+  }
+}
 
 function socialImageUrl(value: string | undefined): string | null {
   const trimmed = value?.trim();
@@ -595,6 +781,29 @@ async function loadImageForCanvas(file: File): Promise<CanvasImageSource> {
 }
 
 async function compressAvatar(file: File): Promise<CompressedAvatar> {
+  // Keep the whole image (downscaled) so the region shown in the round frame
+  // can be chosen by dragging, rather than baked in at upload.
+  return compressImage(file, 640, 640, "contain");
+}
+
+async function compressCover(file: File): Promise<CompressedAvatar> {
+  // Keep the whole image (downscaled) so the region shown in the banner can be
+  // chosen later by dragging, rather than baked in at upload.
+  return compressImage(file, 1400, 1400, "contain");
+}
+
+async function compressBg(file: File): Promise<CompressedAvatar> {
+  return compressImage(file, 1600, 1600, "contain");
+}
+
+// Encodes as AVIF (falling back to JPEG). "cover" center-crops to fill the
+// target box; "contain" downscales the whole image to fit within it.
+async function compressImage(
+  file: File,
+  maxWidth: number,
+  maxHeight: number,
+  fit: "cover" | "contain",
+): Promise<CompressedAvatar> {
   const image = await loadImageForCanvas(file);
   const sourceWidth = Number("width" in image ? image.width : 0);
   const sourceHeight = Number("height" in image ? image.height : 0);
@@ -602,39 +811,57 @@ async function compressAvatar(file: File): Promise<CompressedAvatar> {
     throw new Error("Could not read that image.");
   }
 
-  const size = 320;
-  const sourceSize = Math.min(sourceWidth, sourceHeight);
-  const sourceX = Math.floor((sourceWidth - sourceSize) / 2);
-  const sourceY = Math.floor((sourceHeight - sourceSize) / 2);
   const canvas = document.createElement("canvas");
-  canvas.width = size;
-  canvas.height = size;
   const ctx = canvas.getContext("2d");
   if (!ctx) {
-    throw new Error("Could not prepare the avatar image.");
+    throw new Error("Could not prepare the image.");
   }
-  ctx.drawImage(
-    image,
-    sourceX,
-    sourceY,
-    sourceSize,
-    sourceSize,
-    0,
-    0,
-    size,
-    size,
-  );
+
+  if (fit === "contain") {
+    const scale = Math.min(
+      maxWidth / sourceWidth,
+      maxHeight / sourceHeight,
+      1,
+    );
+    canvas.width = Math.round(sourceWidth * scale);
+    canvas.height = Math.round(sourceHeight * scale);
+    ctx.drawImage(image, 0, 0, canvas.width, canvas.height);
+  } else {
+    const scale = Math.max(maxWidth / sourceWidth, maxHeight / sourceHeight);
+    const cropWidth = Math.round(maxWidth / scale);
+    const cropHeight = Math.round(maxHeight / scale);
+    const sourceX = Math.floor((sourceWidth - cropWidth) / 2);
+    const sourceY = Math.floor((sourceHeight - cropHeight) / 2);
+    canvas.width = maxWidth;
+    canvas.height = maxHeight;
+    ctx.drawImage(
+      image,
+      sourceX,
+      sourceY,
+      cropWidth,
+      cropHeight,
+      0,
+      0,
+      maxWidth,
+      maxHeight,
+    );
+  }
   if (image instanceof ImageBitmap) {
     image.close();
   }
 
+  return encodeCanvas(canvas);
+}
+
+async function encodeCanvas(
+  canvas: HTMLCanvasElement,
+): Promise<CompressedAvatar> {
   const attempts: { mime: CompressedAvatar["mime"]; quality: number }[] = [
     { mime: "image/avif", quality: 0.76 },
     { mime: "image/avif", quality: 0.64 },
     { mime: "image/jpeg", quality: 0.82 },
     { mime: "image/jpeg", quality: 0.72 },
   ];
-
   for (const attempt of attempts) {
     const blob = await canvasToBlob(canvas, attempt.mime, attempt.quality);
     if (blob?.type === attempt.mime) {
@@ -645,8 +872,101 @@ async function compressAvatar(file: File): Promise<CompressedAvatar> {
       };
     }
   }
-
   throw new Error("Could not compress that image.");
+}
+
+// Splits a base64 data: URL into a subresource {mime, bytes}.
+function dataUrlToSub(
+  dataUrl: string,
+): { mime: string; bytes: Uint8Array } | null {
+  const m = dataUrl.match(/^data:([^;,]+)[^,]*;base64,(.*)$/s);
+  if (!m) return null;
+  const bin = atob(m[2]);
+  const bytes = new Uint8Array(bin.length);
+  for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+  return { mime: m[1], bytes };
+}
+
+async function subVersion(bytes: Uint8Array): Promise<string> {
+  const digest = new Uint8Array(await subtle.digest("SHA-256", bytes.slice()));
+  return Array.from(digest.slice(0, 4), (b) =>
+    b.toString(16).padStart(2, "0"),
+  ).join("");
+}
+
+function loadImageFromSrc(src: string): Promise<HTMLImageElement> {
+  return new Promise((resolve, reject) => {
+    const image = new Image();
+    image.onload = () => resolve(image);
+    image.onerror = () => reject(new Error("Could not read the image."));
+    image.src = src;
+  });
+}
+
+// Bakes the final crop: renders the exact visible rectangle (object-fit cover +
+// focal point + zoom) of the source into a fixed target box and re-encodes, so
+// the published image is the cropped pixels — independent of screen width.
+async function bakeCrop(
+  src: string,
+  targetWidth: number,
+  targetHeight: number,
+  pos: string,
+  zoom: number,
+): Promise<string> {
+  const image = await loadImageFromSrc(src);
+  const sw = image.naturalWidth;
+  const sh = image.naturalHeight;
+  if (!sw || !sh) return src;
+  const coverScale = Math.max(targetWidth / sw, targetHeight / sh);
+  const eff = coverScale * clampZoom(zoom);
+  const vw = targetWidth / eff;
+  const vh = targetHeight / eff;
+  const [pxNum, pyNum] = sanitizeObjectPosition(pos)
+    .replace(/%/g, "")
+    .split(/\s+/)
+    .map(Number);
+  const sx = Math.max(0, Math.min(sw - vw, (pxNum / 100) * (sw - vw)));
+  const sy = Math.max(0, Math.min(sh - vh, (pyNum / 100) * (sh - vh)));
+  const canvas = document.createElement("canvas");
+  canvas.width = targetWidth;
+  canvas.height = targetHeight;
+  const ctx = canvas.getContext("2d");
+  if (!ctx) return src;
+  ctx.drawImage(image, sx, sy, vw, vh, 0, 0, targetWidth, targetHeight);
+  return (await encodeCanvas(canvas)).dataUrl;
+}
+
+// Returns a copy of the tree with the avatar and (filled) cover replaced by
+// their baked crops and the crop controls neutralized — what gets published.
+// The untouched source stays in `priv` for later re-cropping.
+async function bakeTreeImages(tree: LinkTree): Promise<LinkTree> {
+  const next: LinkTree = { ...tree };
+  const avatar = avatarImageSrc(tree.avatarUrl);
+  if (avatar) {
+    next.avatarUrl = await bakeCrop(
+      avatar,
+      256,
+      256,
+      sanitizeObjectPosition(tree.avatarPos),
+      clampZoom(tree.avatarZoom),
+    );
+    next.avatarPos = "50% 50%";
+    next.avatarZoom = 1;
+  }
+  const cover = avatarImageSrc(tree.coverUrl);
+  if (cover && tree.coverFit !== "contain") {
+    const h = clampCoverHeight(tree.coverHeight);
+    next.coverUrl = await bakeCrop(
+      cover,
+      880,
+      Math.round((880 * h) / 440),
+      sanitizeObjectPosition(tree.coverPos),
+      clampZoom(tree.coverZoom),
+    );
+    next.coverPos = "50% 50%";
+    next.coverZoom = 1;
+  }
+  return next;
 }
 
 const linkIconPattern = /^data:image\/[a-z0-9.+-]+;base64,[a-z0-9+/=]+$/i;
@@ -1129,7 +1449,7 @@ function isAllowedHref(href: string): boolean {
 
 function normalizeLink(item: LinkItem): NormalizedLink {
   const label = item.label.trim() || kindLabels[item.kind];
-  if (item.kind === "section") {
+  if (isBlock(item)) {
     return { item, label, href: "" };
   }
   const value = item.value.trim();
@@ -1174,11 +1494,12 @@ function activeValidLinks(tree: LinkTree): NormalizedLink[] {
 }
 
 function canFeature(link: LinkItem): boolean {
-  return !isSection(link);
+  return !isBlock(link);
 }
 
 type RenderEntry =
   | { kind: "section"; title: string; id: string }
+  | { kind: "text"; text: string; id: string }
   | { kind: "link"; link: NormalizedLink };
 
 function linkTreeRenderEntries(tree: LinkTree): RenderEntry[] {
@@ -1191,10 +1512,18 @@ function linkTreeRenderEntries(tree: LinkTree): RenderEntry[] {
       }
       continue;
     }
+    if (isText(normalized.item)) {
+      const text = normalized.item.label.trim();
+      if (normalized.item.enabled && text) {
+        entries.push({ kind: "text", text, id: normalized.item.id });
+      }
+      continue;
+    }
     if (normalized.href && !normalized.error) {
       entries.push({ kind: "link", link: normalized });
     }
   }
+  // A section heading with nothing under it is dropped; text blocks always show.
   return entries.filter(
     (entry, index) =>
       entry.kind !== "section" || entries[index + 1]?.kind === "link",
@@ -1397,18 +1726,106 @@ function ogColors(tree: LinkTree): OgColors {
       accentText: pair ? accentDarkText : "#07100f",
     };
   }
-  const defaults: Record<string, { bg: string; accent: string }> = {
-    warm: { bg: "#fbf8f0", accent: "#9a4f24" },
-    clean: { bg: "#f7faf8", accent: "#146c5d" },
-  };
-  const d = defaults[tree.theme] ?? { bg: "#fbfbf8", accent: "#007f73" };
   return {
-    bg: d.bg,
+    bg: "#fbfbf8",
     text: "#181818",
     muted: "#595959",
-    accent: pair?.light ?? d.accent,
+    accent: pair?.light ?? "#007f73",
     accentText: pair ? accentLightText : "#ffffff",
   };
+}
+
+// Approximates CSS color-mix(in srgb, a pct%, b) for 6-digit hex colors.
+function mixHex(a: string, b: string, pct: number): string {
+  const pa = parseInt(a.slice(1), 16);
+  const pb = parseInt(b.slice(1), 16);
+  const t = pct / 100;
+  const ch = (shift: number) =>
+    Math.round(
+      ((pa >> shift) & 255) * t + ((pb >> shift) & 255) * (1 - t),
+    ) << shift;
+  return `#${(ch(16) | ch(8) | ch(0)).toString(16).padStart(6, "0")}`;
+}
+
+// Replicates the page background on the og:image canvas: the pageBackground
+// patterns, or the custom image with the same light/dark treatment the
+// published page serves. System renders as light, matching ogColors.
+async function drawOgBackground(
+  ctx: CanvasRenderingContext2D,
+  tree: LinkTree,
+  colors: OgColors,
+): Promise<void> {
+  const w = 1200;
+  const h = 630;
+  ctx.fillStyle = colors.bg;
+  ctx.fillRect(0, 0, w, h);
+  const dark = tree.theme === "dark";
+  if (tree.background === "image") {
+    // Only data: URLs are drawn — a remote image would taint the canvas.
+    const src =
+      dark && tree.bgDarkUrl?.trim().startsWith("data:")
+        ? tree.bgDarkUrl
+        : tree.bgUrl?.trim().startsWith("data:")
+          ? tree.bgUrl
+          : null;
+    if (!src) return;
+    try {
+      const img = await loadImageFromSrc(src);
+      const scale = Math.max(w / img.naturalWidth, h / img.naturalHeight);
+      const iw = img.naturalWidth * scale;
+      const ih = img.naturalHeight * scale;
+      ctx.drawImage(img, (w - iw) / 2, (h - ih) / 2, iw, ih);
+      // The overlays lightenImage/darkenImage bake into the served variants.
+      const overlay = dark
+        ? tree.bgDarkUrl
+          ? 0
+          : clampShade(tree.bgShade) / 100
+        : clampLighten(tree.bgLighten) / 100;
+      if (overlay > 0) {
+        ctx.fillStyle = `rgba(${dark ? "0, 0, 0" : "255, 255, 255"}, ${overlay})`;
+        ctx.fillRect(0, 0, w, h);
+      }
+    } catch {
+      // Keep the flat background.
+    }
+    return;
+  }
+  // Pattern cells are drawn at 2× their CSS pixel size: the 1200px-wide
+  // og:image is typically displayed around half size.
+  if (tree.background === "gradient") {
+    // radial-gradient(120% 90% at 50% 0%, mix(accent 18%, bg), bg 72%)
+    ctx.save();
+    ctx.translate(w / 2, 0);
+    ctx.scale(1, (0.9 * h) / (1.2 * w));
+    const g = ctx.createRadialGradient(0, 0, 0, 0, 0, 1.2 * w);
+    g.addColorStop(0, mixHex(colors.accent, colors.bg, 18));
+    g.addColorStop(0.72, colors.bg);
+    ctx.fillStyle = g;
+    ctx.fillRect(-w / 2, 0, w, (h * (1.2 * w)) / (0.9 * h));
+    ctx.restore();
+  } else if (tree.background === "dots") {
+    ctx.fillStyle = mixHex(colors.accent, colors.bg, 26);
+    for (let y = 0; y <= h + 44; y += 44) {
+      for (let x = 0; x <= w + 44; x += 44) {
+        ctx.beginPath();
+        ctx.arc(x, y, 2.8, 0, Math.PI * 2);
+        ctx.fill();
+      }
+    }
+  } else if (tree.background === "grid") {
+    ctx.strokeStyle = mixHex(colors.accent, colors.bg, 16);
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    for (let x = 0; x <= w; x += 52) {
+      ctx.moveTo(x, 0);
+      ctx.lineTo(x, h);
+    }
+    for (let y = 0; y <= h; y += 52) {
+      ctx.moveTo(0, y);
+      ctx.lineTo(w, y);
+    }
+    ctx.stroke();
+  }
 }
 
 function wrapCanvasText(
@@ -1453,8 +1870,7 @@ async function renderOgImage(
   const font = (weight: number, size: number) =>
     `${weight} ${size}px ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif`;
 
-  ctx.fillStyle = colors.bg;
-  ctx.fillRect(0, 0, 1200, 630);
+  await drawOgBackground(ctx, tree, colors);
 
   // Only data: avatars are drawn — a remote avatar would taint the canvas.
   const avatarSrc = tree.avatarUrl?.trim().startsWith("data:")
@@ -1486,20 +1902,80 @@ async function renderOgImage(
 
   ctx.textAlign = "center";
   ctx.textBaseline = "middle";
-  let nameSize = 68;
-  ctx.font = font(800, nameSize);
-  while (ctx.measureText(name).width > 1040 && nameSize > 34) {
-    nameSize -= 4;
+  const drawName = () => {
+    let nameSize = 68;
     ctx.font = font(800, nameSize);
+    while (ctx.measureText(name).width > 1040 && nameSize > 34) {
+      nameSize -= 4;
+      ctx.font = font(800, nameSize);
+    }
+    ctx.fillStyle = colors.text;
+    ctx.fillText(name, 600, nameY);
+  };
+
+  // When the cover replaces the name, draw it as the title band, mirroring
+  // the page's fit/position/zoom. Only data: covers — remote would taint.
+  const coverSrc =
+    tree.coverTitle && tree.coverUrl?.trim().startsWith("data:")
+      ? avatarImageSrc(tree.coverUrl)
+      : null;
+  let bioY = nameY + 66;
+  let coverDrawn = false;
+  if (coverSrc) {
+    try {
+      const img = await loadImageFromSrc(coverSrc);
+      const bandTop = avatarSrc ? 288 : 100;
+      // The page band is the content width (440) with a crop window of
+      // 440:coverHeight ("cover") or the image's own aspect ("contain");
+      // the og draws it at 2×, scaled down uniformly when the layout needs
+      // it so the crop matches the page's exactly.
+      const fullW = 880;
+      const desiredH =
+        tree.coverFit === "contain"
+          ? (fullW * img.naturalHeight) / img.naturalWidth
+          : clampCoverHeight(tree.coverHeight) * 2;
+      const capH = Math.max(64, (bio ? 372 : 460) - bandTop);
+      const bh = Math.min(desiredH, capH);
+      const bw = fullW * (bh / desiredH);
+      const bx = 600 - bw / 2;
+      const radius = Math.min(
+        parseInt(cornerRadius(tree), 10) * 2 * (bw / fullW),
+        bw / 2,
+        bh / 2,
+      );
+      ctx.save();
+      ctx.beginPath();
+      ctx.roundRect(bx, bandTop, bw, bh, radius);
+      ctx.clip();
+      if (tree.coverFit === "contain") {
+        ctx.drawImage(img, bx, bandTop, bw, bh);
+      } else {
+        const [px, py] = sanitizeObjectPosition(tree.coverPos)
+          .split(" ")
+          .map((v) => parseFloat(v) / 100);
+        const s =
+          Math.max(bw / img.naturalWidth, bh / img.naturalHeight) *
+          clampZoom(tree.coverZoom);
+        const iw = img.naturalWidth * s;
+        const ih = img.naturalHeight * s;
+        ctx.drawImage(img, bx + (bw - iw) * px, bandTop + (bh - ih) * py, iw, ih);
+      }
+      ctx.restore();
+      bioY = bandTop + bh + 60;
+      coverDrawn = true;
+    } catch {
+      // Fall back to the name text.
+    }
   }
-  ctx.fillStyle = colors.text;
-  ctx.fillText(name, 600, nameY);
+  if (!coverDrawn) {
+    drawName();
+  }
 
   if (bio) {
     ctx.font = font(500, 34);
     ctx.fillStyle = colors.muted;
     const lines = wrapCanvasText(ctx, bio, 980, 2);
-    lines.forEach((line, i) => ctx.fillText(line, 600, nameY + 66 + i * 46));
+    lines.forEach((line, i) => ctx.fillText(line, 600, bioY + i * 46));
   }
 
   ctx.font = font(700, 32);
@@ -1525,6 +2001,8 @@ function linkTreeToHtml(
   tree: LinkTree,
   url: string,
   generatedOgUrl?: string,
+  bgLightUrl?: string,
+  bgDarkUrl?: string,
 ): string {
   const safeName = tree.displayName.trim() || "Contact";
   const safeBio = tree.bio.trim();
@@ -1582,9 +2060,65 @@ function linkTreeToHtml(
     /^(https?:|mailto:|tel:|sms:)/i.test(link.href)
       ? ' rel="me"'
       : "";
+  const linkInner = (link: NormalizedLink) => {
+    const badge = link.item.badge?.trim();
+    const desc = link.item.desc?.trim();
+    return `${linkIconHtml(link)}<span class="link-label">${escapeHtml(link.label)}</span>${
+      badge ? `<span class="link-badge">${escapeHtml(badge)}</span>` : ""
+    }${desc ? `<span class="link-desc">${escapeHtml(desc)}</span>` : ""}`;
+  };
+
+  const font = fontStack(tree);
+  const radius = cornerRadius(tree);
+  const avatarRad = avatarRadius(tree);
+  // Custom background image, served as a sub and shown as uploaded. The
+  // lighten/darken treatments are CSS overlay layers, not baked into the
+  // image: light themes lay white at bgLighten% over it, dark ones swap in
+  // the custom dark image or lay black at bgShade% over the same image.
+  const bgImage = tree.background === "image" && bgLightUrl;
+  const overlay = (rgb: string, alpha: number) =>
+    alpha > 0
+      ? `linear-gradient(rgb(${rgb} / ${alpha}), rgb(${rgb} / ${alpha})), `
+      : "";
+  const bgImg = (u: string, ov = "") =>
+    `${ov}url("${escapeHtml(u)}") center / cover no-repeat fixed, var(--bg)`;
+  const bgLight = bgImage
+    ? bgImg(bgLightUrl!, overlay("255 255 255", clampLighten(tree.bgLighten) / 100))
+    : "";
+  const bgDark = bgImage
+    ? bgDarkUrl
+      ? bgImg(bgDarkUrl)
+      : bgImg(bgLightUrl!, overlay("0 0 0", clampShade(tree.bgShade) / 100))
+    : "";
+  const bg = bgImage
+    ? tree.theme === "dark"
+      ? bgDark
+      : bgLight
+    : pageBackground(tree);
+  const bgDarkCss =
+    bgImage && tree.theme === "system"
+      ? `@media (prefers-color-scheme: dark) {\n  html.theme-system body { background: ${bgDark}; }\n}\n`
+      : "";
+  const buttons = tree.buttons ?? "soft";
+  const cover = avatarImageSrc(tree.coverUrl);
+  const coverObjectFit = tree.coverFit === "contain" ? "contain" : "cover";
+  const coverObjectPos = sanitizeObjectPosition(tree.coverPos);
+  const coverHeight = clampCoverHeight(tree.coverHeight);
+  const coverZoom = clampZoom(tree.coverZoom);
+  const avatarObjectPos = sanitizeObjectPosition(tree.avatarPos);
+  const avatarZoom = clampZoom(tree.avatarZoom);
+  const coverIsTitle = Boolean(cover) && Boolean(tree.coverTitle);
+  const status = tree.status?.trim();
+  const favicon = linkIconEmoji(tree.favicon);
+  const faviconLink = favicon
+    ? `<link rel="icon" href="data:image/svg+xml,${encodeURIComponent(
+        `<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><text x='16' y='25' font-size='28' text-anchor='middle'>${favicon}</text></svg>`,
+      )}"/>\n`
+    : "";
+  const htmlClass = `${themeClass} btn-${buttons}${cover ? " has-cover" : ""}${coverIsTitle ? " cover-title" : ""}`;
 
   return `<!DOCTYPE html>
-<html lang="en" class="${themeClass}">
+<html lang="en" class="${htmlClass}">
 <head>
 <meta charset="UTF-8"/>
 <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
@@ -1595,7 +2129,7 @@ function linkTreeToHtml(
 <meta property="og:url" content="${escapeHtml(url)}"/>
 ${ogImage ? `<meta property="og:image" content="${escapeHtml(ogImage)}"/>\n` : ""}<meta name="twitter:card" content="${ogImage ? "summary_large_image" : "summary"}"/>
 <title>${escapeHtml(metaTitle)}</title>
-<style>
+${faviconLink}<style>
 :root {
   color-scheme: light dark;
   --bg: #fbfbf8;
@@ -1605,7 +2139,9 @@ ${ogImage ? `<meta property="og:image" content="${escapeHtml(ogImage)}"/>\n` : "
   --border: #d7d7d0;
   --accent: #007f73;
   --accent-text: #ffffff;
-  font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  --radius: ${radius};
+  --avatar-radius: ${avatarRad};
+  font-family: ${font};
 }
 .theme-dark {
   color-scheme: dark;
@@ -1620,24 +2156,6 @@ ${ogImage ? `<meta property="og:image" content="${escapeHtml(ogImage)}"/>\n` : "
 .theme-light {
   color-scheme: light;
 }
-.theme-warm {
-  color-scheme: light;
-  --bg: #fbf8f0;
-  --text: #221b13;
-  --muted: #665b4c;
-  --panel: #ffffff;
-  --border: #ddd2c1;
-  --accent: #9a4f24;
-}
-.theme-clean {
-  color-scheme: light;
-  --bg: #f7faf8;
-  --text: #15201d;
-  --muted: #52615c;
-  --panel: #ffffff;
-  --border: #cfddd8;
-  --accent: #146c5d;
-}
 @media (prefers-color-scheme: dark) {
   .theme-system {
     --bg: #101112;
@@ -1649,18 +2167,41 @@ ${ogImage ? `<meta property="og:image" content="${escapeHtml(ogImage)}"/>\n` : "
     --accent-text: #07100f;
   }
 }
-${accentCss}* { box-sizing: border-box; }
+${accentCss}${bgDarkCss}* { box-sizing: border-box; }
 body {
   margin: 0;
   min-height: 100svh;
   display: grid;
   place-items: center;
   padding: 24px;
-  background: var(--bg);
+  background: ${bg};
+  background-attachment: fixed;
   color: var(--text);
 }
 main {
   width: min(100%, 440px);
+}
+.cover {
+  width: 100%;
+  ${
+    coverObjectFit === "contain"
+      ? ""
+      : `aspect-ratio: 440 / ${coverHeight};`
+  }
+  border-radius: var(--radius);
+  overflow: hidden;
+  border: 1px solid var(--border);
+  background: var(--panel);
+  margin-bottom: 16px;
+}
+.cover img {
+  width: 100%;
+  display: block;
+  ${
+    coverObjectFit === "contain"
+      ? "height: auto;"
+      : `height: 100%; object-fit: cover; object-position: ${coverObjectPos}; transform: scale(${coverZoom}); transform-origin: ${coverObjectPos};`
+  }
 }
 .profile {
   text-align: center;
@@ -1669,7 +2210,7 @@ main {
 .avatar {
   width: 88px;
   height: 88px;
-  border-radius: 50%;
+  border-radius: var(--avatar-radius);
   border: 1px solid var(--border);
   background: var(--panel);
   display: inline-grid;
@@ -1680,16 +2221,43 @@ main {
   font-size: 28px;
   font-weight: 700;
 }
+.has-cover .avatar {
+  margin-top: -60px;
+  box-shadow: 0 0 0 4px var(--bg);
+}
+.cover-title h1 {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+.status {
+  display: inline-block;
+  margin: 12px 0 0;
+  padding: 4px 12px;
+  border-radius: 999px;
+  font-size: 0.85rem;
+  font-weight: 650;
+  color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 12%, var(--panel));
+}
 .avatar img {
   width: 100%;
   height: 100%;
   object-fit: cover;
+  object-position: ${avatarObjectPos};
+  transform: scale(${avatarZoom});
+  transform-origin: ${avatarObjectPos};
 }
 h1 {
   margin: 0;
   font-size: clamp(2rem, 9vw, 3rem);
   line-height: 1;
   letter-spacing: 0;
+  font-weight: 800;
 }
 p {
   margin: 12px 0 0;
@@ -1706,9 +2274,9 @@ a.contact-link {
   display: block;
   align-content: center;
   padding: 12px 16px;
-  border: 1px solid var(--border);
-  border-radius: 8px;
-  background: var(--panel);
+  border: 1px solid color-mix(in srgb, var(--accent) 45%, var(--border));
+  border-radius: var(--radius);
+  background: color-mix(in srgb, var(--accent) 7%, var(--panel));
   color: var(--text);
   text-align: center;
   text-decoration: none;
@@ -1731,7 +2299,7 @@ a.vcard-button {
   margin: 0 0 16px;
   padding: 10px 16px;
   border: 1px solid var(--accent);
-  border-radius: 8px;
+  border-radius: var(--radius);
   background: transparent;
   color: var(--accent);
   text-decoration: none;
@@ -1779,13 +2347,69 @@ img.link-icon {
 span.link-icon-emoji {
   margin-right: 10px;
 }
+.link-badge {
+  display: inline-block;
+  margin-left: 8px;
+  padding: 1px 8px;
+  border-radius: 999px;
+  font-size: 0.72rem;
+  font-weight: 700;
+  vertical-align: 1px;
+  background: color-mix(in srgb, var(--accent) 16%, var(--panel));
+  color: var(--accent);
+}
+.link-desc {
+  display: block;
+  margin-top: 3px;
+  font-size: 0.82rem;
+  font-weight: 500;
+  color: var(--muted);
+}
+.contact-link.featured .link-badge {
+  background: color-mix(in srgb, var(--accent-text) 22%, transparent);
+  color: var(--accent-text);
+}
+.contact-link.featured .link-desc {
+  color: color-mix(in srgb, var(--accent-text) 80%, transparent);
+}
+.btn-outline a.contact-link:not(.featured) {
+  background: transparent;
+  border-color: var(--accent);
+}
+.btn-filled a.contact-link:not(.featured) {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: var(--accent-text);
+}
+.btn-filled a.contact-link:not(.featured):hover {
+  background: color-mix(in srgb, var(--accent) 85%, var(--text));
+  border-color: color-mix(in srgb, var(--accent) 85%, var(--text));
+}
+.btn-filled a.contact-link:not(.featured) .link-desc {
+  color: color-mix(in srgb, var(--accent-text) 80%, transparent);
+}
+.btn-filled a.contact-link:not(.featured) .link-badge {
+  background: color-mix(in srgb, var(--accent-text) 22%, transparent);
+  color: var(--accent-text);
+}
+p.link-text {
+  margin: 0;
+  padding: 2px 4px;
+  color: var(--muted);
+  font-size: 0.95rem;
+  line-height: 1.55;
+  white-space: pre-line;
+  text-align: center;
+}
 </style>
 </head>
 <body>
 <main>
+  ${cover ? `<div class="cover"${coverIsTitle ? "" : ' aria-hidden="true"'}><img src="${escapeHtml(cover)}" alt="${coverIsTitle ? escapeHtml(safeName) : ""}"/></div>` : ""}
   <section class="profile" aria-labelledby="profile-title">
     ${avatar ? `<div class="avatar" aria-hidden="true"><img src="${escapeHtml(avatar)}" alt=""/></div>` : ""}
     <h1 id="profile-title">${escapeHtml(safeName)}</h1>
+    ${status ? `<p class="status">${escapeHtml(status)}</p>` : ""}
     ${safeBio ? `<p>${escapeHtml(safeBio)}</p>` : ""}
   </section>
   ${
@@ -1799,13 +2423,15 @@ span.link-icon-emoji {
     ${[
       ...(featured
         ? [
-            `<a class="contact-link featured" href="${escapeHtml(featured.href)}"${linkRelAttr(featured)}>${linkIconHtml(featured)}${escapeHtml(featured.label)}</a>`,
+            `<a class="contact-link featured" href="${escapeHtml(featured.href)}"${linkRelAttr(featured)}>${linkInner(featured)}</a>`,
           ]
         : []),
       ...entries.map((entry) =>
         entry.kind === "section"
           ? `<h2 class="link-section">${escapeHtml(entry.title)}</h2>`
-          : `<a class="contact-link" href="${escapeHtml(entry.link.href)}"${linkRelAttr(entry.link)}>${linkIconHtml(entry.link)}${escapeHtml(entry.link.label)}</a>`,
+          : entry.kind === "text"
+            ? `<p class="link-text">${escapeHtml(entry.text)}</p>`
+            : `<a class="contact-link" href="${escapeHtml(entry.link.href)}"${linkRelAttr(entry.link)}>${linkInner(entry.link)}</a>`,
       ),
     ].join("\n    ")}
   </nav>`
@@ -1913,14 +2539,12 @@ const printAccents: Record<LinkTree["theme"], string> = {
   system: "#007f73",
   light: "#007f73",
   dark: "#007f73",
-  warm: "#9a4f24",
-  clean: "#146c5d",
 };
 
 // Links the owner marked "include on business cards", as {emoji, text} lines.
 function businessCardLines(tree: LinkTree): { icon: string; text: string }[] {
   return tree.links
-    .filter((link) => link.card && !isSection(link))
+    .filter((link) => link.card && !isBlock(link))
     .map((link) => ({
       icon: linkIconEmoji(link.icon) ?? kindDefaultIcons[link.kind] ?? "",
       text: link.value.trim() || link.label.trim(),
@@ -2365,6 +2989,7 @@ function EditableLink({
   dragging,
   setDragging,
   dropTarget,
+  dropAfter,
   setDragOver,
   selected,
   setSelected,
@@ -2378,18 +3003,21 @@ function EditableLink({
   setIcon: (id: string, icon: string | undefined) => void;
   onError: (message: string) => void;
   removeLink: () => void;
-  moveTo: (draggedId: string, targetId: string) => void;
+  moveTo: (draggedId: string, targetId: string, after: boolean) => void;
   moveBy: (id: string, delta: number) => void;
   dragging: boolean;
   setDragging: (id: string) => void;
   dropTarget: boolean;
-  setDragOver: (id: string) => void;
+  dropAfter: boolean;
+  setDragOver: (id: string, after?: boolean) => void;
   selected: boolean;
   setSelected: (id: string) => void;
   sectionShown: boolean;
 }) {
   const normalized = normalizeLink(link);
   const sectionItem = isSection(link);
+  const textItem = isText(link);
+  const blockItem = sectionItem || textItem;
   const fieldId = `link-${link.id}`;
   const detailId = `${fieldId}-detail`;
   const valueLabel = linkValueLabel(link.kind);
@@ -2404,7 +3032,7 @@ function EditableLink({
   const iconImportUrl = canImportLinkIcon(normalized.href)
     ? normalized.href
     : kindIconSites[link.kind];
-  const iconImportable = !sectionItem && Boolean(iconImportUrl);
+  const iconImportable = !blockItem && Boolean(iconImportUrl);
   const [importingIcon, setImportingIcon] = useState(false);
   const [iconStatus, setIconStatus] = useState("");
 
@@ -2425,7 +3053,7 @@ function EditableLink({
 
   return (
     <article
-      className={`editable-link ${selected ? "is-selected" : ""} ${dragging ? "is-dragging" : ""} ${dropTarget ? "is-drop-target" : ""} ${link.enabled ? "" : "is-disabled"} ${sectionItem ? "is-section" : ""} ${featuredShown ? "is-featured" : ""}`}
+      className={`editable-link ${selected ? "is-selected" : ""} ${dragging ? "is-dragging" : ""} ${dropTarget ? "is-drop-target" : ""} ${dropTarget && dropAfter ? "is-drop-after" : ""} ${link.enabled ? "" : "is-disabled"} ${sectionItem ? "is-section" : ""} ${textItem ? "is-text" : ""} ${featuredShown ? "is-featured" : ""}`}
       draggable
       onDragStart={(event) => {
         if (!event.dataTransfer) return;
@@ -2439,13 +3067,15 @@ function EditableLink({
           event.dataTransfer.dropEffect = "move";
         }
         if (!dragging) {
-          setDragOver(link.id);
+          const rect = event.currentTarget.getBoundingClientRect();
+          setDragOver(link.id, event.clientY > rect.top + rect.height / 2);
         }
       }}
       onDrop={(event) => {
         event.preventDefault();
         const draggedId = event.dataTransfer?.getData("text/plain") ?? "";
-        moveTo(draggedId, link.id);
+        const rect = event.currentTarget.getBoundingClientRect();
+        moveTo(draggedId, link.id, event.clientY > rect.top + rect.height / 2);
         setDragging("");
         setDragOver("");
       }}
@@ -2496,6 +3126,12 @@ function EditableLink({
             </span>
           )}
           {label}
+          {link.badge?.trim() && (
+            <span className="row-badge">{link.badge.trim()}</span>
+          )}
+          {link.desc?.trim() && (
+            <span className="row-desc">{link.desc.trim()}</span>
+          )}
         </button>
         <button
           type="button"
@@ -2511,23 +3147,39 @@ function EditableLink({
       {selected && (
         <div className="link-edit-panel" id={detailId}>
           <label className="field stack">
-            <span>{sectionItem ? "Section text" : "Button text"}</span>
-            <input
-              type="text"
-              value={link.label}
-              placeholder={
-                sectionItem ? kindExamples.section : kindLabels[link.kind]
-              }
-              aria-describedby={sectionItem ? `${detailId}-status` : undefined}
-              onInput={(e) =>
-                updateLink({
-                  ...link,
-                  label: (e.target as HTMLInputElement).value,
-                })
-              }
-            />
+            <span>
+              {sectionItem ? "Heading" : textItem ? "Text" : "Button text"}
+            </span>
+            {textItem ? (
+              <textarea
+                rows={3}
+                value={link.label}
+                placeholder={kindExamples.text}
+                onInput={(e) =>
+                  updateLink({
+                    ...link,
+                    label: (e.target as HTMLTextAreaElement).value,
+                  })
+                }
+              ></textarea>
+            ) : (
+              <input
+                type="text"
+                value={link.label}
+                placeholder={
+                  sectionItem ? kindExamples.section : kindLabels[link.kind]
+                }
+                aria-describedby={sectionItem ? `${detailId}-status` : undefined}
+                onInput={(e) =>
+                  updateLink({
+                    ...link,
+                    label: (e.target as HTMLInputElement).value,
+                  })
+                }
+              />
+            )}
           </label>
-          {!sectionItem && (
+          {!blockItem && (
             <div className="panel-group">
               <label className="field stack">
                 <span>{valueLabel}</span>
@@ -2563,6 +3215,40 @@ function EditableLink({
               )}
             </div>
           )}
+          {!blockItem && (
+            <div className="panel-group">
+              <label className="field stack">
+                <span>Subtitle</span>
+                <input
+                  type="text"
+                  value={link.desc ?? ""}
+                  maxLength={80}
+                  placeholder="Optional line under the button"
+                  onInput={(e) =>
+                    updateLink({
+                      ...link,
+                      desc: (e.target as HTMLInputElement).value || undefined,
+                    })
+                  }
+                />
+              </label>
+              <label className="field stack">
+                <span>Badge</span>
+                <input
+                  type="text"
+                  value={link.badge ?? ""}
+                  maxLength={16}
+                  placeholder="e.g. New"
+                  onInput={(e) =>
+                    updateLink({
+                      ...link,
+                      badge: (e.target as HTMLInputElement).value || undefined,
+                    })
+                  }
+                />
+              </label>
+            </div>
+          )}
           <label className="show-toggle">
             <input
               type="checkbox"
@@ -2576,7 +3262,7 @@ function EditableLink({
             />
             <span>Show on page</span>
           </label>
-          {!sectionItem && (
+          {!blockItem && (
             <label className="show-toggle">
               <input
                 type="checkbox"
@@ -2627,7 +3313,7 @@ function EditableLink({
               </p>
             </div>
           )}
-          {!sectionItem && (
+          {!blockItem && (
             <div className="link-icon-block">
               <div className="link-icon-actions">
                 {(iconSrc || iconEmoji) && (
@@ -2701,6 +3387,14 @@ function EditableLink({
                     ? "Hidden until a link below it is shown."
                     : "Hidden."}
             </p>
+          ) : textItem ? (
+            <p id={`${detailId}-status`} className="link-status">
+              {!link.label.trim()
+                ? "Hidden until it has text."
+                : link.enabled
+                  ? "Shown as text."
+                  : "Hidden."}
+            </p>
           ) : (
             <p
               id={`${detailId}-status`}
@@ -2730,68 +3424,317 @@ function EditableLink({
   );
 }
 
-function AvatarUpload({
-  value,
+// A framed image you drag to pan and scroll (or slide) to zoom — the visible
+// region maps 1:1 to the published crop (object-position + scale + origin).
+function RegionEditor({
+  src,
+  pos,
+  zoom,
   onChange,
-  onError,
+  className,
+  style,
 }: {
-  value: string | undefined;
-  onChange: (value: string) => void;
-  onError: (message: string) => void;
+  src: string;
+  pos: string;
+  zoom: number;
+  onChange: (pos: string, zoom: number) => void;
+  className?: string;
+  style?: Record<string, string | number>;
 }) {
-  const [status, setStatus] = useState<string>("");
-  const src = avatarImageSrc(value);
+  const frameRef = useRef<HTMLDivElement>(null);
+  const drag = useRef<{
+    sx: number;
+    sy: number;
+    x: number;
+    y: number;
+    w: number;
+    h: number;
+  } | null>(null);
+  const clampPct = (v: number) => Math.min(100, Math.max(0, v));
 
   return (
-    <div className={`avatar-upload ${src ? "has-avatar" : ""}`}>
-      {src && (
-        <div className="avatar-upload-preview" aria-hidden="true">
+    <div
+      ref={frameRef}
+      className={`region-frame ${className ?? ""}`}
+      style={style}
+      onPointerDown={(e) => {
+        const el = frameRef.current;
+        if (!el) return;
+        const [x, y] = pos.replace(/%/g, "").split(/\s+/).map(Number);
+        drag.current = {
+          sx: e.clientX,
+          sy: e.clientY,
+          x,
+          y,
+          w: el.clientWidth,
+          h: el.clientHeight,
+        };
+        el.setPointerCapture(e.pointerId);
+      }}
+      onPointerMove={(e) => {
+        const d = drag.current;
+        if (!d) return;
+        const nx = clampPct(d.x - ((e.clientX - d.sx) / d.w / zoom) * 100);
+        const ny = clampPct(d.y - ((e.clientY - d.sy) / d.h / zoom) * 100);
+        onChange(`${Math.round(nx)}% ${Math.round(ny)}%`, zoom);
+      }}
+      onPointerUp={() => {
+        drag.current = null;
+      }}
+      onWheel={(e) => {
+        e.preventDefault();
+        onChange(
+          pos,
+          clampZoom(Math.round((zoom - e.deltaY * 0.0025) * 100) / 100),
+        );
+      }}
+    >
+      <img
+        src={src}
+        alt=""
+        draggable={false}
+        style={{
+          objectFit: "cover",
+          objectPosition: pos,
+          transform: `scale(${zoom})`,
+          transformOrigin: pos,
+        }}
+      />
+      <input
+        className="region-zoom"
+        type="range"
+        min={1}
+        max={4}
+        step={0.05}
+        value={zoom}
+        aria-label="Zoom"
+        onPointerDown={(e) => e.stopPropagation()}
+        onInput={(e) =>
+          onChange(pos, clampZoom(Number((e.target as HTMLInputElement).value)))
+        }
+      />
+    </div>
+  );
+}
+
+function CoverEditor({
+  tree,
+  updateTree,
+  onError,
+}: {
+  tree: LinkTree;
+  updateTree: (tree: LinkTree) => void;
+  onError: (message: string) => void;
+}) {
+  const src = avatarImageSrc(tree.coverUrl);
+  const [status, setStatus] = useState("");
+  const fit = tree.coverFit === "contain" ? "contain" : "cover";
+  const pos = sanitizeObjectPosition(tree.coverPos);
+
+  const upload = (file?: File) => {
+    if (!file) return;
+    setStatus("Preparing…");
+    compressCover(file)
+      .then((img) => {
+        updateTree({ ...tree, coverUrl: img.dataUrl });
+        setStatus("");
+      })
+      .catch((e) => {
+        setStatus("");
+        onError((e as Error).message);
+      });
+  };
+  const pickFile = (e: Event) => {
+    const input = e.target as HTMLInputElement;
+    const file = input.files?.[0];
+    input.value = "";
+    upload(file);
+  };
+
+  if (!src) {
+    return (
+      <label className="cover-add">
+        <span>+ Add cover photo</span>
+        <input
+          type="file"
+          accept="image/*"
+          className="sr-only"
+          onChange={pickFile}
+        />
+      </label>
+    );
+  }
+
+  return (
+    <div className="cover-editor">
+      {fit === "cover" ? (
+        <RegionEditor
+          src={src}
+          pos={pos}
+          zoom={clampZoom(tree.coverZoom)}
+          onChange={(coverPos, coverZoom) =>
+            updateTree({ ...tree, coverPos, coverZoom })
+          }
+          className="is-fill"
+          style={{
+            borderRadius: cornerRadius(tree),
+            aspectRatio: `440 / ${clampCoverHeight(tree.coverHeight)}`,
+          }}
+        />
+      ) : (
+        <div
+          className="cover-frame is-fit"
+          style={{ borderRadius: cornerRadius(tree) }}
+        >
           <img src={src} alt="" />
         </div>
       )}
-      <div className="avatar-upload-controls">
-        <div className="avatar-upload-actions">
-          <label className="button-link secondary">
-            {src ? "Replace photo" : "Add photo"}
-            <input
-              type="file"
-              accept="image/*"
-              className="sr-only"
-              onChange={(e) => {
-                const input = e.target as HTMLInputElement;
-                const file = input.files?.[0];
-                input.value = "";
-                if (!file) return;
-                setStatus("Compressing...");
-                compressAvatar(file)
-                  .then((avatar) => {
-                    onChange(avatar.dataUrl);
-                    setStatus(
-                      `${avatar.mime === "image/avif" ? "AVIF" : "JPEG"} avatar ready.`,
-                    );
-                  })
-                  .catch((error) => {
-                    setStatus("");
-                    onError(error.message);
-                  });
-              }}
-            />
-          </label>
-          {src && (
-            <button
-              type="button"
-              className="secondary"
-              onClick={() => {
-                onChange("");
-                setStatus("");
-              }}
-            >
-              Remove
-            </button>
-          )}
-        </div>
-        {status && <p className="help">{status}</p>}
+      <div className="cover-editor-actions">
+        <label className="button-link secondary">
+          Replace
+          <input
+            type="file"
+            accept="image/*"
+            className="sr-only"
+            onChange={pickFile}
+          />
+        </label>
+        <button
+          type="button"
+          className="secondary"
+          onClick={() => updateTree({ ...tree, coverUrl: "" })}
+        >
+          Remove
+        </button>
+        <label className="cover-fit-field">
+          <span>Cover</span>
+          <select
+            value={fit}
+            onChange={(e) =>
+              updateTree({
+                ...tree,
+                coverFit: (e.target as HTMLSelectElement).value as CoverFit,
+              })
+            }
+          >
+            <option value="cover">Fill</option>
+            <option value="contain">Fit whole image</option>
+          </select>
+        </label>
       </div>
+      {fit === "cover" && (
+        <label className="cover-height-field">
+          <span>Height</span>
+          <input
+            type="range"
+            min={72}
+            max={400}
+            step={4}
+            value={clampCoverHeight(tree.coverHeight)}
+            onInput={(e) =>
+              updateTree({
+                ...tree,
+                coverHeight: Number((e.target as HTMLInputElement).value),
+              })
+            }
+          />
+        </label>
+      )}
+      <label className="show-toggle">
+        <input
+          type="checkbox"
+          checked={Boolean(tree.coverTitle)}
+          onChange={(e) =>
+            updateTree({
+              ...tree,
+              coverTitle: (e.target as HTMLInputElement).checked,
+            })
+          }
+        />
+        <span>Use the cover as the page's name</span>
+      </label>
+      {status && <p className="help">{status}</p>}
+    </div>
+  );
+}
+
+function AvatarEditor({
+  tree,
+  updateTree,
+  onError,
+}: {
+  tree: LinkTree;
+  updateTree: (tree: LinkTree) => void;
+  onError: (message: string) => void;
+}) {
+  const src = avatarImageSrc(tree.avatarUrl);
+  const [status, setStatus] = useState("");
+  const pos = sanitizeObjectPosition(tree.avatarPos);
+  const upload = (file?: File) => {
+    if (!file) return;
+    setStatus("Preparing…");
+    compressAvatar(file)
+      .then((img) => {
+        updateTree({ ...tree, avatarUrl: img.dataUrl });
+        setStatus("");
+      })
+      .catch((e) => {
+        setStatus("");
+        onError((e as Error).message);
+      });
+  };
+  const pickFile = (e: Event) => {
+    const input = e.target as HTMLInputElement;
+    const file = input.files?.[0];
+    input.value = "";
+    upload(file);
+  };
+
+  if (!src) {
+    return (
+      <label className="button-link secondary avatar-add">
+        Add photo
+        <input
+          type="file"
+          accept="image/*"
+          className="sr-only"
+          onChange={pickFile}
+        />
+      </label>
+    );
+  }
+
+  return (
+    <div className="avatar-editor">
+      <RegionEditor
+        src={src}
+        pos={pos}
+        zoom={clampZoom(tree.avatarZoom)}
+        onChange={(avatarPos, avatarZoom) =>
+          updateTree({ ...tree, avatarPos, avatarZoom })
+        }
+        className="is-avatar"
+        style={{ borderRadius: avatarRadius(tree) }}
+      />
+      <div className="avatar-editor-actions">
+        <label className="button-link secondary">
+          Replace
+          <input
+            type="file"
+            accept="image/*"
+            className="sr-only"
+            onChange={pickFile}
+          />
+        </label>
+        <button
+          type="button"
+          className="secondary"
+          onClick={() => updateTree({ ...tree, avatarUrl: "" })}
+        >
+          Remove
+        </button>
+      </div>
+      {status && <p className="help">{status}</p>}
     </div>
   );
 }
@@ -2809,8 +3752,18 @@ function LinkTreeEditor({
   const shownSections = shownSectionIds(tree);
   const [draggingId, setDraggingId] = useState("");
   const [dragOverId, setDragOverId] = useState("");
+  const [dragAfter, setDragAfter] = useState(false);
+  const setDragOver = (id: string, after = false) => {
+    setDragOverId(id);
+    setDragAfter(after);
+  };
   const [selectedLinkId, setSelectedLinkId] = useState("");
   const [ogPreview, setOgPreview] = useState("");
+  // What the Auto theme previews as; starts from the device setting, then the
+  // Preview toggle takes over. Editor-only — visitors follow their own device.
+  const [previewDark, setPreviewDark] = useState(
+    () => window.matchMedia?.("(prefers-color-scheme: dark)").matches ?? false,
+  );
 
   const autoImageOn =
     (tree.social?.autoImage ?? true) &&
@@ -2852,6 +3805,18 @@ function LinkTreeEditor({
     tree.theme,
     tree.accent,
     tree.avatarUrl,
+    tree.background,
+    tree.bgUrl,
+    tree.bgDarkUrl,
+    tree.bgShade,
+    tree.bgLighten,
+    tree.coverTitle,
+    tree.coverUrl,
+    tree.coverFit,
+    tree.coverHeight,
+    tree.coverPos,
+    tree.coverZoom,
+    tree.corners,
   ]);
 
   const updateTree = (nextTree: LinkTree) => {
@@ -2860,6 +3825,21 @@ function LinkTreeEditor({
       type: Type.LINK_TREE,
       linkTree: nextTree,
     };
+  };
+
+  const pickBgImage = (key: "bgUrl" | "bgDarkUrl") => (e: Event) => {
+    const input = e.target as HTMLInputElement;
+    const file = input.files?.[0];
+    input.value = "";
+    if (!file) return;
+    // An already-small web image (e.g. an optimized AVIF) is kept byte-for-
+    // byte rather than re-encoded; anything bigger goes through compression.
+    const small =
+      /^image\/(avif|webp|jpeg|png|gif)$/.test(file.type) &&
+      file.size <= 1024 * 1024;
+    (small ? blobToDataUrl(file) : compressBg(file).then((img) => img.dataUrl))
+      .then((dataUrl) => updateTree({ ...tree, [key]: dataUrl }))
+      .catch((err) => onError((err as Error).message));
   };
 
   const social = tree.social ?? {};
@@ -2932,14 +3912,19 @@ function LinkTreeEditor({
     }
   };
 
-  const moveLinkTo = (draggedId: string, targetId: string) => {
+  const moveLinkTo = (draggedId: string, targetId: string, after: boolean) => {
     if (!draggedId || draggedId === targetId) {
       return;
     }
     const fromIndex = tree.links.findIndex((link) => link.id === draggedId);
-    const toIndex = tree.links.findIndex((link) => link.id === targetId);
-    if (fromIndex < 0 || toIndex < 0) {
+    const targetIndex = tree.links.findIndex((link) => link.id === targetId);
+    if (fromIndex < 0 || targetIndex < 0) {
       return;
+    }
+    let toIndex = targetIndex + (after ? 1 : 0);
+    // Removing the dragged item first shifts everything after it down one.
+    if (fromIndex < toIndex) {
+      toIndex -= 1;
     }
     const nextLinks = [...tree.links];
     const [link] = nextLinks.splice(fromIndex, 1);
@@ -2950,22 +3935,40 @@ function LinkTreeEditor({
   return (
     <section className="live-editor" aria-label="Contact page editor">
       <div
-        className={`live-page theme-${tree.theme || "system"} ${accentPair(tree.accent) ? "accent-custom" : ""}`}
-        style={
-          accentPair(tree.accent)
+        className={`live-page theme-${tree.theme || "system"} ${(tree.theme || "system") === "system" && previewDark ? "pv-dark" : ""} avatar-${tree.avatarShape ?? "circle"} btn-${tree.buttons ?? "soft"} ${tree.coverTitle && avatarImageSrc(tree.coverUrl) ? "cover-title" : ""} ${accentPair(tree.accent) ? "accent-custom" : ""} ${tree.background === "image" && tree.bgUrl ? "has-bg-image" : ""}`}
+        style={{
+          fontFamily: fontStack(tree),
+          "--radius": cornerRadius(tree),
+          "--avatar-radius": avatarRadius(tree),
+          // Image backgrounds go through CSS vars so both derived variants
+          // preview: the light one lightened by bgLighten%, and the dark one
+          // (custom image, or the source darkened by bgShade%) — matching what
+          // lightenImage/darkenImage produce at publish.
+          ...(tree.background === "image" && tree.bgUrl
+            ? {
+                "--pv-bg-light": `url("${tree.bgUrl}")`,
+                ...(tree.bgDarkUrl
+                  ? { "--pv-bg-dark": `url("${tree.bgDarkUrl}")` }
+                  : {}),
+                "--pv-shade": tree.bgDarkUrl
+                  ? "0"
+                  : String(clampShade(tree.bgShade) / 100),
+                "--pv-lighten": String(clampLighten(tree.bgLighten) / 100),
+              }
+            : {
+                background: pageBackground(tree, "--pv-accent", "--pv-bg"),
+              }),
+          ...(accentPair(tree.accent)
             ? {
                 "--pv-a-light": accentPair(tree.accent)!.light,
                 "--pv-a-dark": accentPair(tree.accent)!.dark,
               }
-            : undefined
-        }
+            : {}),
+        }}
       >
         <div className="live-profile">
-          <AvatarUpload
-            value={tree.avatarUrl}
-            onChange={(avatarUrl) => updateTree({ ...tree, avatarUrl })}
-            onError={onError}
-          />
+          <CoverEditor tree={tree} updateTree={updateTree} onError={onError} />
+          <AvatarEditor tree={tree} updateTree={updateTree} onError={onError} />
           <input
             className="live-name"
             aria-label="Name"
@@ -2976,6 +3979,20 @@ function LinkTreeEditor({
               updateTree({
                 ...tree,
                 displayName: (e.target as HTMLInputElement).value,
+              })
+            }
+          />
+          <input
+            className="live-status"
+            aria-label="Status line"
+            type="text"
+            value={tree.status ?? ""}
+            maxLength={60}
+            placeholder="Status — e.g. 🟢 Available for work (optional)"
+            onInput={(e) =>
+              updateTree({
+                ...tree,
+                status: (e.target as HTMLInputElement).value,
               })
             }
           />
@@ -3012,7 +4029,8 @@ function LinkTreeEditor({
                 dragging={draggingId === link.id}
                 setDragging={setDraggingId}
                 dropTarget={dragOverId === link.id && draggingId !== link.id}
-                setDragOver={setDragOverId}
+                dropAfter={dragAfter}
+                setDragOver={setDragOver}
                 selected={selectedLinkId === link.id}
                 setSelected={setSelectedLinkId}
                 sectionShown={shownSections.has(link.id)}
@@ -3026,54 +4044,95 @@ function LinkTreeEditor({
         </div>
 
         <div className="add-section">
-          <span className="add-label">Add a link</span>
-          <div className="add-chips">
-            {[...recommendedKinds, ...additionalKinds].map((kind) => (
-              <button
-                type="button"
-                className="add-link-item"
-                key={kind}
-                onClick={() => addLinkOfKind(kind)}
-              >
-                <span className="add-link-plus" aria-hidden="true">
-                  +
-                </span>
-                {kindLabels[kind]}
-              </button>
-            ))}
-          </div>
-          <span className="add-label">Organize</span>
-          <div className="add-chips">
-            <button
-              type="button"
-              className="add-link-item"
-              onClick={() => addLinkOfKind("section")}
-            >
-              <span className="add-link-plus" aria-hidden="true">
-                +
-              </span>
-              {kindLabels.section}
-            </button>
-          </div>
+          {addGroups.map((group) => (
+            <div className="add-group" key={group.label}>
+              <span className="add-label">{group.label}</span>
+              <div className="add-chips">
+                {group.kinds.map((kind) => (
+                  <button
+                    type="button"
+                    className="add-link-item"
+                    key={kind}
+                    onClick={() => addLinkOfKind(kind)}
+                  >
+                    <span className="add-link-plus" aria-hidden="true">
+                      +
+                    </span>
+                    {kindLabels[kind]}
+                  </button>
+                ))}
+              </div>
+            </div>
+          ))}
         </div>
       </div>
 
+      <details className="design-panel">
+        <summary>Theme &amp; style</summary>
+      <label className="field stack favicon-field">
+        <span>Favicon emoji</span>
+        <input
+          type="text"
+          value={tree.favicon ?? ""}
+          maxLength={8}
+          placeholder="e.g. ☕"
+          onInput={(e) =>
+            updateTree({
+              ...tree,
+              favicon: (e.target as HTMLInputElement).value,
+            })
+          }
+        />
+        <p className="help">
+          Shown in the browser tab. One emoji — leave blank for none.
+        </p>
+      </label>
       <fieldset className="theme-picker">
         <legend>Theme</legend>
-        {(
-          ["system", "light", "dark", "warm", "clean"] as LinkTree["theme"][]
-        ).map((theme) => (
-          <label className={`theme-choice swatch-${theme}`} key={theme}>
-            <input
-              type="radio"
-              name="theme"
-              value={theme}
-              checked={tree.theme === theme}
-              onChange={() => updateTree({ ...tree, theme })}
-            />
-            <span>{theme[0].toUpperCase() + theme.slice(1)}</span>
-          </label>
-        ))}
+        <select
+          className="theme-select"
+          aria-label="Theme"
+          value={tree.theme}
+          onChange={(e) =>
+            updateTree({
+              ...tree,
+              theme: (e.target as HTMLSelectElement)
+                .value as LinkTree["theme"],
+            })
+          }
+        >
+          <option value="system">Auto</option>
+          <option value="light">Light</option>
+          <option value="dark">Dark</option>
+        </select>
+        {tree.theme === "system" && (
+          <div
+            className="preview-mode"
+            role="group"
+            aria-label="Preview appearance"
+          >
+            <span className="accent-row-label">Preview</span>
+            <button
+              type="button"
+              className="secondary"
+              aria-pressed={!previewDark}
+              onClick={() => setPreviewDark(false)}
+            >
+              Light
+            </button>
+            <button
+              type="button"
+              className="secondary"
+              aria-pressed={previewDark}
+              onClick={() => setPreviewDark(true)}
+            >
+              Dark
+            </button>
+            <span className="help">
+              Auto follows each visitor's device — check both looks here.
+            </span>
+          </div>
+        )}
         <div className="accent-row">
           <span className="accent-row-label">Accent</span>
           <label className="accent-choice" title="Theme default">
@@ -3112,6 +4171,194 @@ function LinkTreeEditor({
           ))}
         </div>
       </fieldset>
+
+      <fieldset className="style-picker">
+        <legend>Style</legend>
+        <div className="style-grid">
+          <label className="field stack">
+            <span>Font</span>
+            <select
+              value={tree.font ?? "system"}
+              onChange={(e) =>
+                updateTree({
+                  ...tree,
+                  font: (e.target as HTMLSelectElement).value as FontChoice,
+                })
+              }
+            >
+              <option value="system">System</option>
+              <option value="sans">Sans</option>
+              <option value="serif">Serif</option>
+              <option value="mono">Mono</option>
+              <option value="rounded">Rounded</option>
+            </select>
+          </label>
+          <label className="field stack">
+            <span>Buttons</span>
+            <select
+              value={tree.buttons ?? "soft"}
+              onChange={(e) =>
+                updateTree({
+                  ...tree,
+                  buttons: (e.target as HTMLSelectElement).value as ButtonStyle,
+                })
+              }
+            >
+              <option value="soft">Soft</option>
+              <option value="outline">Outline</option>
+              <option value="filled">Filled</option>
+            </select>
+          </label>
+          <label className="field stack">
+            <span>Corners</span>
+            <select
+              value={tree.corners ?? "rounded"}
+              onChange={(e) =>
+                updateTree({
+                  ...tree,
+                  corners: (e.target as HTMLSelectElement).value as Corners,
+                })
+              }
+            >
+              <option value="rounded">Rounded</option>
+              <option value="sharp">Sharp</option>
+              <option value="pill">Pill</option>
+            </select>
+          </label>
+          <label className="field stack">
+            <span>Photo shape</span>
+            <select
+              value={tree.avatarShape ?? "circle"}
+              onChange={(e) =>
+                updateTree({
+                  ...tree,
+                  avatarShape: (e.target as HTMLSelectElement)
+                    .value as AvatarShape,
+                })
+              }
+            >
+              <option value="circle">Circle</option>
+              <option value="rounded">Rounded square</option>
+            </select>
+          </label>
+          <label className="field stack">
+            <span>Background</span>
+            <select
+              value={tree.background ?? "none"}
+              onChange={(e) =>
+                updateTree({
+                  ...tree,
+                  background: (e.target as HTMLSelectElement).value as Background,
+                })
+              }
+            >
+              <option value="none">None</option>
+              <option value="gradient">Gradient</option>
+              <option value="dots">Dots</option>
+              <option value="grid">Grid</option>
+              <option value="image">Custom image</option>
+            </select>
+          </label>
+        </div>
+        {tree.background === "image" && (
+          <div className="bg-image-controls">
+            <div className="cover-editor-actions">
+              <label className="button-link secondary">
+                {tree.bgUrl ? "Replace background" : "Add background image"}
+                <input
+                  type="file"
+                  accept="image/*"
+                  className="sr-only"
+                  onChange={pickBgImage("bgUrl")}
+                />
+              </label>
+              {tree.bgUrl && (
+                <button
+                  type="button"
+                  className="secondary"
+                  onClick={() =>
+                    updateTree({ ...tree, bgUrl: "", bgDarkUrl: "" })
+                  }
+                >
+                  Remove
+                </button>
+              )}
+            </div>
+            {tree.bgUrl && (
+              <>
+                <label className="field stack">
+                  <span>Light version — lighten by</span>
+                  <input
+                    type="range"
+                    min={0}
+                    max={90}
+                    step={5}
+                    value={clampLighten(tree.bgLighten)}
+                    onInput={(e) =>
+                      updateTree({
+                        ...tree,
+                        bgLighten: Number(
+                          (e.target as HTMLInputElement).value,
+                        ),
+                      })
+                    }
+                  />
+                </label>
+                <label className="field stack">
+                  <span>
+                    Dark version{" "}
+                    {tree.bgDarkUrl ? "(custom image)" : "— darken by"}
+                  </span>
+                  {!tree.bgDarkUrl && (
+                    <input
+                      type="range"
+                      min={0}
+                      max={90}
+                      step={5}
+                      value={clampShade(tree.bgShade)}
+                      onInput={(e) =>
+                        updateTree({
+                          ...tree,
+                          bgShade: Number(
+                            (e.target as HTMLInputElement).value,
+                          ),
+                        })
+                      }
+                    />
+                  )}
+                </label>
+                <div className="cover-editor-actions">
+                  <label className="button-link secondary">
+                    {tree.bgDarkUrl
+                      ? "Replace dark image"
+                      : "Or upload a dark image"}
+                    <input
+                      type="file"
+                      accept="image/*"
+                      className="sr-only"
+                      onChange={pickBgImage("bgDarkUrl")}
+                    />
+                  </label>
+                  {tree.bgDarkUrl && (
+                    <button
+                      type="button"
+                      className="secondary"
+                      onClick={() => updateTree({ ...tree, bgDarkUrl: "" })}
+                    >
+                      Use auto-shaded dark
+                    </button>
+                  )}
+                </div>
+                <p className="help">
+                  The light image shows by default; the dark version appears in
+                  dark mode. Both are served with your page.
+                </p>
+              </>
+            )}
+          </div>
+        )}
+      </fieldset>
+      </details>
 
       <div className="vcard-toggle-panel">
         <label className="show-toggle">
@@ -3343,6 +4590,11 @@ function SetupPanel({
   working,
   pwStatus,
   pathIsNew,
+  remember,
+  setRemember,
+  remembered,
+  openRemembered,
+  forgetRemembered,
   onContinue,
 }: {
   path: string;
@@ -3352,6 +4604,11 @@ function SetupPanel({
   working: boolean;
   pwStatus: boolean | undefined;
   pathIsNew: boolean;
+  remember: boolean;
+  setRemember: (v: boolean) => void;
+  remembered: RememberedPage[];
+  openRemembered: (path: string) => void;
+  forgetRemembered: (path: string) => void;
   onContinue: () => void;
 }) {
   const [revealPw, setRevealPw] = useState(false);
@@ -3465,12 +4722,57 @@ function SetupPanel({
           There is no password reset. Once you're in, save the recovery kit from
           the menu — it keeps your address and password somewhere safe.
         </p>
+        {pwStatus === true && path.trim() !== "" && (
+          <>
+            <label className="show-toggle">
+              <input
+                type="checkbox"
+                checked={remember}
+                onChange={(e) =>
+                  setRemember((e.target as HTMLInputElement).checked)
+                }
+              />
+              <span>Remember on this device</span>
+            </label>
+            {remember && (
+              <p className="help warning-text">
+                Saves this page's key in this browser so it opens without the
+                password. Only on a device you trust.
+              </p>
+            )}
+          </>
+        )}
         <div className="action-row">
           <button type="submit" disabled={!canContinue}>
             {isExisting ? "Edit page" : "Create page"}
           </button>
         </div>
       </form>
+      {remembered.length > 0 && (
+        <div className="remembered-pages">
+          <p className="remembered-title">Remembered on this device</p>
+          <ul>
+            {remembered.map((r) => (
+              <li key={r.path}>
+                <button
+                  type="button"
+                  className="remembered-open"
+                  onClick={() => openRemembered(r.path)}
+                >
+                  found.as/{r.path}
+                </button>
+                <button
+                  type="button"
+                  className="secondary"
+                  onClick={() => forgetRemembered(r.path)}
+                >
+                  Forget
+                </button>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
     </section>
   );
 }
@@ -4163,6 +5465,113 @@ async function deriveKP(path: string, pw: string) {
   );
 }
 
+// True when two keypairs are the same page credential.
+function sameKeyPair(a: SignKeyPair, b: SignKeyPair): boolean {
+  return (
+    a.publicKey.length === b.publicKey.length &&
+    a.publicKey.every((byte, i) => byte === b.publicKey[i])
+  );
+}
+
+// Remembering a page stores its derived private key (not the password) in this
+// browser's localStorage, so it opens without re-entering the password. It is
+// the page's full edit credential — offered per device, and forgettable.
+const REMEMBERED_KEY = "found.as:remembered";
+
+interface RememberedPage {
+  path: string;
+  key: string; // base64 of the Ed25519 secret key
+}
+
+function toBase64(bytes: Uint8Array): string {
+  let s = "";
+  for (const b of bytes) s += String.fromCharCode(b);
+  return btoa(s);
+}
+
+function fromBase64(value: string): Uint8Array {
+  const s = atob(value);
+  const bytes = new Uint8Array(s.length);
+  for (let i = 0; i < s.length; i++) bytes[i] = s.charCodeAt(i);
+  return bytes;
+}
+
+function loadRemembered(): RememberedPage[] {
+  try {
+    const parsed = JSON.parse(localStorage.getItem(REMEMBERED_KEY) || "[]");
+    return Array.isArray(parsed)
+      ? parsed.filter(
+          (p) =>
+            typeof p?.path === "string" &&
+            p.path.trim() !== "" &&
+            typeof p?.key === "string",
+        )
+      : [];
+  } catch {
+    return [];
+  }
+}
+
+function saveRemembered(list: RememberedPage[]): void {
+  try {
+    localStorage.setItem(REMEMBERED_KEY, JSON.stringify(list));
+  } catch {
+    // storage full or blocked — remembering silently no-ops
+  }
+}
+
+function rememberPage(path: string, keyPair: SignKeyPair): void {
+  if (path.trim() === "") return; // the root is the entry screen, not a page
+  const list = loadRemembered().filter((p) => p.path !== path);
+  list.push({ path, key: toBase64(keyPair.secretKey) });
+  saveRemembered(list);
+}
+
+function forgetPage(path: string): void {
+  saveRemembered(loadRemembered().filter((p) => p.path !== path));
+}
+
+function rememberedKeyPair(path: string): SignKeyPair | null {
+  const entry = loadRemembered().find((p) => p.path === path);
+  if (!entry) return null;
+  try {
+    return sign.keyPair.fromSecretKey(fromBase64(entry.key));
+  } catch {
+    return null;
+  }
+}
+
+// The featured "main address" (which custom domain, if any, drives the QR code,
+// printables, signature and heading) is a per-page preference kept on this
+// device so it survives reloads.
+const MAIN_ADDRESS_KEY = "found.as:mainAddress";
+
+function loadMainAddress(path: string): string | null {
+  if (!path) return null;
+  try {
+    const map = JSON.parse(localStorage.getItem(MAIN_ADDRESS_KEY) || "{}");
+    const v = map?.[path];
+    return typeof v === "string" && v ? v : null;
+  } catch {
+    return null;
+  }
+}
+
+function saveMainAddress(path: string, domain: string | null): void {
+  if (!path) return;
+  try {
+    const map = JSON.parse(localStorage.getItem(MAIN_ADDRESS_KEY) || "{}") || {};
+    if (domain) {
+      map[path] = domain;
+    } else {
+      delete map[path];
+    }
+    localStorage.setItem(MAIN_ADDRESS_KEY, JSON.stringify(map));
+  } catch {
+    // storage blocked — the choice just won't persist across reloads
+  }
+}
+
 export function App() {
   const priv = useSignal<Private>(createDefaultPrivate());
   const fetchSeq = useRef(0);
@@ -4179,6 +5588,8 @@ export function App() {
   const [pathIsNew, setPathIsNew] = useState<boolean>(false);
   const [setupComplete, setSetupComplete] = useState<boolean>(false);
   const [kp, setKP] = useState<SignKeyPair | null>(null);
+  const [remembered, setRemembered] = useState<RememberedPage[]>(loadRemembered);
+  const [remember, setRemember] = useState<boolean>(false);
   const [pwStatus, setPwStatus] = useState<boolean | undefined>(undefined);
   const [file, setFile] = useState<File | undefined>(undefined);
   const [statusMessage, setStatusMessage] = useState<string>("");
@@ -4191,6 +5602,9 @@ export function App() {
   const [shareDomain, setShareDomain] = useState<string | null>(null);
   const [renameTo, setRenameTo] = useState<string>("");
   const [deleteConfirm, setDeleteConfirm] = useState<string>("");
+  // Password re-entered for the recovery kit when the page was opened from a
+  // remembered key (the password itself isn't in memory then).
+  const [recoveryPw, setRecoveryPw] = useState<string>("");
 
   const showError = (message: string) => {
     setToast(message);
@@ -4296,6 +5710,7 @@ export function App() {
 
   useEffect(() => {
     window.history.replaceState(null, "", path ? `/${encodePath(path)}` : "/");
+    setRemember(loadRemembered().some((r) => r.path === path.trim()));
     if (renamingRef.current) {
       // A rename just moved the page; the new key derives from the same
       // password, so stay in the editor rather than re-prompting.
@@ -4308,6 +5723,18 @@ export function App() {
 
   useEffect(() => {
     let cancelled = false;
+    // With no password typed, open straight from a key remembered on this
+    // device, skipping the unlock screen. Never for the empty root path — that
+    // is the entry screen, not a page.
+    if (pw === "" && path.trim() !== "") {
+      const saved = rememberedKeyPair(path.trim());
+      if (saved) {
+        setKP(saved);
+        setRemember(true);
+        setSetupComplete(true);
+        return;
+      }
+    }
     setWorking(true);
     deriveKP(path, pw)
       .then((keyPair) => {
@@ -4331,11 +5758,16 @@ export function App() {
   }, [path, pw]);
 
   // The featured address (found.as or a connected custom domain) is chosen in
-  // the Custom domains popover and drives the QR code, printables, signature
-  // and generated preview. A different page can't inherit the previous choice.
+  // the Custom domains popover and drives the QR code, printables, signature,
+  // heading and generated preview. Load this page's saved choice.
   useEffect(() => {
-    setShareDomain(null);
-  }, [path, pw]);
+    setShareDomain(loadMainAddress(path.trim()));
+  }, [path]);
+
+  const chooseMainAddress = (d: string | null) => {
+    setShareDomain(d);
+    saveMainAddress(path.trim(), d);
+  };
 
   useEffect(() => {
     const currentFetch = ++fetchSeq.current;
@@ -4434,12 +5866,28 @@ export function App() {
     win.document.close();
   };
 
-  const saveRecoveryKit = () => {
+  const downloadRecoveryKit = (password: string) => {
     const slug = path.trim().replace(/\//g, "-") || "found-as";
     downloadFile(
       `${slug}-recovery-kit.html`,
-      new Blob([recoveryKitHtml(path.trim(), pw, url)], { type: "text/html" }),
+      new Blob([recoveryKitHtml(path.trim(), password, url)], {
+        type: "text/html",
+      }),
     );
+  };
+
+  const saveRecoveryKit = async () => {
+    if (!kp) return;
+    // Opened from a key remembered on this device, the password isn't in
+    // memory (pw is ""). The kit is the only way back in, so its password has
+    // to be real: "blank" must actually derive this page's key — otherwise
+    // ask for the password before writing it into the kit.
+    if (pw === "" && !sameKeyPair(await deriveKP(path, ""), kp)) {
+      setRecoveryPw("");
+      document.getElementById("recoveryPw")?.showPopover();
+      return;
+    }
+    downloadRecoveryKit(pw);
   };
 
   const saveQr = () => {
@@ -4477,6 +5925,15 @@ export function App() {
     try {
       let pubToSend = pub;
       if (priv.value.type === Type.LINK_TREE) {
+        // Publish the baked crops (the actual pixels), not the source + CSS —
+        // the untouched source stays in `priv` for re-cropping. Fall back to the
+        // source if baking fails so a publish never gets blocked.
+        let publishTree = ensureLinkTree(privateValue.linkTree);
+        try {
+          publishTree = await bakeTreeImages(publishTree);
+        } catch {
+          // keep source images
+        }
         // The preview image rides the page's pub record as the `og`
         // subresource, served at <path>/og — one atomic publish.
         let ogUrl: string | undefined;
@@ -4486,7 +5943,7 @@ export function App() {
           !socialImageUrl(tree.social?.imageUrl);
         if (wantAutoImage) {
           try {
-            const bytes = await renderOgImage(tree, shareDisplay);
+            const bytes = await renderOgImage(publishTree, shareDisplay);
             if (bytes) {
               subs = { og: { mime: "image/png", bytes } };
               const digest = new Uint8Array(
@@ -4503,11 +5960,44 @@ export function App() {
             );
           }
         }
+        // Custom background: serve the upload as-is, plus the custom dark
+        // image if one was chosen. The lighten/darken treatments are CSS
+        // overlays in the page, so no variant needs baking here.
+        let bgLightSubUrl: string | undefined;
+        let bgDarkSubUrl: string | undefined;
+        if (publishTree.background === "image" && publishTree.bgUrl) {
+          try {
+            const lightSub = dataUrlToSub(publishTree.bgUrl);
+            if (lightSub) {
+              subs = { ...(subs ?? {}), "bg-light": lightSub };
+              bgLightSubUrl = pageSubUrl(
+                path.trim(),
+                "bg-light",
+                await subVersion(lightSub.bytes),
+              );
+              const darkSub = publishTree.bgDarkUrl
+                ? dataUrlToSub(publishTree.bgDarkUrl)
+                : null;
+              if (darkSub) {
+                subs = { ...(subs ?? {}), "bg-dark": darkSub };
+                bgDarkSubUrl = pageSubUrl(
+                  path.trim(),
+                  "bg-dark",
+                  await subVersion(darkSub.bytes),
+                );
+              }
+            }
+          } catch {
+            // publish without the custom background rather than block
+          }
+        }
         pubToSend = {
           html: linkTreeToHtml(
-            ensureLinkTree(privateValue.linkTree),
+            publishTree,
             url,
             ogUrl,
+            bgLightSubUrl,
+            bgDarkSubUrl,
           ),
         };
         if (subs) {
@@ -4533,6 +6023,29 @@ export function App() {
     }
   };
 
+  const applyRemember = () => {
+    if (!kp) return;
+    if (remember) {
+      rememberPage(path.trim(), kp);
+    } else {
+      forgetPage(path.trim());
+    }
+    setRemembered(loadRemembered());
+  };
+
+  const openRemembered = (p: string) => {
+    setPw("");
+    setPath(p);
+  };
+
+  const forgetRemembered = (p: string) => {
+    forgetPage(p);
+    setRemembered(loadRemembered());
+    if (p === path.trim()) {
+      setRemember(false);
+    }
+  };
+
   if (!setupComplete || pwStatus !== true) {
     return (
       <main className="app-shell">
@@ -4544,10 +6057,16 @@ export function App() {
           working={working}
           pwStatus={pwStatus}
           pathIsNew={pathIsNew}
+          remember={remember}
+          setRemember={setRemember}
+          remembered={remembered}
+          openRemembered={openRemembered}
+          forgetRemembered={forgetRemembered}
           onContinue={() => {
             if (pathIsNew) {
               setType(Type.LINK_TREE);
             }
+            applyRemember();
             setSetupComplete(true);
           }}
         />
@@ -4560,9 +6079,20 @@ export function App() {
       <header className="topbar">
         <div className="topbar-id">
           <p className="eyebrow">Your public page</p>
-          <a className="page-url" href={url} target="_blank" rel="noreferrer">
-            <span className="page-url-prefix">found.as/</span>
-            <span className="page-url-path">{path.trim()}</span>
+          <a
+            className="page-url"
+            href={shareUrl}
+            target="_blank"
+            rel="noreferrer"
+          >
+            {shareDomain ? (
+              <span className="page-url-path">{shareDomain}</span>
+            ) : (
+              <>
+                <span className="page-url-prefix">found.as/</span>
+                <span className="page-url-path">{path.trim()}</span>
+              </>
+            )}
           </a>
         </div>
         <div className="topbar-actions">
@@ -4643,6 +6173,27 @@ export function App() {
         >
           Password
         </button>
+        {!pathIsNew && (
+          <button
+            type="button"
+            className="secondary"
+            onClick={() => {
+              document.getElementById("topbarMenu")?.hidePopover();
+              if (remembered.some((r) => r.path === path.trim())) {
+                forgetPage(path.trim());
+                setRemember(false);
+              } else if (kp) {
+                rememberPage(path.trim(), kp);
+                setRemember(true);
+              }
+              setRemembered(loadRemembered());
+            }}
+          >
+            {remembered.some((r) => r.path === path.trim())
+              ? "Forget this device"
+              : "Remember on this device"}
+          </button>
+        )}
         {!pathIsNew && (
           <>
             <hr className="menu-divider" />
@@ -4776,6 +6327,67 @@ export function App() {
             type="button"
             className="secondary"
             onClick={() => document.getElementById("changePw")?.hidePopover()}
+          >
+            Cancel
+          </button>
+        </div>
+      </div>
+
+      <div
+        popover="auto"
+        id="recoveryPw"
+        className="popover-panel password-popover"
+      >
+        <div className="popover-heading">
+          <h2>Save recovery kit</h2>
+          <button
+            type="button"
+            className="icon-button"
+            aria-label="Close"
+            onClick={() => document.getElementById("recoveryPw")?.hidePopover()}
+          >
+            <span aria-hidden="true">×</span>
+          </button>
+        </div>
+        <p className="help">
+          This page was opened with the key remembered on this device, so its
+          password isn't at hand. The kit is your way back in — enter the
+          password so it can be included.
+        </p>
+        <label className="field stack">
+          <span>Page password</span>
+          <input
+            type="password"
+            autoComplete="current-password"
+            value={recoveryPw}
+            onInput={(e) =>
+              setRecoveryPw((e.target as HTMLInputElement).value)
+            }
+          />
+        </label>
+        <div className="popover-actions">
+          <button
+            type="button"
+            disabled={working}
+            onClick={async () => {
+              if (!kp) {
+                return;
+              }
+              if (!sameKeyPair(await deriveKP(path, recoveryPw), kp)) {
+                showError("That password doesn't match this page.");
+                return;
+              }
+              document.getElementById("recoveryPw")?.hidePopover();
+              downloadRecoveryKit(recoveryPw);
+              setRecoveryPw("");
+            }}
+          >
+            Save recovery kit
+          </button>
+          <button
+            type="button"
+            className="secondary"
+            onClick={() => document.getElementById("recoveryPw")?.hidePopover()}
           >
             Cancel
           </button>
@@ -4926,7 +6538,7 @@ export function App() {
           kp={kp}
           path={path.trim()}
           shareDomain={shareDomain}
-          setShareDomain={setShareDomain}
+          setShareDomain={chooseMainAddress}
           onError={showError}
         />
       )}
