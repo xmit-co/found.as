@@ -523,12 +523,14 @@ function normalizePrivate(priv: Private): Private {
 }
 
 function normalizeUrl(url: string): string {
-  const trimmed = url.trim();
-  if (!trimmed) return trimmed;
-  if (!trimmed.includes("://")) {
-    return `https://${trimmed}`;
+  // Pasted URLs often pick up spaces or line breaks (PDFs, emails); URLs
+  // never legitimately contain whitespace, so drop it all.
+  const stripped = url.replace(/\s+/g, "");
+  if (!stripped) return stripped;
+  if (!stripped.includes("://")) {
+    return `https://${stripped}`;
   }
-  return trimmed;
+  return stripped;
 }
 
 function escapeHtml(value: string): string {
@@ -683,10 +685,10 @@ function pageBackground(
 }
 
 function socialImageUrl(value: string | undefined): string | null {
-  const trimmed = value?.trim();
-  if (!trimmed) return null;
-  if (!URL.canParse(trimmed)) return null;
-  return new URL(trimmed).protocol === "https:" ? trimmed : null;
+  const stripped = value?.replace(/\s+/g, "");
+  if (!stripped) return null;
+  if (!URL.canParse(stripped)) return null;
+  return new URL(stripped).protocol === "https:" ? stripped : null;
 }
 
 function signatureAvatarSrc(value: string | undefined): string | null {
@@ -1201,8 +1203,9 @@ function normalizeBluesky(
     return { href: "", error: "Enter a Bluesky handle or link." };
   }
   if (trimmed.includes("://")) {
-    return URL.canParse(trimmed)
-      ? { href: trimmed }
+    const normalized = normalizeUrl(trimmed);
+    return URL.canParse(normalized)
+      ? { href: normalized }
       : { href: "", error: "Enter a valid Bluesky link." };
   }
   const handle = trimmed.replace(/^@+/, "");
@@ -1220,8 +1223,9 @@ function normalizeMastodon(
     return { href: "", error: "Enter a Mastodon address or link." };
   }
   if (trimmed.includes("://")) {
-    return URL.canParse(trimmed)
-      ? { href: trimmed }
+    const normalized = normalizeUrl(trimmed);
+    return URL.canParse(normalized)
+      ? { href: normalized }
       : { href: "", error: "Enter a valid Mastodon link." };
   }
   const [user, host] = trimmed.replace(/^@+/, "").split("@");
@@ -1242,8 +1246,9 @@ function normalizeMatrix(
     return { href: "", error: "Enter a Matrix ID or link." };
   }
   if (trimmed.includes("://")) {
-    return URL.canParse(trimmed)
-      ? { href: trimmed }
+    const normalized = normalizeUrl(trimmed);
+    return URL.canParse(normalized)
+      ? { href: normalized }
       : { href: "", error: "Enter a valid Matrix link." };
   }
   const id = trimmed.replace(/^@+/, "");
@@ -1304,10 +1309,11 @@ function normalizeMap(value: string): Omit<NormalizedLink, "item" | "label"> {
     return { href: "", error: "Enter an address or map link." };
   }
   if (trimmed.includes("://")) {
-    if (!URL.canParse(trimmed)) {
+    const normalized = normalizeUrl(trimmed);
+    if (!URL.canParse(normalized)) {
       return { href: "", error: "Enter a valid map link." };
     }
-    return { href: trimmed };
+    return { href: normalized };
   }
   return {
     href: `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(trimmed)}`,
@@ -4672,7 +4678,14 @@ function SetupPanel({
               autoCapitalize="off"
               spellcheck={false}
               aria-describedby={availability ? "setup-path-status" : undefined}
-              onInput={(e) => setPath((e.target as HTMLInputElement).value)}
+              // The raw value salts the key and names the page, so an
+              // invisible trailing space would silently address a different
+              // page — drop whitespace instead of letting it in.
+              onInput={(e) =>
+                setPath(
+                  (e.target as HTMLInputElement).value.replace(/\s+/g, ""),
+                )
+              }
             />
           </span>
         </label>
@@ -6419,7 +6432,11 @@ export function App() {
               autoCapitalize="off"
               spellcheck={false}
               placeholder={path.trim()}
-              onInput={(e) => setRenameTo((e.target as HTMLInputElement).value)}
+              onInput={(e) =>
+                setRenameTo(
+                  (e.target as HTMLInputElement).value.replace(/\s+/g, ""),
+                )
+              }
             />
           </span>
         </label>
