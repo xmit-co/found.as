@@ -236,30 +236,73 @@
         font-weight: 700;
       }
 
-      /* Phone preview */
+      /* Phone preview stack */
       .preview {
         justify-self: center;
       }
-      .phone {
+      .preview > input {
+        position: absolute;
+        width: 1px;
+        height: 1px;
+        opacity: 0;
+        pointer-events: none;
+      }
+      .preview > input:focus-visible ~ .stack {
+        outline: 2px solid var(--accent);
+        outline-offset: 8px;
+        border-radius: 42px;
+      }
+      .stack {
+        position: relative;
         width: min(100%, 316px);
         margin-inline: auto;
+      }
+      .phone {
+        position: relative;
+        z-index: 2;
         padding: 12px;
         border-radius: 38px;
         border: 1px solid var(--border);
         background: linear-gradient(165deg, var(--panel), var(--bg));
         box-shadow: 0 34px 70px var(--shadow);
+        transition:
+          transform 0.45s cubic-bezier(0.2, 0.7, 0.2, 1),
+          box-shadow 0.45s ease,
+          filter 0.45s ease;
+      }
+      .phone-hono {
+        position: absolute;
+        inset: 0;
+      }
+      #demo-ada:checked ~ .stack .phone-hono,
+      #demo-hono:checked ~ .stack .phone-ada {
+        z-index: 1;
+        transform: translate(-14px, 20px) rotate(-3.5deg) scale(0.96);
+        filter: brightness(0.96) saturate(0.9);
+        box-shadow: 0 22px 50px var(--shadow);
       }
       @media (min-width: 720px) {
-        .phone {
+        #demo-ada:checked ~ .stack .phone-ada,
+        #demo-hono:checked ~ .stack .phone-hono {
           transform: rotate(2.2deg);
-          transition:
-            transform 0.4s ease,
-            box-shadow 0.4s ease;
         }
-        .phone:hover {
+        #demo-ada:checked ~ .stack .phone-ada:hover,
+        #demo-hono:checked ~ .stack .phone-hono:hover {
           transform: rotate(0deg) translateY(-4px);
           box-shadow: 0 44px 90px var(--shadow);
         }
+      }
+      .bring-front {
+        position: absolute;
+        inset: 0;
+        z-index: 5;
+        border-radius: 38px;
+        cursor: pointer;
+        display: none;
+      }
+      #demo-ada:checked ~ .stack .phone-hono .bring-front,
+      #demo-hono:checked ~ .stack .phone-ada .bring-front {
+        display: block;
       }
       .preview-frame {
         display: block;
@@ -270,16 +313,37 @@
         background: var(--bg);
       }
       .preview-caption {
-        margin: 14px 0 0;
+        margin: 18px 0 0;
         text-align: center;
         font-size: 0.9rem;
       }
-      .preview-caption a {
+      .preview-caption .sep {
         color: var(--muted);
+        margin: 0 4px;
+      }
+      .preview-caption a {
+        color: var(--accent);
+        font-weight: 650;
         text-decoration: none;
       }
       .preview-caption a:hover {
+        text-decoration: underline;
+      }
+      .preview-caption label {
+        display: none;
+        color: var(--muted);
+        cursor: pointer;
+      }
+      .preview-caption label:hover {
         color: var(--accent);
+      }
+      #demo-ada:checked ~ .preview-caption .cap-hono a,
+      #demo-hono:checked ~ .preview-caption .cap-ada a {
+        display: none;
+      }
+      #demo-ada:checked ~ .preview-caption .cap-hono label,
+      #demo-hono:checked ~ .preview-caption .cap-ada label {
+        display: inline;
       }
 
       /* Feature cards */
@@ -447,9 +511,6 @@
           animation: none !important;
           transition: none !important;
         }
-        .phone {
-          transform: none !important;
-        }
       }
     </style>
   </head>
@@ -486,18 +547,52 @@
           </ul>
         </div>
         <div class="preview reveal reveal-2">
-          <div class="phone">
-            <iframe
-              class="preview-frame"
-              src="https://found.as/ada"
-              title="Ada Lovelace's found.as page"
-              loading="lazy"
-            ></iframe>
+          <input type="radio" name="demo" id="demo-ada" checked />
+          <input type="radio" name="demo" id="demo-hono" />
+          <div class="stack">
+            <div class="phone phone-ada">
+              <label
+                class="bring-front"
+                for="demo-ada"
+                title="Show found.as/ada"
+                aria-label="Show found.as/ada"
+              ></label>
+              <iframe
+                class="preview-frame"
+                src="https://found.as/ada"
+                title="Ada Lovelace's found.as page"
+                loading="lazy"
+              ></iframe>
+            </div>
+            <div class="phone phone-hono">
+              <label
+                class="bring-front"
+                for="demo-hono"
+                title="Show hono.coffee"
+                aria-label="Show hono.coffee"
+              ></label>
+              <iframe
+                class="preview-frame"
+                src="https://hono.coffee"
+                title="Hono Coffee House's found.as page"
+                loading="lazy"
+              ></iframe>
+            </div>
           </div>
           <p class="preview-caption">
-            <a href="https://found.as/ada" target="_blank" rel="noopener"
-              >found.as/ada ↗</a
-            >
+            <span class="cap cap-ada">
+              <label for="demo-ada">found.as/ada</label>
+              <a href="https://found.as/ada" target="_blank" rel="noopener"
+                >found.as/ada ↗</a
+              >
+            </span>
+            <span class="sep">·</span>
+            <span class="cap cap-hono">
+              <label for="demo-hono">hono.coffee</label>
+              <a href="https://hono.coffee" target="_blank" rel="noopener"
+                >hono.coffee ↗</a
+              >
+            </span>
           </p>
         </div>
       </div>
@@ -564,7 +659,8 @@
         </li>
         <li>
           <strong>No tracking.</strong> No cookies, analytics, or ads — for you
-          or your visitors. Only sponsorships on this page.
+          or your visitors. One exception: examples on this page can come from
+          sponsors, untargeted.
         </li>
         <li>
           <strong>Fast &amp; free.</strong> A plain page with zero scripts;
