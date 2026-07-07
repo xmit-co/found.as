@@ -430,6 +430,17 @@
         }
       }
 
+      .site-footer {
+        margin-top: 64px;
+        padding-top: 24px;
+        border-top: 1px solid var(--border);
+        color: var(--muted);
+        font-size: 0.92rem;
+      }
+      .site-footer a {
+        font-weight: 700;
+      }
+
       @media (prefers-reduced-motion: reduce) {
         *,
         *::before {
@@ -564,6 +575,11 @@
           Mastodon shows the green “verified” check.
         </li>
       </ul>
+
+      <footer class="site-footer">
+        Provided by
+        <a href="https://xmit.dev" target="_blank" rel="noopener">xmit</a>.
+      </footer>
     </main>
   </body>
 </html>

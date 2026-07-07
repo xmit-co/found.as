@@ -51,6 +51,7 @@ type LinkKind =
   | "venmo"
   | "cashapp"
   | "address"
+  | "googlereview"
   | "custom"
   | "section";
 
@@ -64,6 +65,9 @@ interface LinkItem {
   featured?: boolean;
   icon?: string;
   relMe?: boolean;
+  // Print this link's value on the business cards (independent of showing it
+  // on the page). Handy for an email or phone number.
+  card?: boolean;
 }
 
 interface SocialPreview {
@@ -157,6 +161,7 @@ const additionalKinds: LinkKind[] = [
   "cashapp",
   "matrix",
   "address",
+  "googlereview",
 ];
 
 const kindLabels: Record<LinkKind, string> = {
@@ -191,6 +196,7 @@ const kindLabels: Record<LinkKind, string> = {
   venmo: "Venmo",
   cashapp: "Cash App",
   address: "Address",
+  googlereview: "Google review",
   custom: "Custom link",
   section: "Section header",
 };
@@ -227,6 +233,7 @@ const kindExamples: Record<LinkKind, string> = {
   venmo: "found",
   cashapp: "$found",
   address: "1 Rue de Rivoli, Paris",
+  googlereview: "g.page/r/…/review",
   custom: "https://example.com",
   section: "Work",
 };
@@ -263,6 +270,7 @@ const kindDefaultValues: Record<LinkKind, string> = {
   venmo: "https://venmo.com/u/",
   cashapp: "https://cash.app/$",
   address: "",
+  googlereview: "",
   custom: "https://",
   section: "",
 };
@@ -272,6 +280,7 @@ const kindDefaultIcons: Partial<Record<LinkKind, string>> = {
   email: "✉️",
   website: "🌐",
   address: "📍",
+  googlereview: "⭐",
   calendly: "📅",
   custom: "🔗",
 };
@@ -348,6 +357,9 @@ function isSection(item: LinkItem): boolean {
   return item.kind === "section";
 }
 
+// Contact details worth printing on a business card by default.
+const defaultCardKinds = new Set<LinkKind>(["email", "phone", "whatsapp"]);
+
 function defaultLinkItem(kind: LinkKind): LinkItem {
   return {
     id: makeId(),
@@ -357,6 +369,7 @@ function defaultLinkItem(kind: LinkKind): LinkItem {
     href: "",
     enabled: true,
     icon: kindDefaultIcons[kind],
+    card: defaultCardKinds.has(kind) || undefined,
   };
 }
 
@@ -981,6 +994,20 @@ function normalizeMap(value: string): Omit<NormalizedLink, "item" | "label"> {
   };
 }
 
+function normalizeGoogleReview(
+  value: string,
+): Omit<NormalizedLink, "item" | "label"> {
+  const trimmed = value.trim();
+  if (!trimmed) {
+    return { href: "", error: "Paste your Google review link." };
+  }
+  const normalized = normalizeUrl(trimmed);
+  if (!normalized || !URL.canParse(normalized)) {
+    return { href: "", error: "Paste a valid Google review link." };
+  }
+  return { href: normalized };
+}
+
 function normalizeGenericLink(
   value: string,
   label: string,
@@ -1082,6 +1109,8 @@ function normalizeByKind(
       return normalizeMatrix(value);
     case "address":
       return normalizeMap(value);
+    case "googlereview":
+      return normalizeGoogleReview(value);
     default:
       return normalizeGenericLink(value, label, kindDefaultValues[kind]);
   }
@@ -1888,6 +1917,17 @@ const printAccents: Record<LinkTree["theme"], string> = {
   clean: "#146c5d",
 };
 
+// Links the owner marked "include on business cards", as {emoji, text} lines.
+function businessCardLines(tree: LinkTree): { icon: string; text: string }[] {
+  return tree.links
+    .filter((link) => link.card && !isSection(link))
+    .map((link) => ({
+      icon: linkIconEmoji(link.icon) ?? kindDefaultIcons[link.kind] ?? "",
+      text: link.value.trim() || link.label.trim(),
+    }))
+    .filter((line) => line.text);
+}
+
 function printablesHtml(tree: LinkTree, url: string, display: string): string {
   const name = tree.displayName.trim() || display;
   const bio = tree.bio.trim();
@@ -1901,10 +1941,20 @@ function printablesHtml(tree: LinkTree, url: string, display: string): string {
   } catch {
     // Cards still work without a QR.
   }
+  const contacts = businessCardLines(tree);
+  const contactsHtml = contacts.length
+    ? `<div class="card-contacts">${contacts
+        .map(
+          (c) =>
+            `<p class="card-contact">${c.icon ? escapeHtml(c.icon) + " " : ""}${escapeHtml(c.text)}</p>`,
+        )
+        .join("")}</div>`
+    : "";
   const card = `<div class="card">
   <div class="card-text">
     <p class="card-name">${escapeHtml(name)}</p>
     ${bio ? `<p class="card-bio">${escapeHtml(bio)}</p>` : ""}
+    ${contactsHtml}
     <p class="card-url">${escapeHtml(display)}</p>
   </div>
   ${cardQr}
@@ -1936,15 +1986,17 @@ body { margin: 0; font-family: ui-sans-serif, system-ui, sans-serif; color: #181
 .toolbar p { margin: 0; color: #595959; }
 .toolbar button { min-height: 40px; padding: 8px 20px; border: 0; border-radius: 8px; background: ${accent}; color: #ffffff; font-weight: 700; font-size: 1rem; cursor: pointer; }
 .sheet { position: relative; width: 170mm; margin: 12mm auto; display: grid; grid-template-columns: repeat(2, 85mm); }
-.card { width: 85mm; height: 55mm; display: flex; align-items: center; gap: 4mm; padding: 6mm; break-inside: avoid; }
+.card { width: 85mm; height: 55mm; display: flex; align-items: center; gap: 4mm; padding: 6mm; break-inside: avoid; overflow: hidden; }
 .mark { position: absolute; }
 .mark-v { width: 0; height: 6mm; border-left: 0.2mm solid #9a9a94; }
 .mark-h { width: 6mm; height: 0; border-top: 0.2mm solid #9a9a94; }
 .card svg { flex: none; }
 .card-text { flex: 1; min-width: 0; }
 .card-name { margin: 0; font-size: 12pt; font-weight: 800; line-height: 1.25; }
-.card-bio { margin: 1mm 0 0; color: #595959; font-size: 8pt; line-height: 1.4; display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
-.card-url { margin: 2mm 0 0; color: ${accent}; font-size: 9pt; font-weight: 700; overflow-wrap: anywhere; }
+.card-bio { margin: 1mm 0 0; color: #595959; font-size: 8pt; line-height: 1.4; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+.card-contacts { margin: 1.5mm 0 0; display: grid; gap: 0.3mm; }
+.card-contact { margin: 0; font-size: 8.5pt; color: #333333; line-height: 1.3; overflow-wrap: anywhere; }
+.card-url { margin: 1.5mm 0 0; color: ${accent}; font-size: 9pt; font-weight: 700; overflow-wrap: anywhere; }
 .poster { break-before: page; min-height: 250mm; display: grid; place-content: center; justify-items: center; gap: 5mm; text-align: center; padding: 14mm 10mm; }
 .poster-avatar { width: 30mm; height: 30mm; border-radius: 50%; object-fit: cover; margin-bottom: 2mm; }
 .poster-name { margin: 0; font-size: 24pt; font-weight: 800; }
@@ -2246,8 +2298,8 @@ function FileEditor({
               setFile(undefined);
               return;
             }
-            if (selected.size > 1024 * 1024) {
-              onError("That file is over 1MB. Choose a smaller file.");
+            if (selected.size > 5 * 1024 * 1024) {
+              onError("That file is over 5MB. Choose a smaller file.");
               target.value = target.defaultValue;
               setFile(undefined);
               return;
@@ -2259,7 +2311,7 @@ function FileEditor({
       <p id="file-help" className="help">
         {file
           ? `${file.name} is ready to publish.`
-          : "Choose a file under 1MB."}
+          : "Choose a file under 5MB."}
       </p>
     </section>
   );
@@ -2288,6 +2340,7 @@ function linkValueLabel(kind: LinkKind): string {
   if (kind === "phone" || kind === "whatsapp") return "Number";
   if (kind === "email") return "Email address";
   if (kind === "address") return "Address or map link";
+  if (kind === "googlereview") return "Google review link";
   if (kind === "discord") return "Invite link";
   if (kind === "cashapp") return "Cashtag or link";
   if (kind === "substack") return "Publication or link";
@@ -2501,6 +2554,13 @@ function EditableLink({
                   .
                 </p>
               )}
+              {link.kind === "googlereview" && (
+                <p className="help">
+                  In your Google Business Profile, use “Ask for reviews” to copy
+                  your review link — it looks like{" "}
+                  <code>g.page/r/…/review</code>.
+                </p>
+              )}
             </div>
           )}
           <label className="show-toggle">
@@ -2516,6 +2576,21 @@ function EditableLink({
             />
             <span>Show on page</span>
           </label>
+          {!sectionItem && (
+            <label className="show-toggle">
+              <input
+                type="checkbox"
+                checked={Boolean(link.card)}
+                onChange={(e) =>
+                  updateLink({
+                    ...link,
+                    card: (e.target as HTMLInputElement).checked || undefined,
+                  })
+                }
+              />
+              <span>Include on business cards</span>
+            </label>
+          )}
           {canFeature(link) && (
             <label className="show-toggle">
               <input
@@ -3216,7 +3291,7 @@ function AdvancedModePicker({
     {
       type: Type.BYTES,
       label: "File",
-      description: "Host one file up to 1MB.",
+      description: "Host one file up to 5MB.",
     },
   ];
 
