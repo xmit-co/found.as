@@ -9,9 +9,13 @@
     sans-serif;
   background: #f6f7f4;
   color: #181918;
-  font-size: 16px;
+  font-size: 1rem;
   line-height: 1.5;
   font-weight: 400;
+  /* Max width of a page's content column, matching the published page. The
+     preview centers this column too, so widening the preview pane no longer
+     stretches the cover and buttons past the real page width. */
+  --content-max: 27.5rem;
 }
 
 * {
@@ -20,7 +24,7 @@
 
 body {
   margin: 0;
-  min-width: 320px;
+  min-width: 20rem;
   min-height: 100svh;
   background: linear-gradient(180deg, #ffffff 0, #f6f7f4 380px), #f6f7f4;
 }
@@ -38,13 +42,13 @@ textarea {
 
 button,
 .button-link {
-  min-height: 44px;
+  min-height: 2.75rem;
   display: inline-flex;
   align-items: center;
   justify-content: center;
   border: 1px solid #007f73;
-  border-radius: 8px;
-  padding: 10px 16px;
+  border-radius: 0.5rem;
+  padding: 0.625rem 1rem;
   background: #007f73;
   color: #ffffff;
   text-decoration: none;
@@ -84,8 +88,8 @@ button.quiet {
 }
 
 button.quiet {
-  min-height: 36px;
-  padding: 6px 10px;
+  min-height: 2.25rem;
+  padding: 0.375rem 0.625rem;
   font-size: 0.9rem;
 }
 
@@ -104,10 +108,10 @@ select,
 textarea {
   width: 100%;
   border: 1px solid #c9cec8;
-  border-radius: 8px;
+  border-radius: 0.5rem;
   background: #ffffff;
   color: #181918;
-  padding: 11px 12px;
+  padding: 0.6875rem 0.75rem;
 }
 
 textarea {
@@ -141,25 +145,25 @@ h1 {
 }
 
 h2 {
-  margin-bottom: 12px;
+  margin-bottom: 0.75rem;
   font-size: 1.1rem;
   line-height: 1.2;
   letter-spacing: 0;
 }
 
 .app-shell {
-  width: min(100%, 1180px);
+  width: min(100%, 73.75rem);
   min-height: 100svh;
   margin: 0 auto;
-  padding: 24px;
+  padding: 1.5rem;
 }
 
 .app-shell-compact {
-  width: min(100%, 960px);
+  width: min(100%, 60rem);
 }
 
 .eyebrow {
-  margin-bottom: 8px;
+  margin-bottom: 0.5rem;
   color: #007f73;
   font-size: 0.78rem;
   font-weight: 800;
@@ -168,16 +172,16 @@ h2 {
 }
 
 .setup-panel {
-  width: min(100%, 540px);
+  width: min(100%, 33.75rem);
   margin-inline: auto;
   display: grid;
-  gap: 24px;
+  gap: 1.5rem;
   align-content: start;
-  padding-block: 96px 48px;
+  padding-block: 6rem 3rem;
 }
 
 .setup-copy p:not(.eyebrow) {
-  margin: 12px 0 0;
+  margin: 0.75rem 0 0;
   color: #50554f;
   font-size: 1rem;
 }
@@ -188,14 +192,14 @@ h2 {
 .notice,
 .popover-panel {
   border: 1px solid #d7dcd5;
-  border-radius: 8px;
+  border-radius: 0.5rem;
   background: #ffffff;
   box-shadow: 0 16px 40px rgba(24, 25, 24, 0.08);
 }
 
 .setup-form {
   display: grid;
-  gap: 14px;
+  gap: 0.875rem;
   padding: 0;
   border: 0;
   background: transparent;
@@ -204,7 +208,7 @@ h2 {
 
 .field {
   display: grid;
-  gap: 8px;
+  gap: 0.5rem;
 }
 
 .field > span:first-child,
@@ -216,14 +220,14 @@ h2 {
 }
 
 .path-field {
-  min-height: 48px;
+  min-height: 3rem;
   display: grid;
   grid-template-columns: auto minmax(0, 1fr);
   align-items: stretch;
   gap: 0;
   overflow: hidden;
   border: 1px solid #c9cec8;
-  border-radius: 8px;
+  border-radius: 0.5rem;
   background: #ffffff;
 }
 
@@ -237,7 +241,7 @@ h2 {
   display: inline-flex;
   align-items: center;
   align-self: stretch;
-  padding: 0 12px;
+  padding: 0 0.75rem;
   border: 0;
   border-right: 1px solid #d7dcd5;
   border-radius: 0;
@@ -254,7 +258,7 @@ h2 {
   border: 0;
   border-radius: 0;
   background: transparent;
-  padding-left: 12px;
+  padding-left: 0.75rem;
 }
 
 .path-field input:focus-visible {
@@ -268,7 +272,7 @@ h2 {
 .reveal-toggle {
   min-height: 0;
   align-self: stretch;
-  padding: 0 14px;
+  padding: 0 0.875rem;
   border: 0;
   border-left: 1px solid #d7dcd5;
   border-radius: 0;
@@ -284,9 +288,9 @@ h2 {
 }
 
 .recovery-note {
-  padding: 10px 12px;
+  padding: 0.625rem 0.75rem;
   border: 1px solid #e2e6e0;
-  border-radius: 8px;
+  border-radius: 0.5rem;
   background: #fbfcfa;
   font-size: 0.86rem;
 }
@@ -316,7 +320,7 @@ h2 {
 .add-link-row {
   display: flex;
   flex-wrap: wrap;
-  gap: 10px;
+  gap: 0.625rem;
   align-items: end;
 }
 
@@ -328,9 +332,9 @@ h2 {
 .topbar {
   display: flex;
   justify-content: space-between;
-  gap: 20px;
+  gap: 1.25rem;
   align-items: start;
-  margin-bottom: 22px;
+  margin-bottom: 1.375rem;
 }
 
 .topbar-id {
@@ -338,7 +342,7 @@ h2 {
 }
 
 .topbar-menu:popover-open {
-  gap: 8px;
+  gap: 0.5rem;
 }
 
 .topbar-menu button,
@@ -349,7 +353,7 @@ h2 {
 .menu-divider {
   width: 100%;
   height: 0;
-  margin: 2px 0;
+  margin: 0.125rem 0;
   border: 0;
   border-top: 1px solid #d7dcd5;
 }
@@ -396,8 +400,8 @@ h2 {
 
 .workspace {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(320px, 380px);
-  gap: 18px;
+  grid-template-columns: minmax(0, 1fr) minmax(20rem, 23.75rem);
+  gap: 1.125rem;
   align-items: start;
 }
 
@@ -407,8 +411,8 @@ h2 {
 
 .editor-panel {
   display: grid;
-  gap: 18px;
-  padding: 18px;
+  gap: 1.125rem;
+  padding: 1.125rem;
 }
 
 .workspace-compact .editor-panel {
@@ -420,17 +424,17 @@ h2 {
 
 .panel-section {
   display: grid;
-  gap: 14px;
-  padding: 16px;
+  gap: 0.875rem;
+  padding: 1rem;
   border: 1px solid #e2e6e0;
-  border-radius: 8px;
+  border-radius: 0.5rem;
   background: #fbfcfa;
 }
 
 .link-field-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 14px;
+  gap: 0.875rem;
 }
 
 .section-heading h2,
@@ -443,14 +447,14 @@ h2 {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: 8px 14px;
+  gap: 0.5rem 0.875rem;
 }
 
 .intent-choice {
   display: inline-flex;
   align-items: center;
-  gap: 6px;
-  min-height: 36px;
+  gap: 0.375rem;
+  min-height: 2.25rem;
   cursor: pointer;
   font-weight: 650;
 }
@@ -470,13 +474,13 @@ h2 {
 
 .avatar-upload {
   display: flex;
-  gap: 14px;
+  gap: 0.875rem;
   align-items: center;
 }
 
 .avatar-upload-preview {
-  width: 76px;
-  height: 76px;
+  width: 4.75rem;
+  height: 4.75rem;
   flex: none;
   display: grid;
   place-items: center;
@@ -498,19 +502,19 @@ h2 {
 .avatar-upload-controls {
   min-width: 0;
   display: grid;
-  gap: 10px;
+  gap: 0.625rem;
 }
 
 .avatar-upload-actions {
   display: flex;
   flex-wrap: wrap;
-  gap: 8px;
+  gap: 0.5rem;
 }
 
 .sr-only {
   position: absolute;
-  width: 1px;
-  height: 1px;
+  width: 0.0625rem;
+  height: 0.0625rem;
   overflow: hidden;
   clip: rect(0, 0, 0, 0);
   white-space: nowrap;
@@ -520,7 +524,7 @@ h2 {
 .theme-picker {
   display: flex;
   flex-wrap: wrap;
-  gap: 10px;
+  gap: 0.625rem;
 }
 
 .theme-picker legend {
@@ -528,13 +532,13 @@ h2 {
 }
 
 .theme-choice {
-  min-height: 44px;
+  min-height: 2.75rem;
   display: inline-flex;
   align-items: center;
-  gap: 8px;
+  gap: 0.5rem;
   border: 1px solid #c9cec8;
-  border-radius: 8px;
-  padding: 8px 10px;
+  border-radius: 0.5rem;
+  padding: 0.5rem 0.625rem;
   background: #ffffff;
 }
 
@@ -548,12 +552,12 @@ h2 {
   align-items: center;
   justify-content: center;
   flex-wrap: wrap;
-  gap: 10px;
+  gap: 0.625rem;
 }
 
 .accent-row-label {
   font-weight: 700;
-  margin-right: 2px;
+  margin-right: 0.125rem;
 }
 
 .accent-choice {
@@ -572,8 +576,8 @@ h2 {
 }
 
 .accent-dot {
-  width: 26px;
-  height: 26px;
+  width: 1.625rem;
+  height: 1.625rem;
   border-radius: 50%;
   border: 1px solid rgba(20, 22, 20, 0.25);
 }
@@ -596,8 +600,8 @@ h2 {
 .accent-wheel {
   position: relative;
   /* Never taller than a quarter of the display, so the preview stays in view. */
-  width: min(100%, 236px, 25vh);
-  width: min(100%, 236px, 25dvh);
+  width: min(100%, 14.75rem, 25vh);
+  width: min(100%, 14.75rem, 25dvh);
   aspect-ratio: 1;
   flex: none;
   border: 1px solid rgba(20, 22, 20, 0.25);
@@ -615,8 +619,8 @@ h2 {
    the wheel itself stays visible through the punched-out center. */
 .accent-wheel-thumb {
   position: absolute;
-  width: 32px;
-  height: 32px;
+  width: 2rem;
+  height: 2rem;
   border: 2px solid #ffffff;
   border-radius: 50%;
   transform: translate(-50%, -50%);
@@ -628,13 +632,13 @@ h2 {
 /* Fingers need more room than cursors. */
 @media (pointer: coarse) {
   .accent-dot {
-    width: 34px;
-    height: 34px;
+    width: 2.125rem;
+    height: 2.125rem;
   }
 
   .accent-wheel-thumb {
-    width: 38px;
-    height: 38px;
+    width: 2.375rem;
+    height: 2.375rem;
     -webkit-mask: radial-gradient(circle, transparent 0 10px, #000 10.5px);
     mask: radial-gradient(circle, transparent 0 10px, #000 10.5px);
   }
@@ -642,7 +646,7 @@ h2 {
 
 .qr-mode {
   display: flex;
-  gap: 8px;
+  gap: 0.5rem;
   justify-content: center;
 }
 
@@ -657,7 +661,7 @@ h2 {
   flex-basis: 100%;
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 0.5rem;
 }
 
 /* Compact theme + preview row under the accent wheel. */
@@ -666,7 +670,7 @@ h2 {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: 10px;
+  gap: 0.625rem;
 }
 
 .theme-row .theme-select {
@@ -679,7 +683,7 @@ h2 {
 
 /* The shared switch sits with the preview it controls. */
 .live-editor > .preview-switch {
-  width: min(100%, 496px);
+  width: min(100%, 31rem);
   margin-inline: auto;
   justify-content: center;
 }
@@ -697,26 +701,26 @@ h2 {
 
 .main-address {
   margin: 0;
-  padding: 12px 14px;
+  padding: 0.75rem 0.875rem;
   border: 1px solid var(--border, #e2e6e0);
-  border-radius: 8px;
+  border-radius: 0.5rem;
   display: grid;
-  gap: 6px;
+  gap: 0.375rem;
 }
 
 .main-address legend {
-  padding: 0 6px;
+  padding: 0 0.375rem;
   font-weight: 700;
 }
 
 .main-address .help {
-  margin: 0 0 4px;
+  margin: 0 0 0.25rem;
 }
 
 .main-address-option {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 0.625rem;
   cursor: pointer;
 }
 
@@ -732,7 +736,7 @@ h2 {
 
 .social-preview-fields {
   display: grid;
-  gap: 14px;
+  gap: 0.875rem;
 }
 
 .og-preview {
@@ -744,13 +748,13 @@ h2 {
      theme — matching how the other previews' borders read against their own
      (light) content. */
   border: 1px solid color-mix(in srgb, currentColor 14%, transparent);
-  border-radius: 8px;
+  border-radius: 0.5rem;
 }
 
 .theme-choice::before {
   content: "";
-  width: 18px;
-  height: 18px;
+  width: 1.125rem;
+  height: 1.125rem;
   border: 1px solid #aab0a8;
   border-radius: 50%;
 }
@@ -777,7 +781,7 @@ h2 {
 
 .live-editor {
   display: grid;
-  gap: 12px;
+  gap: 0.75rem;
 }
 
 .live-page {
@@ -787,18 +791,27 @@ h2 {
   --pv-panel: #ffffff;
   --pv-border: #d7d7d0;
   --pv-accent: #007f73;
-  /* 440 content + 28px padding each side, to match the published page width so
-     the cover crop previews exactly. Width is set on the .preview-shell wrapper
-     so it can be resized. */
+  /* The surface fills the resizable .preview-shell (it stands in for the
+     browser viewport), but the content column is capped at --content-max and
+     centered — exactly like the published page — so widening the pane leaves
+     the cover and buttons at their true width instead of stretching them. */
   width: 100%;
   display: grid;
-  gap: 18px;
-  padding: 28px;
+  gap: 1.125rem;
+  padding: 1.75rem;
   border: 1px solid var(--pv-border);
-  border-radius: 8px;
+  border-radius: 0.5rem;
   background: var(--pv-bg);
   color: var(--pv-text);
   box-shadow: 0 16px 40px rgba(24, 25, 24, 0.08);
+}
+
+/* Cap and center each content row at the real page width, so a widened preview
+   pane surrounds the column with empty surface (like the published page) rather
+   than stretching the cover and buttons. */
+.live-page > * {
+  width: min(100%, var(--content-max));
+  margin-inline: auto;
 }
 
 /* Auto (system) theme previews as light or dark via the editor's Preview
@@ -940,8 +953,8 @@ h2 {
 
 .featured-tag {
   display: inline-block;
-  margin-right: 8px;
-  padding: 1px 8px;
+  margin-right: 0.5rem;
+  padding: 0.0625rem 0.5rem;
   border-radius: 999px;
   background: var(--pv-accent, #007f73);
   color: var(--pv-bg, #ffffff);
@@ -1020,16 +1033,16 @@ h2 {
 .editable-link.is-drop-target::before {
   content: "";
   position: absolute;
-  left: 44px;
+  left: 2.75rem;
   right: 0;
-  top: -6px;
-  height: 3px;
-  border-radius: 3px;
+  top: -0.375rem;
+  height: 0.1875rem;
+  border-radius: 0.1875rem;
   background: var(--pv-accent);
 }
 .editable-link.is-drop-target.is-drop-after::before {
   top: auto;
-  bottom: -6px;
+  bottom: -0.375rem;
 }
 
 .editable-link.is-drop-target .contact-button-preview {
@@ -1040,7 +1053,7 @@ h2 {
 
 .live-profile {
   display: grid;
-  gap: 12px;
+  gap: 0.75rem;
   justify-items: center;
   text-align: center;
 }
@@ -1048,7 +1061,7 @@ h2 {
 .live-profile .avatar-upload {
   display: grid;
   justify-items: center;
-  gap: 10px;
+  gap: 0.625rem;
 }
 
 .live-profile .avatar-upload-controls {
@@ -1068,7 +1081,7 @@ h2 {
 }
 
 .live-name {
-  padding: 4px;
+  padding: 0.25rem;
   color: #181918;
   font-size: clamp(2rem, 9vw, 3rem);
   font-weight: 800;
@@ -1101,15 +1114,15 @@ h2 {
 
 .editable-links {
   display: grid;
-  gap: 10px;
+  gap: 0.625rem;
 }
 
 .editable-link {
   display: grid;
-  gap: 10px;
+  gap: 0.625rem;
   padding: 0;
   border: 0;
-  border-radius: 8px;
+  border-radius: 0.5rem;
   background: transparent;
 }
 
@@ -1124,30 +1137,30 @@ h2 {
 .editable-link-row {
   display: grid;
   grid-template-columns: auto minmax(0, 1fr) auto;
-  gap: 8px;
+  gap: 0.5rem;
   align-items: center;
 }
 
 .reorder {
   display: grid;
-  gap: 3px;
-  width: 36px;
+  gap: 0.1875rem;
+  width: 2.25rem;
   align-content: center;
   justify-items: center;
   cursor: grab;
 }
 
 .drag-grip {
-  width: 22px;
-  height: 11px;
+  width: 1.375rem;
+  height: 0.6875rem;
   color: #aab0a8;
   background-image: radial-gradient(currentColor 1.2px, transparent 1.3px);
   background-size: 7px 5.5px;
 }
 
 .reorder-button {
-  width: 36px;
-  min-height: 19px;
+  width: 2.25rem;
+  min-height: 1.1875rem;
   padding: 0;
   border-color: #c9cec8;
   background: #ffffff;
@@ -1172,9 +1185,9 @@ h2 {
 
 .add-section {
   display: grid;
-  gap: 10px;
-  margin-top: 2px;
-  padding-top: 16px;
+  gap: 0.625rem;
+  margin-top: 0.125rem;
+  padding-top: 1rem;
   border-top: 1px solid var(--pv-border, #d7dcd5);
 }
 
@@ -1187,13 +1200,13 @@ h2 {
 }
 
 .add-section .add-label:not(:first-child) {
-  margin-top: 8px;
+  margin-top: 0.5rem;
 }
 
 .add-chips {
   display: flex;
   flex-wrap: wrap;
-  gap: 4px 14px;
+  gap: 0.25rem 0.875rem;
 }
 
 /* The add menu lives in a popover; the page only carries its trigger. */
@@ -1204,15 +1217,15 @@ h2 {
 
 .add-popover .add-group {
   display: grid;
-  gap: 6px;
+  gap: 0.375rem;
 }
 
 .add-link-item {
-  min-height: 30px;
-  gap: 3px;
-  padding: 3px 2px;
+  min-height: 1.875rem;
+  gap: 0.1875rem;
+  padding: 0.1875rem 0.125rem;
   border: 0;
-  border-radius: 6px;
+  border-radius: 0.375rem;
   background: transparent;
   color: var(--pv-accent, #007f73);
   font-size: 0.95rem;
@@ -1233,7 +1246,7 @@ h2 {
 
 .contact-button-preview {
   min-width: 0;
-  min-height: 48px;
+  min-height: 3rem;
   width: 100%;
   border-color: #d7dcd5;
   background: #ffffff;
@@ -1255,7 +1268,7 @@ h2 {
 }
 
 .editable-link.is-section .contact-button-preview {
-  min-height: 36px;
+  min-height: 2.25rem;
   border-style: dashed;
   background: transparent;
   color: #6a716a;
@@ -1267,18 +1280,18 @@ h2 {
 
 .link-edit-panel {
   display: grid;
-  gap: 14px;
-  margin-left: 44px;
-  padding: 12px;
+  gap: 0.875rem;
+  margin-left: 2.75rem;
+  padding: 0.75rem;
   border: 1px solid #d7dcd5;
-  border-radius: 8px;
+  border-radius: 0.5rem;
   background: #fbfcfa;
 }
 
 .show-toggle {
-  min-height: 38px;
+  min-height: 2.375rem;
   display: inline-flex;
-  gap: 6px;
+  gap: 0.375rem;
   align-items: center;
   color: #6a716a;
   font-size: 0.86rem;
@@ -1288,15 +1301,15 @@ h2 {
 /* A control and the help text that explains it, visually attached. */
 .panel-group {
   display: grid;
-  gap: 2px;
+  gap: 0.125rem;
 }
 
 .panel-group .show-toggle {
-  min-height: 28px;
+  min-height: 1.75rem;
 }
 
 .panel-group .show-toggle + .help {
-  margin-left: 22px;
+  margin-left: 1.375rem;
 }
 
 .link-edit-panel .help {
@@ -1308,9 +1321,9 @@ h2 {
 }
 
 .icon-button {
-  width: 38px;
-  min-width: 38px;
-  min-height: 48px;
+  width: 2.375rem;
+  min-width: 2.375rem;
+  min-height: 3rem;
   padding: 0;
   border-color: #c9cec8;
   background: #ffffff;
@@ -1334,59 +1347,59 @@ h2 {
 }
 
 .row-link-icon {
-  width: 18px;
-  height: 18px;
-  border-radius: 4px;
-  margin-right: 8px;
+  width: 1.125rem;
+  height: 1.125rem;
+  border-radius: 0.25rem;
+  margin-right: 0.5rem;
   vertical-align: -3px;
 }
 
 .row-link-emoji {
-  margin-right: 8px;
+  margin-right: 0.5rem;
 }
 
 .link-icon-block {
   display: grid;
-  gap: 6px;
+  gap: 0.375rem;
 }
 
 .link-icon-actions {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 0.5rem;
   flex-wrap: wrap;
 }
 
 .link-icon-preview {
-  width: 34px;
-  height: 34px;
+  width: 2.125rem;
+  height: 2.125rem;
   display: grid;
   place-items: center;
   border: 1px solid #d7dcd5;
-  border-radius: 8px;
+  border-radius: 0.5rem;
   background: #ffffff;
-  font-size: 18px;
+  font-size: 1.125rem;
   line-height: 1;
 }
 
 .emoji-input {
-  width: 76px;
-  min-height: 38px;
+  width: 4.75rem;
+  min-height: 2.375rem;
   text-align: center;
 }
 
 .link-icon-preview img {
-  width: 20px;
-  height: 20px;
-  border-radius: 4px;
+  width: 1.25rem;
+  height: 1.25rem;
+  border-radius: 0.25rem;
 }
 
 .empty-list {
   display: grid;
-  gap: 4px;
-  padding: 16px;
+  gap: 0.25rem;
+  padding: 1rem;
   border: 1px dashed #c9cec8;
-  border-radius: 8px;
+  border-radius: 0.5rem;
   color: #6a716a;
 }
 
@@ -1395,9 +1408,9 @@ h2 {
 }
 
 .live-editor > .theme-picker {
-  width: min(100%, 560px);
+  width: min(100%, 35rem);
   margin-inline: auto;
-  padding-top: 4px;
+  padding-top: 0.25rem;
 }
 
 /* In-place "Save contact" row in the live preview: mirrors the published
@@ -1405,25 +1418,25 @@ h2 {
    so it lines up with the contact buttons around it. */
 .vcard-inplace {
   display: grid;
-  grid-template-columns: auto minmax(0, 1fr) 38px;
-  gap: 8px;
+  grid-template-columns: auto minmax(0, 1fr) 2.375rem;
+  gap: 0.5rem;
   align-items: center;
 }
 
 .vcard-inplace-toggle {
-  width: 36px;
+  width: 2.25rem;
   min-height: 0;
   justify-content: center;
 }
 
 .vcard-button-preview {
-  min-height: 48px;
+  min-height: 3rem;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  padding: 10px 16px;
+  padding: 0.625rem 1rem;
   border: 1px solid var(--pv-accent, #007f73);
-  border-radius: var(--radius, 8px);
+  border-radius: var(--radius, 0.5rem);
   color: var(--pv-accent, #007f73);
   font-weight: 650;
   text-align: center;
@@ -1435,30 +1448,30 @@ h2 {
 }
 
 .vcard-inplace-help {
-  margin: -8px 0 0 44px;
+  margin: -0.5rem 0 0 2.75rem;
   font-size: 0.85rem;
   color: var(--pv-muted, #6a716a);
 }
 
 .edit-and-preview {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(280px, 1fr);
-  gap: 12px;
+  grid-template-columns: minmax(0, 1fr) minmax(17.5rem, 1fr);
+  gap: 0.75rem;
 }
 
 textarea.code {
   height: 72vh;
   height: 72dvh;
-  min-height: 240px;
+  min-height: 15rem;
   font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
 }
 
 .preview-panel {
   position: sticky;
-  top: 18px;
+  top: 1.125rem;
   display: grid;
-  gap: 14px;
-  padding: 16px;
+  gap: 0.875rem;
+  padding: 1rem;
 }
 
 .preview-heading {
@@ -1474,17 +1487,17 @@ iframe.preview {
   height: 72vh;
   height: 72dvh;
   border: 1px solid #d7dcd5;
-  border-radius: 8px;
+  border-radius: 0.5rem;
   background: #ffffff;
 }
 
 .preview-empty {
-  min-height: 220px;
+  min-height: 13.75rem;
   display: grid;
   place-items: center;
-  padding: 18px;
+  padding: 1.125rem;
   border: 1px dashed #c9cec8;
-  border-radius: 8px;
+  border-radius: 0.5rem;
   color: #6a716a;
   text-align: center;
   overflow-wrap: anywhere;
@@ -1496,8 +1509,8 @@ iframe.preview {
 }
 
 .notice {
-  margin-top: 16px;
-  padding: 14px 16px;
+  margin-top: 1rem;
+  padding: 0.875rem 1rem;
 }
 
 .notice p {
@@ -1505,7 +1518,7 @@ iframe.preview {
 }
 
 .notice p + p {
-  margin-top: 6px;
+  margin-top: 0.375rem;
 }
 
 .error-box {
@@ -1518,12 +1531,12 @@ iframe.preview {
    centered, with any status line above. */
 .publish-bar {
   position: sticky;
-  bottom: 8px;
+  bottom: 0.5rem;
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 6px;
-  margin-top: 10px;
+  gap: 0.375rem;
+  margin-top: 0.625rem;
   pointer-events: none;
 }
 
@@ -1533,7 +1546,7 @@ iframe.preview {
 
 /* Frosted so it stays readable over any page background scrolling under it. */
 .publish-status {
-  padding: 5px 14px;
+  padding: 0.3125rem 0.875rem;
   border: 1px solid rgba(20, 22, 20, 0.12);
   border-radius: 999px;
   background: rgba(251, 251, 248, 0.7);
@@ -1556,29 +1569,29 @@ iframe.preview {
 }
 
 .popover-panel {
-  width: min(92vw, 420px);
+  width: min(92vw, 26.25rem);
   max-height: 88dvh;
   margin: auto;
   inset: 0;
-  padding: 18px;
+  padding: 1.125rem;
   overflow: visible;
   overflow-y: auto;
 }
 
 .popover-panel:popover-open {
   display: grid;
-  gap: 16px;
+  gap: 1rem;
 }
 
 .signature-popover {
-  width: min(92vw, 480px);
+  width: min(92vw, 30rem);
 }
 
 .signature-preview {
   background: #ffffff;
   border: 1px solid #d7dcd5;
-  border-radius: 8px;
-  padding: 16px;
+  border-radius: 0.5rem;
+  padding: 1rem;
   overflow-x: auto;
   text-align: left;
 }
@@ -1586,7 +1599,7 @@ iframe.preview {
 .popover-heading {
   display: flex;
   justify-content: space-between;
-  gap: 12px;
+  gap: 0.75rem;
   align-items: center;
 }
 
@@ -1595,13 +1608,13 @@ iframe.preview {
 }
 
 .popover-heading .icon-button {
-  min-height: 38px;
+  min-height: 2.375rem;
 }
 
 .popover-actions {
   display: grid;
   grid-template-columns: 1fr auto;
-  gap: 10px;
+  gap: 0.625rem;
   align-items: center;
 }
 
@@ -1615,18 +1628,18 @@ iframe.preview {
   z-index: 50;
   display: grid;
   place-items: center;
-  padding: 24px;
+  padding: 1.5rem;
   background: rgba(24, 25, 24, 0.5);
 }
 
 .publish-success {
-  width: min(92vw, 420px);
+  width: min(92vw, 26.25rem);
   display: grid;
-  gap: 14px;
+  gap: 0.875rem;
   justify-items: center;
-  padding: 22px;
+  padding: 1.375rem;
   border: 1px solid #d7dcd5;
-  border-radius: 12px;
+  border-radius: 0.75rem;
   background: #ffffff;
   box-shadow: 0 24px 60px rgba(0, 0, 0, 0.25);
   text-align: center;
@@ -1638,9 +1651,9 @@ iframe.preview {
 
 .qr-frame {
   min-height: 0;
-  padding: 14px;
+  padding: 0.875rem;
   border: 1px solid #e2e6e0;
-  border-radius: 12px;
+  border-radius: 0.75rem;
   background: #ffffff;
   line-height: 0;
   cursor: pointer;
@@ -1667,7 +1680,7 @@ iframe.preview {
 .success-actions {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: 10px;
+  gap: 0.625rem;
   width: 100%;
 }
 
@@ -1678,13 +1691,13 @@ iframe.preview {
 .toast {
   position: fixed;
   left: 50%;
-  bottom: 24px;
+  bottom: 1.5rem;
   transform: translateX(-50%);
   z-index: 60;
-  max-width: min(92vw, 460px);
-  padding: 12px 16px;
+  max-width: min(92vw, 28.75rem);
+  padding: 0.75rem 1rem;
   border: 1px solid #7a2a2a;
-  border-radius: 8px;
+  border-radius: 0.5rem;
   background: #2a1414;
   color: #ffd9d9;
   box-shadow: 0 16px 40px rgba(0, 0, 0, 0.3);
@@ -1715,8 +1728,8 @@ iframe.preview {
   }
 
   .setup-panel {
-    width: min(100%, 540px);
-    gap: 24px;
+    width: min(100%, 33.75rem);
+    gap: 1.5rem;
     align-content: start;
   }
 
@@ -1727,11 +1740,11 @@ iframe.preview {
 
 @media (max-width: 640px) {
   .app-shell {
-    padding: 14px;
+    padding: 0.875rem;
   }
 
   .setup-panel {
-    padding-block: 84px 32px;
+    padding-block: 5.25rem 2rem;
   }
 
   .action-row,
@@ -1755,7 +1768,7 @@ iframe.preview {
   }
 
   .live-page {
-    padding: 18px;
+    padding: 1.125rem;
   }
 
   .live-name {
@@ -1945,13 +1958,13 @@ iframe.preview {
 }
 
 .domain-popover {
-  width: min(92vw, 480px);
+  width: min(92vw, 30rem);
 }
 
 .domain-row {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 0.625rem;
 }
 
 .domain-row a {
@@ -1969,7 +1982,7 @@ iframe.preview {
 
 .domain-pending {
   display: grid;
-  gap: 10px;
+  gap: 0.625rem;
 }
 
 .domain-pending p {
@@ -1978,10 +1991,10 @@ iframe.preview {
 
 .dns-records {
   display: grid;
-  gap: 6px;
-  padding: 12px;
+  gap: 0.375rem;
+  padding: 0.75rem;
   border: 1px solid #d7dcd5;
-  border-radius: 8px;
+  border-radius: 0.5rem;
   background: #ffffff;
   font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
   font-size: 0.9rem;
@@ -1989,7 +2002,7 @@ iframe.preview {
 
 .dns-records > div {
   display: flex;
-  gap: 12px;
+  gap: 0.75rem;
   align-items: center;
 }
 
@@ -2005,8 +2018,8 @@ iframe.preview {
 
 .dns-copy {
   flex-shrink: 0;
-  min-height: 32px;
-  padding: 4px 12px;
+  min-height: 2rem;
+  padding: 0.25rem 0.75rem;
   font-size: 0.85rem;
 }
 
@@ -2016,7 +2029,7 @@ iframe.preview {
 
 .domain-actions {
   display: flex;
-  gap: 10px;
+  gap: 0.625rem;
 }
 
 @media (prefers-color-scheme: dark) {
@@ -2033,40 +2046,40 @@ iframe.preview {
 }
 
 .domain-apex > .dns-records {
-  margin-top: 8px;
+  margin-top: 0.5rem;
 }
 
 /* Style & content panels */
 .live-editor > .style-picker,
 .live-editor > .content-blocks-panel {
-  width: min(100%, 560px);
+  width: min(100%, 35rem);
   margin-inline: auto;
 }
 .style-picker legend {
   font-size: 1.05rem;
   font-weight: 750;
-  margin-bottom: 10px;
+  margin-bottom: 0.625rem;
 }
 .style-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
-  gap: 12px 14px;
+  grid-template-columns: repeat(auto-fit, minmax(8.75rem, 1fr));
+  gap: 0.75rem 0.875rem;
 }
 
 /* Cover image upload (wide preview) */
 .live-profile .cover-upload {
   display: grid;
   justify-items: center;
-  gap: 10px;
+  gap: 0.625rem;
   width: 100%;
 }
 .live-profile .cover-upload .avatar-upload-controls {
   justify-items: center;
 }
 .cover-upload .avatar-upload-preview {
-  width: 148px;
-  height: 74px;
-  border-radius: 8px;
+  width: 9.25rem;
+  height: 4.625rem;
+  border-radius: 0.5rem;
 }
 
 /* Status line input in the live preview */
@@ -2075,7 +2088,7 @@ iframe.preview {
   border-color: transparent;
   background: transparent;
   text-align: center;
-  padding: 2px 4px;
+  padding: 0.125rem 0.25rem;
   color: #007f73;
   font-weight: 650;
   font-size: 0.92rem;
@@ -2114,8 +2127,8 @@ iframe.preview {
 /* Badge & subtitle in the link-row preview */
 .row-badge {
   display: inline-block;
-  margin-left: 8px;
-  padding: 1px 8px;
+  margin-left: 0.5rem;
+  padding: 0.0625rem 0.5rem;
   border-radius: 999px;
   font-size: 0.7rem;
   font-weight: 700;
@@ -2124,7 +2137,7 @@ iframe.preview {
 }
 .row-desc {
   display: block;
-  margin-top: 3px;
+  margin-top: 0.1875rem;
   font-size: 0.8rem;
   font-weight: 500;
   color: var(--pv-muted);
@@ -2132,13 +2145,13 @@ iframe.preview {
 
 /* Live preview reflects the page's style options instantly */
 .live-page .contact-button-preview {
-  border-radius: var(--radius, 8px);
+  border-radius: var(--radius, 0.5rem);
 }
 .live-page .avatar-upload-preview {
   border-radius: var(--avatar-radius, 50%);
 }
 .live-page .cover-upload .avatar-upload-preview {
-  border-radius: var(--radius, 8px);
+  border-radius: var(--radius, 0.5rem);
 }
 .live-page.btn-outline
   .editable-link:not(.is-featured):not(.is-section):not(.is-text)
@@ -2176,12 +2189,12 @@ iframe.preview {
 
 /* Remembered pages on the setup screen */
 .remembered-pages {
-  margin-top: 28px;
-  padding-top: 20px;
+  margin-top: 1.75rem;
+  padding-top: 1.25rem;
   border-top: 1px solid #e2e6e0;
 }
 .remembered-title {
-  margin: 0 0 10px;
+  margin: 0 0 0.625rem;
   font-size: 0.82rem;
   font-weight: 800;
   letter-spacing: 0.06em;
@@ -2193,12 +2206,12 @@ iframe.preview {
   margin: 0;
   padding: 0;
   display: grid;
-  gap: 8px;
+  gap: 0.5rem;
 }
 .remembered-pages li {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 0.5rem;
 }
 .remembered-open {
   flex: 1;
@@ -2221,7 +2234,7 @@ iframe.preview {
 .cover-fit-field {
   display: inline-flex;
   align-items: center;
-  gap: 8px;
+  gap: 0.5rem;
   font-size: 0.85rem;
   color: #6a716a;
 }
@@ -2236,7 +2249,7 @@ iframe.preview {
 
 .cover-options {
   display: grid;
-  gap: 8px;
+  gap: 0.5rem;
   justify-items: center;
 }
 /* When the cover stands in for the name, shrink the name field in the preview */
@@ -2260,7 +2273,7 @@ iframe.preview {
 /* Design-section tabs under the preview: |-separated text, active one
    underlined. One section at a time; tap the active tab again to close it. */
 .live-editor > .design-nav {
-  width: min(100%, 560px);
+  width: min(100%, 35rem);
   margin-inline: auto;
   display: flex;
   flex-wrap: nowrap;
@@ -2272,8 +2285,8 @@ iframe.preview {
 }
 
 .design-nav button {
-  min-height: 30px;
-  padding: 2px 5px;
+  min-height: 1.875rem;
+  padding: 0.125rem 0.3125rem;
   border: 0;
   border-radius: 0;
   background: transparent;
@@ -2299,11 +2312,11 @@ iframe.preview {
   color: #007f73;
   text-decoration: underline;
   text-decoration-thickness: 2px;
-  text-underline-offset: 5px;
+  text-underline-offset: 0.3125rem;
 }
 
 .live-editor > .social-preview-fields {
-  width: min(100%, 560px);
+  width: min(100%, 35rem);
   margin-inline: auto;
 }
 
@@ -2316,7 +2329,7 @@ iframe.live-preview {
   height: 50vh;
   height: 50dvh;
   border: 1px solid #d7dcd5;
-  border-radius: 8px;
+  border-radius: 0.5rem;
   background: #ffffff;
 }
 
@@ -2326,7 +2339,7 @@ iframe.live-preview {
    nothing to momentarily fall back to). min() keeps it inside the column. */
 .preview-shell {
   position: relative;
-  width: min(100%, var(--pv-w, 496px));
+  width: min(100%, var(--pv-w, 31rem));
   margin-inline: auto;
 }
 
@@ -2335,7 +2348,7 @@ iframe.live-preview {
   top: 0;
   bottom: 0;
   right: 0;
-  width: 18px;
+  width: 1.125rem;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -2348,9 +2361,9 @@ iframe.live-preview {
 }
 
 .preview-resize-grip {
-  width: 5px;
-  height: 46px;
-  border-radius: 3px;
+  width: 0.3125rem;
+  height: 2.875rem;
+  border-radius: 0.1875rem;
   background: color-mix(in srgb, var(--accent, #007f73) 45%, #9aa29b);
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.28);
   transition: background 0.15s ease;
@@ -2364,7 +2377,7 @@ iframe.live-preview {
 .preview-resize-handle:focus-visible {
   outline: 2px solid var(--accent, #007f73);
   outline-offset: -2px;
-  border-radius: 8px;
+  border-radius: 0.5rem;
 }
 
 @media (prefers-color-scheme: dark) {
@@ -2397,7 +2410,7 @@ iframe.live-preview {
 }
 
 .favicon-field input {
-  max-width: 120px;
+  max-width: 7.5rem;
   font-size: 1.2rem;
   text-align: center;
 }
@@ -2405,13 +2418,13 @@ iframe.live-preview {
 /* Theme dropdown */
 .theme-select {
   width: auto;
-  min-width: 150px;
+  min-width: 9.375rem;
 }
 
 /* WYSIWYG cover editor */
 .cover-editor {
   display: grid;
-  gap: 10px;
+  gap: 0.625rem;
   justify-items: center;
   width: 100%;
 }
@@ -2419,9 +2432,9 @@ iframe.live-preview {
   display: grid;
   place-items: center;
   width: 100%;
-  min-height: 96px;
+  min-height: 6rem;
   border: 1.5px dashed var(--pv-border, #c9cec8);
-  border-radius: 12px;
+  border-radius: 0.75rem;
   color: var(--pv-muted, #6a716a);
   font-weight: 700;
   cursor: pointer;
@@ -2436,7 +2449,7 @@ iframe.live-preview {
   position: relative;
   width: 100%;
   overflow: hidden;
-  border-radius: var(--radius, 8px);
+  border-radius: var(--radius, 0.5rem);
 }
 .cover-frame.is-fill {
   cursor: grab;
@@ -2445,9 +2458,9 @@ iframe.live-preview {
 .cover-height-field {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 0.625rem;
   width: 100%;
-  max-width: 320px;
+  max-width: 20rem;
   font-size: 0.85rem;
   color: var(--pv-muted, #6a716a);
 }
@@ -2471,10 +2484,10 @@ iframe.live-preview {
 }
 .cover-hint {
   position: absolute;
-  bottom: 6px;
+  bottom: 0.375rem;
   left: 50%;
   transform: translateX(-50%);
-  padding: 2px 10px;
+  padding: 0.125rem 0.625rem;
   border-radius: 999px;
   background: rgba(0, 0, 0, 0.55);
   color: #ffffff;
@@ -2485,7 +2498,7 @@ iframe.live-preview {
 .cover-editor-actions {
   display: flex;
   flex-wrap: wrap;
-  gap: 8px;
+  gap: 0.5rem;
   justify-content: center;
   align-items: center;
 }
@@ -2496,8 +2509,8 @@ iframe.live-preview {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: 8px;
-  margin-bottom: 14px;
+  gap: 0.5rem;
+  margin-bottom: 0.875rem;
 }
 
 .bg-kind-row button[aria-pressed="true"] {
@@ -2508,21 +2521,21 @@ iframe.live-preview {
 
 .bg-variant {
   display: grid;
-  gap: 12px;
-  margin-top: 14px;
+  gap: 0.75rem;
+  margin-top: 0.875rem;
 }
 
 .style-fx {
   display: grid;
-  gap: 12px;
-  margin-top: 14px;
+  gap: 0.75rem;
+  margin-top: 0.875rem;
 }
 
 /* A slider with a small inline label, not a headed form field. */
 .field-range {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 0.625rem;
   font-size: 0.85rem;
   color: #6a716a;
 }
@@ -2575,35 +2588,35 @@ iframe.live-preview {
   -webkit-user-drag: none;
 }
 .region-frame.is-avatar {
-  width: 132px;
-  height: 132px;
+  width: 8.25rem;
+  height: 8.25rem;
   flex: none;
 }
 .region-zoom {
   position: absolute;
   left: 50%;
-  bottom: 8px;
+  bottom: 0.5rem;
   transform: translateX(-50%);
   width: 70%;
-  max-width: 220px;
-  height: 4px;
+  max-width: 13.75rem;
+  height: 0.25rem;
   accent-color: #ffffff;
   opacity: 0.85;
 }
 .region-frame.is-avatar .region-zoom {
-  bottom: 4px;
+  bottom: 0.25rem;
   width: 84%;
 }
 
 .avatar-editor {
   display: grid;
-  gap: 8px;
+  gap: 0.5rem;
   justify-items: center;
 }
 .avatar-editor-actions {
   display: flex;
   flex-wrap: wrap;
-  gap: 8px;
+  gap: 0.5rem;
   justify-content: center;
 }
 
