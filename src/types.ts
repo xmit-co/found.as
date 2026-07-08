@@ -89,6 +89,10 @@ export type CoverFit = "cover" | "contain";
 export interface LinkTree {
   displayName: string;
   bio: string;
+  // The email link (by id) shared through the IndieAuth profile's `email`
+  // scope. Only meaningful with more than one email link; otherwise the sole
+  // email (if any) is used.
+  profileEmailId?: string;
   avatarUrl?: string;
   // Focal point + zoom of the photo within its frame.
   avatarPos?: string;
@@ -144,6 +148,10 @@ export interface Public {
   mime?: string;
   bytes?: Uint8Array;
   subs?: Record<string, { mime: string; bytes: Uint8Array }>;
+  // Structured profile surfaced by the IndieAuth profile/email scopes. The
+  // profile URL isn't stored here — the backend fills it with the identity that
+  // signed in.
+  profile?: { name?: string; photo?: string; email?: string };
 }
 
 export interface NormalizedLink {

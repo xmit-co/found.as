@@ -9,6 +9,7 @@ import {
   importLinkIcon,
 } from "../image";
 import {
+  activeValidLinks,
   canFeature,
   defaultLinkItem,
   ensureLinkTree,
@@ -2106,6 +2107,44 @@ export function LinkTreeEditor({
               }
             />
           </label>
+          {(() => {
+            // Sign-in profile email: only a choice when more than one email is
+            // shown; with one (or none) there's nothing to pick.
+            const emails = activeValidLinks(tree).filter(
+              (l) => l.item.kind === "email",
+            );
+            if (emails.length < 2) return null;
+            const chosen = emails.some((l) => l.item.id === tree.profileEmailId)
+              ? tree.profileEmailId
+              : emails[0].item.id;
+            return (
+              <>
+                <span className="field-label">Sign-in</span>
+                <label className="field stack">
+                  <span>Profile email</span>
+                  <select
+                    value={chosen}
+                    onChange={(e) =>
+                      updateTree({
+                        ...tree,
+                        profileEmailId: (e.target as HTMLSelectElement).value,
+                      })
+                    }
+                  >
+                    {emails.map((l) => (
+                      <option key={l.item.id} value={l.item.id}>
+                        {l.href.replace(/^mailto:/i, "").split("?")[0]}
+                      </option>
+                    ))}
+                  </select>
+                  <p className="help">
+                    Which address an app receives when someone signs in with
+                    your page and allows the email permission.
+                  </p>
+                </label>
+              </>
+            );
+          })()}
         </div>
       )}
 

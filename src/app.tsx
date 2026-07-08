@@ -34,6 +34,7 @@ import { renderOgImage } from "./og";
 import { downloadQrPng } from "./qr";
 import {
   intoDoc,
+  linkTreeProfile,
   linkTreeToHtml,
   printablesHtml,
   recoveryKitHtml,
@@ -495,6 +496,11 @@ export function App() {
         };
         if (subs) {
           pubToSend.subs = subs;
+        }
+        // Structured profile for the IndieAuth profile/email scopes.
+        const profile = linkTreeProfile(publishTree);
+        if (Object.keys(profile).length) {
+          pubToSend.profile = profile;
         }
       } else if (pubToSend === null) {
         pubToSend = {

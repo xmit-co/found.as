@@ -80,6 +80,7 @@ export function ensureLinkTree(tree: LinkTree | undefined): LinkTree {
   return {
     displayName: current.displayName ?? "",
     bio: current.bio ?? "",
+    profileEmailId: current.profileEmailId,
     avatarUrl: current.avatarUrl ?? "",
     avatarPos: current.avatarPos ?? "50% 50%",
     avatarZoom: clampZoom(current.avatarZoom),

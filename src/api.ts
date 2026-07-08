@@ -237,3 +237,59 @@ export function sameKeyPair(a: SignKeyPair, b: SignKeyPair): boolean {
     a.publicKey.every((byte, i) => byte === b.publicKey[i])
   );
 }
+
+export interface IndieAuthMintParams {
+  me: string;
+  clientId: string;
+  redirectUri: string;
+  codeChallenge: string;
+  codeChallengeMethod: string;
+  scope: string;
+}
+
+// mintIndieAuthCode signs an IndieAuth approval with the page key and asks the
+// backend for a single-use authorization code. The backend re-resolves `me` to a
+// page and rejects the request unless this key owns it.
+export async function mintIndieAuthCode(
+  keyPair: SignKeyPair,
+  p: IndieAuthMintParams,
+): Promise<{ code: string; me: string }> {
+  const response = await fetch("/api", {
+    method: "POST",
+    body: encode([
+      10,
+      keyPair.publicKey,
+      sign(
+        encode([
+          new Date().getTime() / 1000,
+          p.me,
+          p.clientId,
+          p.redirectUri,
+          p.codeChallenge,
+          p.codeChallengeMethod,
+          p.scope,
+        ]),
+        keyPair.secretKey,
+      ),
+    ]),
+  });
+  if (!response.ok) {
+    throw new Error((await response.text()).trim() || `${response.status}`);
+  }
+  return decode(new Uint8Array(await response.arrayBuffer()));
+}
+
+// resolveIndieAuthMe turns an identity URL (used when it's a custom domain,
+// where the page path isn't in the URL) into the found.as page path whose key
+// the consent screen must load.
+export async function resolveIndieAuthMe(
+  me: string,
+): Promise<{ path: string; me: string }> {
+  const response = await fetch(
+    `/indieauth/resolve?me=${encodeURIComponent(me)}`,
+  );
+  if (!response.ok) {
+    throw new Error("This address isn't a found.as page.");
+  }
+  return response.json();
+}

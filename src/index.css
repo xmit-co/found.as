@@ -306,6 +306,18 @@ h2 {
   font-size: 0.92rem;
 }
 
+/* IndieAuth consent: the scopes an app is requesting, shown as plain tokens. */
+.scope-list {
+  margin: 0.5rem 0 0;
+  padding-left: 1.25rem;
+  display: grid;
+  gap: 0.125rem;
+}
+.scope-list li {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-weight: 600;
+}
+
 .warning-text {
   color: #7a4b00;
 }

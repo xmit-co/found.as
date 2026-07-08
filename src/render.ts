@@ -5,6 +5,7 @@ import {
   printAccents,
 } from "./color";
 import {
+  activeValidLinks,
   featuredLink,
   isBlock,
   linkTreeListedEntries,
@@ -118,6 +119,34 @@ ${title}
 </head>
 <body>${fragment}</body>
 </html>`;
+}
+
+// Structured profile for the published page, surfaced by the IndieAuth
+// profile/email scopes: name, avatar photo, and the chosen email. The profile
+// URL is added by the backend (the identity that signed in).
+export function linkTreeProfile(tree: LinkTree): {
+  name?: string;
+  photo?: string;
+  email?: string;
+} {
+  const profile: { name?: string; photo?: string; email?: string } = {};
+  const name = tree.displayName.trim();
+  if (name) profile.name = name;
+  const photo = avatarImageSrc(tree.avatarUrl);
+  if (photo) profile.photo = photo;
+  // Among the shown email links, honour the owner's pick (by id); with one
+  // email that's simply it, with none there's no email to share.
+  const emails = activeValidLinks(tree).filter((l) => l.item.kind === "email");
+  const chosen =
+    emails.find((l) => l.item.id === tree.profileEmailId) ?? emails[0];
+  if (chosen) {
+    const email = chosen.href
+      .replace(/^mailto:/i, "")
+      .split("?")[0]
+      .trim();
+    if (email) profile.email = email;
+  }
+  return profile;
 }
 
 export function linkTreeToHtml(
@@ -297,7 +326,9 @@ a.contact-link.featured {
 <meta property="og:url" content="${escapeHtml(url)}"/>
 ${ogImage ? `<meta property="og:image" content="${escapeHtml(ogImage)}"/>\n` : ""}<meta name="twitter:card" content="${ogImage ? "summary_large_image" : "summary"}"/>
 <title>${escapeHtml(metaTitle)}</title>
-${faviconLink}<style>
+${faviconLink}<link rel="authorization_endpoint" href="https://be.found.as/indieauth"/>
+<link rel="indieauth-metadata" href="https://be.found.as/.well-known/oauth-authorization-server"/>
+<style>
 :root {
   color-scheme: light dark;
   --bg: #fbfbf8;
