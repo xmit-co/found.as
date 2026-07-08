@@ -2253,12 +2253,20 @@ function linkTreeToHtml(
       ? `<span class="link-icon-emoji" aria-hidden="true">${escapeHtml(emoji)}</span>`
       : "";
   };
-  const linkRelAttr = (link: NormalizedLink) =>
-    identityKinds.has(link.item.kind) &&
-    link.item.relMe !== false &&
-    /^(https?:|mailto:|tel:|sms:)/i.test(link.href)
-      ? ' rel="me"'
-      : "";
+  // Web links open in a new tab — the norm for a link hub, and it keeps
+  // embeds (like the landing page's phone previews) from navigating inside
+  // their frame. tel:/mailto: don't navigate the page and get no target.
+  const linkRelAttr = (link: NormalizedLink) => {
+    const me =
+      identityKinds.has(link.item.kind) &&
+      link.item.relMe !== false &&
+      /^(https?:|mailto:|tel:|sms:)/i.test(link.href);
+    const blank = /^https?:/i.test(link.href);
+    const rel = [me ? "me" : "", blank ? "noopener" : ""]
+      .filter(Boolean)
+      .join(" ");
+    return `${rel ? ` rel="${rel}"` : ""}${blank ? ' target="_blank"' : ""}`;
+  };
   const linkInner = (link: NormalizedLink) => {
     const badge = link.item.badge?.trim();
     const desc = link.item.desc?.trim();
