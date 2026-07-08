@@ -78,7 +78,8 @@ interface LinkItem {
 interface SocialPreview {
   title?: string;
   description?: string;
-  imageUrl?: string;
+  // Custom preview image as a data URL; published as the page's `og` sub.
+  customImage?: string;
   autoImage?: boolean;
 }
 
@@ -500,7 +501,7 @@ function ensureLinkTree(tree: LinkTree | undefined): LinkTree {
     social: {
       title: current.social?.title ?? "",
       description: current.social?.description ?? "",
-      imageUrl: current.social?.imageUrl ?? "",
+      customImage: current.social?.customImage ?? "",
       autoImage: current.social?.autoImage ?? true,
     },
     showVcard: current.showVcard ?? true,
@@ -567,11 +568,14 @@ function avatarImageSrc(value: string | undefined): string | null {
   return URL.canParse(normalized) ? normalized : null;
 }
 
-// Accent choices are curated light/dark pairs rather than a free color picker:
-// the accent doubles as text and borders on the page background, and the
-// System theme flips that background with the OS. Each variant is tuned to
-// WCAG AA both as text on its page background and under its button label
-// (white on light variants, near-black on dark ones) — see palette.mjs.
+// The accent is picked on an OKLCH hue/chroma wheel (hue around, chroma out
+// from gray at the center) and every other page color is derived from it. The
+// accent doubles as text and borders on the page background, and the System
+// theme flips that background with the OS — so lightness is fixed per theme
+// variant at values where *any* point on the wheel meets WCAG AA, both as text
+// on its page background (#fbfbf8 / #101112) and under its button label (white
+// on the light variant, near-black on the dark one). Worst case over all hues
+// at max chroma: 4.52:1 light, 5.85:1 dark.
 interface AccentPair {
   light: string;
   dark: string;
@@ -580,19 +584,77 @@ interface AccentPair {
 const accentLightText = "#ffffff";
 const accentDarkText = "#10130f";
 
-const accentPalette: Record<string, AccentPair> = {
-  ocean: { light: "#426ae0", dark: "#5177e8" },
-  violet: { light: "#8e52d4", dark: "#9b61de" },
-  magenta: { light: "#cf307f", dark: "#da418e" },
-  crimson: { light: "#d72f3d", dark: "#e24451" },
-  rust: { light: "#b6561e", dark: "#cd5c1b" },
-  forest: { light: "#12814a", dark: "#14b866" },
-  gold: { light: "#926a0c", dark: "#c28b0a" },
-  graphite: { light: "#687480", dark: "#6c8093" },
+const accentLightL = 0.54;
+const accentDarkL = 0.68;
+const accentMaxChroma = 0.2;
+
+// Earlier pages stored one of eight curated palette names; map those to the
+// nearest wheel position (same hue and chroma, at the fixed lightness).
+const legacyAccents: Record<string, string> = {
+  ocean: "266 0.185",
+  violet: "302 0.190",
+  magenta: "356 0.200",
+  crimson: "22 0.200",
+  rust: "47 0.140",
+  forest: "155 0.130",
+  gold: "81 0.110",
+  graphite: "248 0.025",
 };
 
+// Stored accent: "" for the theme default, or "<hue> <chroma>" on the wheel.
+function parseAccent(
+  value: string | undefined,
+): { hue: number; chroma: number } | null {
+  if (!value) return null;
+  const stored = legacyAccents[value] ?? value;
+  const m = stored.match(/^(\d{1,3}(?:\.\d+)?) (0(?:\.\d+)?)$/);
+  if (!m) return null;
+  const hue = Number(m[1]);
+  const chroma = Number(m[2]);
+  return hue < 360 && chroma <= accentMaxChroma ? { hue, chroma } : null;
+}
+
+function linearToSrgb(c: number): number {
+  return c <= 0.0031308 ? 12.92 * c : 1.055 * Math.pow(c, 1 / 2.4) - 0.055;
+}
+
+function oklchToLinearSrgb(l: number, c: number, h: number): number[] {
+  const a = c * Math.cos((h * Math.PI) / 180);
+  const b = c * Math.sin((h * Math.PI) / 180);
+  const l_ = (l + 0.3963377774 * a + 0.2158037573 * b) ** 3;
+  const m_ = (l - 0.1055613458 * a - 0.0638541728 * b) ** 3;
+  const s_ = (l - 0.0894841775 * a - 1.291485548 * b) ** 3;
+  return [
+    4.0767416621 * l_ - 3.3077115913 * m_ + 0.2309699292 * s_,
+    -1.2684380046 * l_ + 2.6097574011 * m_ - 0.3413193965 * s_,
+    -0.0041960863 * l_ - 0.7034186147 * m_ + 1.707614701 * s_,
+  ];
+}
+
+// OKLCH → sRGB hex, reducing chroma into gamut where needed (as CSS does).
+// Hex keeps every consumer working: published CSS, canvas og:images, print.
+function oklchToHex(l: number, c: number, h: number): string {
+  let rgb = oklchToLinearSrgb(l, c, h);
+  while (rgb.some((v) => v < 0 || v > 1) && c > 0) {
+    c = Math.max(0, c - 0.002);
+    rgb = oklchToLinearSrgb(l, c, h);
+  }
+  return `#${rgb
+    .map((v) =>
+      Math.round(linearToSrgb(Math.min(1, Math.max(0, v))) * 255)
+        .toString(16)
+        .padStart(2, "0"),
+    )
+    .join("")}`;
+}
+
 function accentPair(value: string | undefined): AccentPair | null {
-  return (value && accentPalette[value]) || null;
+  const parsed = parseAccent(value);
+  if (!parsed) return null;
+  return {
+    light: oklchToHex(accentLightL, parsed.chroma, parsed.hue),
+    dark: oklchToHex(accentDarkL, parsed.chroma, parsed.hue),
+  };
 }
 
 const themeAccentDefaults: Record<LinkTree["theme"], string> = {
@@ -601,12 +663,98 @@ const themeAccentDefaults: Record<LinkTree["theme"], string> = {
   dark: "#4fc3b3",
 };
 
+// The wheel face: hue around the rim, chroma fading to gray at the center —
+// OKLCH at the light theme's accent lightness, precomputed to hex so the
+// gradient matches oklchToHex's gamut clipping exactly.
+const accentWheelFace = [
+  `radial-gradient(closest-side, ${oklchToHex(accentLightL, 0, 0)}, transparent)`,
+  `conic-gradient(${Array.from({ length: 37 }, (_, i) =>
+    oklchToHex(accentLightL, accentMaxChroma, i * 10),
+  ).join(", ")})`,
+].join(", ");
+
+function AccentWheel({
+  value,
+  onChange,
+}: {
+  value: string;
+  onChange: (accent: string) => void;
+}) {
+  const selected = parseAccent(value);
+  const dragging = useRef(false);
+
+  const pick = (e: PointerEvent) => {
+    const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
+    const x = e.clientX - rect.left - rect.width / 2;
+    const y = e.clientY - rect.top - rect.height / 2;
+    // Angle clockwise from 12 o'clock, matching the conic gradient.
+    const hue = Math.round(((Math.atan2(y, x) * 180) / Math.PI + 450) % 360);
+    const radius = Math.min(1, Math.hypot(x, y) / (rect.width / 2));
+    onChange(`${hue} ${(radius * accentMaxChroma).toFixed(3)}`);
+  };
+
+  const onKeyDown = (e: KeyboardEvent) => {
+    let hue = selected?.hue ?? 200;
+    let chroma = selected?.chroma ?? 0.13;
+    if (e.key === "ArrowLeft") hue = (hue + 355) % 360;
+    else if (e.key === "ArrowRight") hue = (hue + 5) % 360;
+    else if (e.key === "ArrowUp")
+      chroma = Math.min(accentMaxChroma, chroma + 0.01);
+    else if (e.key === "ArrowDown") chroma = Math.max(0, chroma - 0.01);
+    else return;
+    e.preventDefault();
+    onChange(`${Math.round(hue)} ${chroma.toFixed(3)}`);
+  };
+
+  const angle = (((selected?.hue ?? 0) - 90) * Math.PI) / 180;
+  const radius = selected ? (selected.chroma / accentMaxChroma) * 50 : 0;
+  return (
+    <div
+      className="accent-wheel"
+      role="slider"
+      tabIndex={0}
+      aria-label="Accent color — left/right arrows change the hue, up/down how colorful"
+      aria-valuemin={0}
+      aria-valuemax={359}
+      aria-valuenow={selected ? Math.round(selected.hue) : 0}
+      aria-valuetext={
+        selected
+          ? `hue ${Math.round(selected.hue)}°, ${Math.round((selected.chroma / accentMaxChroma) * 100)}% colorful`
+          : "theme default"
+      }
+      style={{ background: accentWheelFace }}
+      onPointerDown={(e) => {
+        (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
+        dragging.current = true;
+        pick(e);
+      }}
+      onPointerMove={(e) => dragging.current && pick(e)}
+      onPointerUp={() => (dragging.current = false)}
+      onPointerCancel={() => (dragging.current = false)}
+      onKeyDown={onKeyDown}
+    >
+      {selected && (
+        <span
+          className="accent-wheel-thumb"
+          style={{
+            left: `${50 + radius * Math.cos(angle)}%`,
+            top: `${50 + radius * Math.sin(angle)}%`,
+            // The resulting pair rings the picked spot: light/dark split like
+            // the preset dots, with the wheel showing through the center.
+            background: `linear-gradient(135deg, ${accentPair(value)!.light} 50%, ${accentPair(value)!.dark} 50%)`,
+          }}
+        ></span>
+      )}
+    </div>
+  );
+}
+
 // Curated system-font stacks — no web fonts, so pages stay request-free.
 const fontStacks: Record<FontChoice, string> = {
   system: "system-ui, sans-serif",
   sans: 'ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif',
   serif: 'ui-serif, Georgia, Cambria, "Times New Roman", serif',
-  mono: 'ui-monospace, SFMono-Regular, Menlo, Consolas, monospace',
+  mono: "ui-monospace, SFMono-Regular, Menlo, Consolas, monospace",
   rounded:
     'ui-rounded, "SF Pro Rounded", "Hiragino Maru Gothic ProN", "Segoe UI", system-ui, sans-serif',
 };
@@ -682,13 +830,6 @@ function pageBackground(
     default:
       return b;
   }
-}
-
-function socialImageUrl(value: string | undefined): string | null {
-  const stripped = value?.replace(/\s+/g, "");
-  if (!stripped) return null;
-  if (!URL.canParse(stripped)) return null;
-  return new URL(stripped).protocol === "https:" ? stripped : null;
 }
 
 function signatureAvatarSrc(value: string | undefined): string | null {
@@ -798,6 +939,38 @@ async function compressBg(file: File): Promise<CompressedAvatar> {
   return compressImage(file, 1600, 1600, "contain");
 }
 
+// Custom social preview image: center-cropped to the 1200×630 og:image canvas
+// and encoded as JPEG (not AVIF — link scrapers are conservative).
+async function compressOgImage(file: File): Promise<string> {
+  const image = await loadImageForCanvas(file);
+  const sourceWidth = Number("width" in image ? image.width : 0);
+  const sourceHeight = Number("height" in image ? image.height : 0);
+  if (!sourceWidth || !sourceHeight) {
+    throw new Error("Could not read that image.");
+  }
+  const canvas = document.createElement("canvas");
+  canvas.width = 1200;
+  canvas.height = 630;
+  const ctx = canvas.getContext("2d");
+  if (!ctx) {
+    throw new Error("Could not prepare the image.");
+  }
+  const scale = Math.max(1200 / sourceWidth, 630 / sourceHeight);
+  const cropWidth = Math.round(1200 / scale);
+  const cropHeight = Math.round(630 / scale);
+  const sx = Math.floor((sourceWidth - cropWidth) / 2);
+  const sy = Math.floor((sourceHeight - cropHeight) / 2);
+  ctx.drawImage(image, sx, sy, cropWidth, cropHeight, 0, 0, 1200, 630);
+  if (image instanceof ImageBitmap) {
+    image.close();
+  }
+  const blob = await canvasToBlob(canvas, "image/jpeg", 0.85);
+  if (!blob) {
+    throw new Error("Could not compress that image.");
+  }
+  return blobToDataUrl(blob);
+}
+
 // Encodes as AVIF (falling back to JPEG). "cover" center-crops to fill the
 // target box; "contain" downscales the whole image to fit within it.
 async function compressImage(
@@ -820,11 +993,7 @@ async function compressImage(
   }
 
   if (fit === "contain") {
-    const scale = Math.min(
-      maxWidth / sourceWidth,
-      maxHeight / sourceHeight,
-      1,
-    );
+    const scale = Math.min(maxWidth / sourceWidth, maxHeight / sourceHeight, 1);
     canvas.width = Math.round(sourceWidth * scale);
     canvas.height = Math.round(sourceHeight * scale);
     ctx.drawImage(image, 0, 0, canvas.width, canvas.height);
@@ -1574,11 +1743,6 @@ function linkTreeErrors(tree: LinkTree): string[] {
         !isDefaultLinkValue(link.item),
     )
     .map((link) => `${link.label}: ${link.error}`);
-  if (tree.social?.imageUrl?.trim() && !socialImageUrl(tree.social.imageUrl)) {
-    errors.push(
-      "Social preview image: enter a full https:// image address, or leave it blank.",
-    );
-  }
   return errors;
 }
 
@@ -1747,9 +1911,8 @@ function mixHex(a: string, b: string, pct: number): string {
   const pb = parseInt(b.slice(1), 16);
   const t = pct / 100;
   const ch = (shift: number) =>
-    Math.round(
-      ((pa >> shift) & 255) * t + ((pb >> shift) & 255) * (1 - t),
-    ) << shift;
+    Math.round(((pa >> shift) & 255) * t + ((pb >> shift) & 255) * (1 - t)) <<
+    shift;
   return `#${(ch(16) | ch(8) | ch(0)).toString(16).padStart(6, "0")}`;
 }
 
@@ -1964,7 +2127,13 @@ async function renderOgImage(
           clampZoom(tree.coverZoom);
         const iw = img.naturalWidth * s;
         const ih = img.naturalHeight * s;
-        ctx.drawImage(img, bx + (bw - iw) * px, bandTop + (bh - ih) * py, iw, ih);
+        ctx.drawImage(
+          img,
+          bx + (bw - iw) * px,
+          bandTop + (bh - ih) * py,
+          iw,
+          ih,
+        );
       }
       ctx.restore();
       bioY = bandTop + bh + 60;
@@ -2016,7 +2185,7 @@ function linkTreeToHtml(
   const metaTitle = tree.social?.title?.trim() || safeName;
   const metaDescription =
     tree.social?.description?.trim() || safeBio || `${safeName} on found.as`;
-  const ogImage = socialImageUrl(tree.social?.imageUrl) ?? generatedOgUrl;
+  const ogImage = generatedOgUrl;
   const featured = featuredLink(tree);
   const entries = linkTreeListedEntries(tree);
   const themeClass = `theme-${tree.theme || "system"}`;
@@ -2089,7 +2258,10 @@ function linkTreeToHtml(
   const bgImg = (u: string, ov = "") =>
     `${ov}url("${escapeHtml(u)}") center / cover no-repeat fixed, var(--bg)`;
   const bgLight = bgImage
-    ? bgImg(bgLightUrl!, overlay("255 255 255", clampLighten(tree.bgLighten) / 100))
+    ? bgImg(
+        bgLightUrl!,
+        overlay("255 255 255", clampLighten(tree.bgLighten) / 100),
+      )
     : "";
   const bgDark = bgImage
     ? bgDarkUrl
@@ -2189,11 +2361,7 @@ main {
 }
 .cover {
   width: 100%;
-  ${
-    coverObjectFit === "contain"
-      ? ""
-      : `aspect-ratio: 440 / ${coverHeight};`
-  }
+  ${coverObjectFit === "contain" ? "" : `aspect-ratio: 440 / ${coverHeight};`}
   border-radius: var(--radius);
   overflow: hidden;
   border: 1px solid var(--border);
@@ -2805,6 +2973,21 @@ function EmailSignaturePopover({
   );
 }
 
+// Boots an empty iframe document that swaps in page HTML posted from the
+// editor, so live tweaks update the preview without reloading the frame.
+const previewBootstrap = `<html><head><script>
+window.addEventListener('message', (e) => {
+  if (e.data?.type === 'preview-update') {
+    const parser = new DOMParser();
+    const doc = parser.parseFromString(e.data.html, 'text/html');
+    Array.from(doc.documentElement.attributes).forEach(attr => {
+      document.documentElement.setAttribute(attr.name, attr.value);
+    });
+    document.documentElement.innerHTML = e.data.html;
+  }
+})
+</script></head><body></body></html>`;
+
 function PageEditor({ priv, pub }: { priv: Signal<Private>; pub: Public }) {
   const ifref = useRef<HTMLIFrameElement>(null);
   const [iframeReady, setIframeReady] = useState(false);
@@ -2856,18 +3039,7 @@ function PageEditor({ priv, pub }: { priv: Signal<Private>; pub: Public }) {
         title="Page preview"
         ref={ifref}
         onLoad={() => setIframeReady(true)}
-        srcdoc={`<html><head><script>
-window.addEventListener('message', (e) => {
-  if (e.data?.type === 'preview-update') {
-    const parser = new DOMParser();
-    const doc = parser.parseFromString(e.data.html, 'text/html');
-    Array.from(doc.documentElement.attributes).forEach(attr => {
-      document.documentElement.setAttribute(attr.name, attr.value);
-    });
-    document.documentElement.innerHTML = e.data.html;
-  }
-})
-</script></head><body></body></html>`}
+        srcdoc={previewBootstrap}
       ></iframe>
     </div>
   );
@@ -3175,7 +3347,9 @@ function EditableLink({
                 placeholder={
                   sectionItem ? kindExamples.section : kindLabels[link.kind]
                 }
-                aria-describedby={sectionItem ? `${detailId}-status` : undefined}
+                aria-describedby={
+                  sectionItem ? `${detailId}-status` : undefined
+                }
                 onInput={(e) =>
                   updateLink({
                     ...link,
@@ -3770,11 +3944,56 @@ function LinkTreeEditor({
   const [previewDark, setPreviewDark] = useState(
     () => window.matchMedia?.("(prefers-color-scheme: dark)").matches ?? false,
   );
+  // Which design section is open under the preview. Tabs rather than an
+  // accordion: exactly one open at a time, starting on the editor itself.
+  const [designTab, setDesignTab] = useState<
+    "editor" | "colors" | "style" | "background" | "social"
+  >("editor");
+  // Tabs that show the rendered page under their controls. The editor tab is
+  // the page; Sharing has its own preview image.
+  const showsPreview =
+    designTab === "colors" ||
+    designTab === "style" ||
+    designTab === "background";
+
+  // The bio grows and shrinks with its content.
+  const bioRef = useRef<HTMLTextAreaElement>(null);
+  useEffect(() => {
+    const el = bioRef.current;
+    if (!el) return;
+    el.style.height = "auto";
+    el.style.height = `${el.scrollHeight + 2}px`;
+  }, [tree.bio, designTab]);
+
+  // While a design tab is open, the editable page gives way to the real
+  // rendered page (same HTML that gets published), so changes preview true
+  // to life. Auto theme renders as whatever the Preview toggle shows.
+  const pvRef = useRef<HTMLIFrameElement>(null);
+  const previewHtml = showsPreview
+    ? linkTreeToHtml(
+        tree.theme === "system"
+          ? { ...tree, theme: previewDark ? "dark" : "light" }
+          : tree,
+        `https://${displayAddress}`,
+        undefined,
+        tree.background === "image" && tree.bgUrl ? tree.bgUrl : undefined,
+        tree.background === "image" && tree.bgDarkUrl
+          ? tree.bgDarkUrl
+          : undefined,
+      )
+    : "";
+  const postPreview = () => {
+    if (previewHtml) {
+      pvRef.current?.contentWindow?.postMessage(
+        { type: "preview-update", html: previewHtml },
+        "*",
+      );
+    }
+  };
+  useEffect(postPreview, [previewHtml]);
 
   const autoImageOn =
-    (tree.social?.autoImage ?? true) &&
-    !socialImageUrl(tree.social?.imageUrl) &&
-    priv.value.type === Type.LINK_TREE;
+    (tree.social?.autoImage ?? true) && priv.value.type === Type.LINK_TREE;
   useEffect(() => {
     if (!autoImageOn) {
       setOgPreview((prev) => {
@@ -3852,9 +4071,15 @@ function LinkTreeEditor({
   const updateSocial = (patch: Partial<SocialPreview>) => {
     updateTree({ ...tree, social: { ...social, ...patch } });
   };
-  const socialImageInvalid = Boolean(
-    social.imageUrl?.trim() && !socialImageUrl(social.imageUrl),
-  );
+  const pickOgImage = (e: Event) => {
+    const input = e.target as HTMLInputElement;
+    const file = input.files?.[0];
+    input.value = "";
+    if (!file) return;
+    compressOgImage(file)
+      .then((dataUrl) => updateSocial({ customImage: dataUrl }))
+      .catch((err) => onError((err as Error).message));
+  };
 
   const updateLink = (link: LinkItem) => {
     updateTree({
@@ -3940,528 +4165,670 @@ function LinkTreeEditor({
 
   return (
     <section className="live-editor" aria-label="Contact page editor">
-      <div
-        className={`live-page theme-${tree.theme || "system"} ${(tree.theme || "system") === "system" && previewDark ? "pv-dark" : ""} avatar-${tree.avatarShape ?? "circle"} btn-${tree.buttons ?? "soft"} ${tree.coverTitle && avatarImageSrc(tree.coverUrl) ? "cover-title" : ""} ${accentPair(tree.accent) ? "accent-custom" : ""} ${tree.background === "image" && tree.bgUrl ? "has-bg-image" : ""}`}
-        style={{
-          fontFamily: fontStack(tree),
-          "--radius": cornerRadius(tree),
-          "--avatar-radius": avatarRadius(tree),
-          // Image backgrounds go through CSS vars so both derived variants
-          // preview: the light one lightened by bgLighten%, and the dark one
-          // (custom image, or the source darkened by bgShade%) — matching what
-          // lightenImage/darkenImage produce at publish.
-          ...(tree.background === "image" && tree.bgUrl
-            ? {
-                "--pv-bg-light": `url("${tree.bgUrl}")`,
-                ...(tree.bgDarkUrl
-                  ? { "--pv-bg-dark": `url("${tree.bgDarkUrl}")` }
-                  : {}),
-                "--pv-shade": tree.bgDarkUrl
-                  ? "0"
-                  : String(clampShade(tree.bgShade) / 100),
-                "--pv-lighten": String(clampLighten(tree.bgLighten) / 100),
-              }
-            : {
-                background: pageBackground(tree, "--pv-accent", "--pv-bg"),
-              }),
-          ...(accentPair(tree.accent)
-            ? {
-                "--pv-a-light": accentPair(tree.accent)!.light,
-                "--pv-a-dark": accentPair(tree.accent)!.dark,
-              }
-            : {}),
-        }}
-      >
-        <div className="live-profile">
-          <CoverEditor tree={tree} updateTree={updateTree} onError={onError} />
-          <AvatarEditor tree={tree} updateTree={updateTree} onError={onError} />
-          <input
-            className="live-name"
-            aria-label="Name"
-            type="text"
-            value={tree.displayName}
-            placeholder="Ada Lovelace"
-            onInput={(e) =>
-              updateTree({
-                ...tree,
-                displayName: (e.target as HTMLInputElement).value,
-              })
-            }
-          />
-          <input
-            className="live-status"
-            aria-label="Status line"
-            type="text"
-            value={tree.status ?? ""}
-            maxLength={60}
-            placeholder="Status — e.g. 🟢 Available for work (optional)"
-            onInput={(e) =>
-              updateTree({
-                ...tree,
-                status: (e.target as HTMLInputElement).value,
-              })
-            }
-          />
-          <textarea
-            className="live-bio"
-            aria-label="Short description"
-            rows={3}
-            value={tree.bio}
-            placeholder="Mathematician · first computer programmer"
-            onInput={(e) =>
-              updateTree({
-                ...tree,
-                bio: (e.target as HTMLTextAreaElement).value,
-              })
-            }
-          ></textarea>
-        </div>
-
-        <div className="editable-links" aria-label="Contact buttons">
-          {tree.links.length > 0 ? (
-            tree.links.map((link, index) => (
-              <EditableLink
-                key={link.id}
-                link={link}
-                index={index}
-                total={tree.links.length}
-                updateLink={updateLink}
-                setFeatured={setFeatured}
-                setIcon={setIcon}
-                onError={onError}
-                removeLink={() => removeLink(link.id)}
-                moveTo={moveLinkTo}
-                moveBy={moveLinkBy}
-                dragging={draggingId === link.id}
-                setDragging={setDraggingId}
-                dropTarget={dragOverId === link.id && draggingId !== link.id}
-                dropAfter={dragAfter}
-                setDragOver={setDragOver}
-                selected={selectedLinkId === link.id}
-                setSelected={setSelectedLinkId}
-                sectionShown={shownSections.has(link.id)}
-              />
-            ))
-          ) : (
-            <div className="empty-list">
-              <p>No contact buttons yet.</p>
-            </div>
-          )}
-        </div>
-
-        <div className="add-section">
-          {addGroups.map((group) => (
-            <div className="add-group" key={group.label}>
-              <span className="add-label">{group.label}</span>
-              <div className="add-chips">
-                {group.kinds.map((kind) => (
-                  <button
-                    type="button"
-                    className="add-link-item"
-                    key={kind}
-                    onClick={() => addLinkOfKind(kind)}
-                  >
-                    <span className="add-link-plus" aria-hidden="true">
-                      +
-                    </span>
-                    {kindLabels[kind]}
-                  </button>
-                ))}
-              </div>
-            </div>
-          ))}
-        </div>
+      <div className="design-nav" role="group" aria-label="Design sections">
+        <button
+          type="button"
+          aria-pressed={designTab === "editor"}
+          onClick={() => setDesignTab("editor")}
+        >
+          Editor
+        </button>
+        <button
+          type="button"
+          aria-pressed={designTab === "colors"}
+          onClick={() => setDesignTab("colors")}
+        >
+          Colors
+        </button>
+        <button
+          type="button"
+          aria-pressed={designTab === "style"}
+          onClick={() => setDesignTab("style")}
+        >
+          Style
+        </button>
+        <button
+          type="button"
+          aria-pressed={designTab === "background"}
+          onClick={() => setDesignTab("background")}
+        >
+          Background
+        </button>
+        <button
+          type="button"
+          aria-pressed={designTab === "social"}
+          onClick={() => setDesignTab("social")}
+        >
+          Sharing
+        </button>
       </div>
 
-      <details className="design-panel">
-        <summary>Theme &amp; style</summary>
-      <label className="field stack favicon-field">
-        <span>Favicon emoji</span>
-        <input
-          type="text"
-          value={tree.favicon ?? ""}
-          maxLength={8}
-          placeholder="e.g. ☕"
-          onInput={(e) =>
-            updateTree({
-              ...tree,
-              favicon: (e.target as HTMLInputElement).value,
-            })
-          }
-        />
-        <p className="help">
-          Shown in the browser tab. One emoji — leave blank for none.
-        </p>
-      </label>
-      <fieldset className="theme-picker">
-        <legend>Theme</legend>
-        <select
-          className="theme-select"
-          aria-label="Theme"
-          value={tree.theme}
-          onChange={(e) =>
-            updateTree({
-              ...tree,
-              theme: (e.target as HTMLSelectElement)
-                .value as LinkTree["theme"],
-            })
-          }
+      {designTab === "editor" && (
+        <div
+          className={`live-page theme-${tree.theme || "system"} ${(tree.theme || "system") === "system" && previewDark ? "pv-dark" : ""} avatar-${tree.avatarShape ?? "circle"} btn-${tree.buttons ?? "soft"} ${tree.coverTitle && avatarImageSrc(tree.coverUrl) ? "cover-title" : ""} ${accentPair(tree.accent) ? "accent-custom" : ""} ${tree.background === "image" && tree.bgUrl ? "has-bg-image" : ""}`}
+          style={{
+            fontFamily: fontStack(tree),
+            "--radius": cornerRadius(tree),
+            "--avatar-radius": avatarRadius(tree),
+            // Image backgrounds go through CSS vars so both derived variants
+            // preview: the light one lightened by bgLighten%, and the dark one
+            // (custom image, or the source darkened by bgShade%) — matching what
+            // lightenImage/darkenImage produce at publish.
+            ...(tree.background === "image" && tree.bgUrl
+              ? {
+                  "--pv-bg-light": `url("${tree.bgUrl}")`,
+                  ...(tree.bgDarkUrl
+                    ? { "--pv-bg-dark": `url("${tree.bgDarkUrl}")` }
+                    : {}),
+                  "--pv-shade": tree.bgDarkUrl
+                    ? "0"
+                    : String(clampShade(tree.bgShade) / 100),
+                  "--pv-lighten": String(clampLighten(tree.bgLighten) / 100),
+                }
+              : {
+                  background: pageBackground(tree, "--pv-accent", "--pv-bg"),
+                }),
+            ...(accentPair(tree.accent)
+              ? {
+                  "--pv-a-light": accentPair(tree.accent)!.light,
+                  "--pv-a-dark": accentPair(tree.accent)!.dark,
+                }
+              : {}),
+          }}
         >
-          <option value="system">Auto</option>
-          <option value="light">Light</option>
-          <option value="dark">Dark</option>
-        </select>
-        {tree.theme === "system" && (
-          <div
-            className="preview-mode"
-            role="group"
-            aria-label="Preview appearance"
-          >
-            <span className="accent-row-label">Preview</span>
-            <button
-              type="button"
-              className="secondary"
-              aria-pressed={!previewDark}
-              onClick={() => setPreviewDark(false)}
-            >
-              Light
-            </button>
-            <button
-              type="button"
-              className="secondary"
-              aria-pressed={previewDark}
-              onClick={() => setPreviewDark(true)}
-            >
-              Dark
-            </button>
-            <span className="help">
-              Auto follows each visitor's device — check both looks here.
-            </span>
-          </div>
-        )}
-        <div className="accent-row">
-          <span className="accent-row-label">Accent</span>
-          <label className="accent-choice" title="Theme default">
-            <input
-              type="radio"
-              name="accent"
-              checked={!accentPair(tree.accent)}
-              onChange={() => updateTree({ ...tree, accent: "" })}
+          <div className="live-profile">
+            <CoverEditor
+              tree={tree}
+              updateTree={updateTree}
+              onError={onError}
             />
-            <span
-              className="accent-dot"
-              style={{ background: themeAccentDefaults[tree.theme] }}
-            ></span>
-            <span className="sr-only">Theme default</span>
-          </label>
-          {Object.entries(accentPalette).map(([key, pair]) => (
-            <label
-              className="accent-choice"
-              key={key}
-              title={key[0].toUpperCase() + key.slice(1)}
+            <AvatarEditor
+              tree={tree}
+              updateTree={updateTree}
+              onError={onError}
+            />
+            <input
+              className="live-name"
+              aria-label="Name"
+              type="text"
+              value={tree.displayName}
+              placeholder="Ada Lovelace"
+              onInput={(e) =>
+                updateTree({
+                  ...tree,
+                  displayName: (e.target as HTMLInputElement).value,
+                })
+              }
+            />
+            <input
+              className="live-status"
+              aria-label="Status line"
+              type="text"
+              value={tree.status ?? ""}
+              maxLength={60}
+              placeholder="🟢 Status (optional)"
+              onInput={(e) =>
+                updateTree({
+                  ...tree,
+                  status: (e.target as HTMLInputElement).value,
+                })
+              }
+            />
+            <textarea
+              className="live-bio"
+              aria-label="Short description"
+              rows={2}
+              ref={bioRef}
+              value={tree.bio}
+              placeholder="Mathematician · first computer programmer"
+              onInput={(e) =>
+                updateTree({
+                  ...tree,
+                  bio: (e.target as HTMLTextAreaElement).value,
+                })
+              }
+            ></textarea>
+          </div>
+
+          <div
+            className={`vcard-inplace${tree.showVcard !== false ? "" : " is-off"}`}
+          >
+            <label className="show-toggle vcard-inplace-toggle">
+              <input
+                type="checkbox"
+                checked={tree.showVcard !== false}
+                onChange={(e) =>
+                  updateTree({
+                    ...tree,
+                    showVcard: (e.target as HTMLInputElement).checked,
+                  })
+                }
+              />
+              <span className="sr-only">Show a "Save contact" button</span>
+            </label>
+            <span className="vcard-button-preview">Save contact</span>
+          </div>
+          {tree.showVcard !== false && !vcardEligible(tree) && (
+            <p className="help vcard-inplace-help">
+              Lets visitors download a contact card (.vcf). It appears once the
+              page has a name and a shown phone or email.
+            </p>
+          )}
+
+          <div className="editable-links" aria-label="Contact buttons">
+            {tree.links.length > 0 ? (
+              tree.links.map((link, index) => (
+                <EditableLink
+                  key={link.id}
+                  link={link}
+                  index={index}
+                  total={tree.links.length}
+                  updateLink={updateLink}
+                  setFeatured={setFeatured}
+                  setIcon={setIcon}
+                  onError={onError}
+                  removeLink={() => removeLink(link.id)}
+                  moveTo={moveLinkTo}
+                  moveBy={moveLinkBy}
+                  dragging={draggingId === link.id}
+                  setDragging={setDraggingId}
+                  dropTarget={dragOverId === link.id && draggingId !== link.id}
+                  dropAfter={dragAfter}
+                  setDragOver={setDragOver}
+                  selected={selectedLinkId === link.id}
+                  setSelected={setSelectedLinkId}
+                  sectionShown={shownSections.has(link.id)}
+                />
+              ))
+            ) : (
+              <div className="empty-list">
+                <p>No contact buttons yet.</p>
+              </div>
+            )}
+          </div>
+
+          <div className="add-section">
+            <button
+              type="button"
+              className="secondary add-open"
+              popovertarget="addMenu"
             >
+              <span className="add-link-plus" aria-hidden="true">
+                +{" "}
+              </span>
+              Add row
+            </button>
+          </div>
+
+          <div
+            popover="auto"
+            id="addMenu"
+            className="popover-panel add-popover"
+          >
+            <div className="popover-heading">
+              <h2>Add to your page</h2>
+              <button
+                type="button"
+                className="icon-button"
+                aria-label="Close"
+                onClick={() =>
+                  document.getElementById("addMenu")?.hidePopover()
+                }
+              >
+                <span aria-hidden="true">×</span>
+              </button>
+            </div>
+            {addGroups.map((group) => (
+              <div className="add-group" key={group.label}>
+                <span className="add-label">{group.label}</span>
+                <div className="add-chips">
+                  {group.kinds.map((kind) => (
+                    <button
+                      type="button"
+                      className="add-link-item"
+                      key={kind}
+                      onClick={() => {
+                        document.getElementById("addMenu")?.hidePopover();
+                        addLinkOfKind(kind);
+                      }}
+                    >
+                      <span className="add-link-plus" aria-hidden="true">
+                        +
+                      </span>
+                      {kindLabels[kind]}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {designTab === "colors" && (
+        <fieldset className="theme-picker">
+          <legend className="sr-only">Colors</legend>
+          <div className="theme-row">
+            <select
+              className="theme-select"
+              aria-label="Theme"
+              title="Auto follows each visitor's device"
+              value={tree.theme}
+              onChange={(e) =>
+                updateTree({
+                  ...tree,
+                  theme: (e.target as HTMLSelectElement)
+                    .value as LinkTree["theme"],
+                })
+              }
+            >
+              <option value="system">Auto</option>
+              <option value="light">Light</option>
+              <option value="dark">Dark</option>
+            </select>
+            {tree.theme === "system" && (
+              <div
+                className="preview-mode"
+                role="group"
+                aria-label="Preview appearance"
+                title="Auto follows each visitor's device — check both looks here"
+              >
+                <span className="accent-row-label">Preview</span>
+                <button
+                  type="button"
+                  className="quiet"
+                  aria-pressed={!previewDark}
+                  onClick={() => setPreviewDark(false)}
+                >
+                  Light
+                </button>
+                <button
+                  type="button"
+                  className="quiet"
+                  aria-pressed={previewDark}
+                  onClick={() => setPreviewDark(true)}
+                >
+                  Dark
+                </button>
+              </div>
+            )}
+          </div>
+          <div className="accent-row">
+            <span className="sr-only">Accent</span>
+            <label className="accent-choice" title="Theme default">
               <input
                 type="radio"
                 name="accent"
-                checked={tree.accent === key}
-                onChange={() => updateTree({ ...tree, accent: key })}
+                checked={!accentPair(tree.accent)}
+                onChange={() => updateTree({ ...tree, accent: "" })}
               />
               <span
                 className="accent-dot"
-                style={{
-                  background: `linear-gradient(135deg, ${pair.light} 50%, ${pair.dark} 50%)`,
-                }}
+                style={{ background: themeAccentDefaults[tree.theme] }}
               ></span>
-              <span className="sr-only">{key}</span>
+              <span className="sr-only">Theme default</span>
             </label>
-          ))}
-        </div>
-      </fieldset>
-
-      <fieldset className="style-picker">
-        <legend>Style</legend>
-        <div className="style-grid">
-          <label className="field stack">
-            <span>Font</span>
-            <select
-              value={tree.font ?? "system"}
-              onChange={(e) =>
-                updateTree({
-                  ...tree,
-                  font: (e.target as HTMLSelectElement).value as FontChoice,
-                })
-              }
-            >
-              <option value="system">System</option>
-              <option value="sans">Sans</option>
-              <option value="serif">Serif</option>
-              <option value="mono">Mono</option>
-              <option value="rounded">Rounded</option>
-            </select>
-          </label>
-          <label className="field stack">
-            <span>Buttons</span>
-            <select
-              value={tree.buttons ?? "soft"}
-              onChange={(e) =>
-                updateTree({
-                  ...tree,
-                  buttons: (e.target as HTMLSelectElement).value as ButtonStyle,
-                })
-              }
-            >
-              <option value="soft">Soft</option>
-              <option value="outline">Outline</option>
-              <option value="filled">Filled</option>
-            </select>
-          </label>
-          <label className="field stack">
-            <span>Corners</span>
-            <select
-              value={tree.corners ?? "rounded"}
-              onChange={(e) =>
-                updateTree({
-                  ...tree,
-                  corners: (e.target as HTMLSelectElement).value as Corners,
-                })
-              }
-            >
-              <option value="rounded">Rounded</option>
-              <option value="sharp">Sharp</option>
-              <option value="pill">Pill</option>
-            </select>
-          </label>
-          <label className="field stack">
-            <span>Photo shape</span>
-            <select
-              value={tree.avatarShape ?? "circle"}
-              onChange={(e) =>
-                updateTree({
-                  ...tree,
-                  avatarShape: (e.target as HTMLSelectElement)
-                    .value as AvatarShape,
-                })
-              }
-            >
-              <option value="circle">Circle</option>
-              <option value="rounded">Rounded square</option>
-            </select>
-          </label>
-          <label className="field stack">
-            <span>Background</span>
-            <select
-              value={tree.background ?? "none"}
-              onChange={(e) =>
-                updateTree({
-                  ...tree,
-                  background: (e.target as HTMLSelectElement).value as Background,
-                })
-              }
-            >
-              <option value="none">None</option>
-              <option value="gradient">Gradient</option>
-              <option value="dots">Dots</option>
-              <option value="grid">Grid</option>
-              <option value="image">Custom image</option>
-            </select>
-          </label>
-        </div>
-        {tree.background === "image" && (
-          <div className="bg-image-controls">
-            <div className="cover-editor-actions">
-              <label className="button-link secondary">
-                {tree.bgUrl ? "Replace background" : "Add background image"}
-                <input
-                  type="file"
-                  accept="image/*"
-                  className="sr-only"
-                  onChange={pickBgImage("bgUrl")}
-                />
-              </label>
-              {tree.bgUrl && (
-                <button
-                  type="button"
-                  className="secondary"
-                  onClick={() =>
-                    updateTree({ ...tree, bgUrl: "", bgDarkUrl: "" })
-                  }
+            {Object.entries(legacyAccents).map(([name, value]) => {
+              const pair = accentPair(value)!;
+              return (
+                <label
+                  className="accent-choice"
+                  key={name}
+                  title={name[0].toUpperCase() + name.slice(1)}
                 >
-                  Remove
-                </button>
-              )}
-            </div>
-            {tree.bgUrl && (
-              <>
-                <label className="field stack">
-                  <span>Light version — lighten by</span>
                   <input
-                    type="range"
-                    min={0}
-                    max={90}
-                    step={5}
-                    value={clampLighten(tree.bgLighten)}
-                    onInput={(e) =>
-                      updateTree({
-                        ...tree,
-                        bgLighten: Number(
-                          (e.target as HTMLInputElement).value,
-                        ),
-                      })
+                    type="radio"
+                    name="accent"
+                    checked={
+                      (legacyAccents[tree.accent ?? ""] ?? tree.accent) ===
+                      value
                     }
+                    onChange={() => updateTree({ ...tree, accent: value })}
+                  />
+                  <span
+                    className="accent-dot"
+                    style={{
+                      background: `linear-gradient(135deg, ${pair.light} 50%, ${pair.dark} 50%)`,
+                    }}
+                  ></span>
+                  <span className="sr-only">{name}</span>
+                </label>
+              );
+            })}
+            <div className="accent-wheel-row">
+              <AccentWheel
+                value={tree.accent ?? ""}
+                onChange={(accent) => updateTree({ ...tree, accent })}
+              />
+            </div>
+          </div>
+        </fieldset>
+      )}
+
+      {designTab === "style" && (
+        <fieldset className="style-picker">
+          <legend className="sr-only">Style</legend>
+          <div className="style-grid">
+            <label className="field stack">
+              <span>Font</span>
+              <select
+                value={tree.font ?? "system"}
+                onChange={(e) =>
+                  updateTree({
+                    ...tree,
+                    font: (e.target as HTMLSelectElement).value as FontChoice,
+                  })
+                }
+              >
+                <option value="system">System</option>
+                <option value="sans">Sans</option>
+                <option value="serif">Serif</option>
+                <option value="mono">Mono</option>
+                <option value="rounded">Rounded</option>
+              </select>
+            </label>
+            <label className="field stack">
+              <span>Buttons</span>
+              <select
+                value={tree.buttons ?? "soft"}
+                onChange={(e) =>
+                  updateTree({
+                    ...tree,
+                    buttons: (e.target as HTMLSelectElement)
+                      .value as ButtonStyle,
+                  })
+                }
+              >
+                <option value="soft">Soft</option>
+                <option value="outline">Outline</option>
+                <option value="filled">Filled</option>
+              </select>
+            </label>
+            <label className="field stack">
+              <span>Corners</span>
+              <select
+                value={tree.corners ?? "rounded"}
+                onChange={(e) =>
+                  updateTree({
+                    ...tree,
+                    corners: (e.target as HTMLSelectElement).value as Corners,
+                  })
+                }
+              >
+                <option value="rounded">Rounded</option>
+                <option value="sharp">Sharp</option>
+                <option value="pill">Pill</option>
+              </select>
+            </label>
+            <label className="field stack">
+              <span>Photo shape</span>
+              <select
+                value={tree.avatarShape ?? "circle"}
+                onChange={(e) =>
+                  updateTree({
+                    ...tree,
+                    avatarShape: (e.target as HTMLSelectElement)
+                      .value as AvatarShape,
+                  })
+                }
+              >
+                <option value="circle">Circle</option>
+                <option value="rounded">Rounded square</option>
+              </select>
+            </label>
+          </div>
+        </fieldset>
+      )}
+
+      {designTab === "background" && (
+        <fieldset className="style-picker">
+          <legend className="sr-only">Background</legend>
+          <div className="style-grid">
+            <label className="field stack">
+              <span>Background</span>
+              <select
+                value={tree.background ?? "none"}
+                onChange={(e) =>
+                  updateTree({
+                    ...tree,
+                    background: (e.target as HTMLSelectElement)
+                      .value as Background,
+                  })
+                }
+              >
+                <option value="none">None</option>
+                <option value="gradient">Gradient</option>
+                <option value="dots">Dots</option>
+                <option value="grid">Grid</option>
+                <option value="image">Custom image</option>
+              </select>
+            </label>
+          </div>
+          {tree.background === "image" && (
+            <div className="bg-image-controls">
+              <div className="cover-editor-actions">
+                <label className="button-link secondary">
+                  {tree.bgUrl ? "Replace background" : "Add background image"}
+                  <input
+                    type="file"
+                    accept="image/*"
+                    className="sr-only"
+                    onChange={pickBgImage("bgUrl")}
                   />
                 </label>
-                <label className="field stack">
-                  <span>
-                    Dark version{" "}
-                    {tree.bgDarkUrl ? "(custom image)" : "— darken by"}
-                  </span>
-                  {!tree.bgDarkUrl && (
+                {tree.bgUrl && (
+                  <button
+                    type="button"
+                    className="secondary"
+                    onClick={() =>
+                      updateTree({ ...tree, bgUrl: "", bgDarkUrl: "" })
+                    }
+                  >
+                    Remove
+                  </button>
+                )}
+              </div>
+              {tree.bgUrl && (
+                <>
+                  <label className="field stack">
+                    <span>Light version — lighten by</span>
                     <input
                       type="range"
                       min={0}
                       max={90}
                       step={5}
-                      value={clampShade(tree.bgShade)}
+                      value={clampLighten(tree.bgLighten)}
                       onInput={(e) =>
                         updateTree({
                           ...tree,
-                          bgShade: Number(
+                          bgLighten: Number(
                             (e.target as HTMLInputElement).value,
                           ),
                         })
                       }
                     />
-                  )}
-                </label>
-                <div className="cover-editor-actions">
-                  <label className="button-link secondary">
-                    {tree.bgDarkUrl
-                      ? "Replace dark image"
-                      : "Or upload a dark image"}
-                    <input
-                      type="file"
-                      accept="image/*"
-                      className="sr-only"
-                      onChange={pickBgImage("bgDarkUrl")}
-                    />
                   </label>
-                  {tree.bgDarkUrl && (
-                    <button
-                      type="button"
-                      className="secondary"
-                      onClick={() => updateTree({ ...tree, bgDarkUrl: "" })}
-                    >
-                      Use auto-shaded dark
-                    </button>
-                  )}
-                </div>
-                <p className="help">
-                  The light image shows by default; the dark version appears in
-                  dark mode. Both are served with your page.
-                </p>
-              </>
-            )}
+                  <label className="field stack">
+                    <span>
+                      Dark version{" "}
+                      {tree.bgDarkUrl ? "(custom image)" : "— darken by"}
+                    </span>
+                    {!tree.bgDarkUrl && (
+                      <input
+                        type="range"
+                        min={0}
+                        max={90}
+                        step={5}
+                        value={clampShade(tree.bgShade)}
+                        onInput={(e) =>
+                          updateTree({
+                            ...tree,
+                            bgShade: Number(
+                              (e.target as HTMLInputElement).value,
+                            ),
+                          })
+                        }
+                      />
+                    )}
+                  </label>
+                  <div className="cover-editor-actions">
+                    <label className="button-link secondary">
+                      {tree.bgDarkUrl
+                        ? "Replace dark image"
+                        : "Or upload a dark image"}
+                      <input
+                        type="file"
+                        accept="image/*"
+                        className="sr-only"
+                        onChange={pickBgImage("bgDarkUrl")}
+                      />
+                    </label>
+                    {tree.bgDarkUrl && (
+                      <button
+                        type="button"
+                        className="secondary"
+                        onClick={() => updateTree({ ...tree, bgDarkUrl: "" })}
+                      >
+                        Use auto-shaded dark
+                      </button>
+                    )}
+                  </div>
+                  <p className="help">
+                    The light image shows by default; the dark version appears
+                    in dark mode. Both are served with your page.
+                  </p>
+                </>
+              )}
+            </div>
+          )}
+        </fieldset>
+      )}
+
+      {designTab === "social" && (
+        <div className="social-preview-fields">
+          <label className="field stack favicon-field">
+            <span>Favicon emoji</span>
+            <input
+              type="text"
+              value={tree.favicon ?? ""}
+              maxLength={8}
+              placeholder="e.g. ☕"
+              onInput={(e) =>
+                updateTree({
+                  ...tree,
+                  favicon: (e.target as HTMLInputElement).value,
+                })
+              }
+            />
+            <p className="help">Shown in the browser tab.</p>
+          </label>
+          <span className="field-label">Preview</span>
+          <div className="panel-group">
+            <label className="show-toggle">
+              <input
+                type="radio"
+                name="og-image-mode"
+                checked={social.autoImage ?? true}
+                onChange={() => updateSocial({ autoImage: true })}
+              />
+              <span>Automatic preview image</span>
+            </label>
+            <label className="show-toggle">
+              <input
+                type="radio"
+                name="og-image-mode"
+                checked={!(social.autoImage ?? true)}
+                onChange={() => updateSocial({ autoImage: false })}
+              />
+              <span>Custom preview image</span>
+            </label>
           </div>
-        )}
-      </fieldset>
-      </details>
+          {(social.autoImage ?? true) && ogPreview && (
+            <img
+              className="og-preview"
+              src={ogPreview}
+              alt="Preview image that will be published"
+              width={1200}
+              height={630}
+            />
+          )}
+          {!(social.autoImage ?? true) && (
+            <>
+              {social.customImage && (
+                <img
+                  className="og-preview"
+                  src={social.customImage}
+                  alt="Custom preview image that will be published"
+                  width={1200}
+                  height={630}
+                />
+              )}
+              <div className="cover-editor-actions">
+                <label className="button-link secondary">
+                  {social.customImage ? "Replace image" : "Upload an image"}
+                  <input
+                    type="file"
+                    accept="image/*"
+                    className="sr-only"
+                    onChange={pickOgImage}
+                  />
+                </label>
+                {social.customImage && (
+                  <button
+                    type="button"
+                    className="secondary"
+                    onClick={() => updateSocial({ customImage: "" })}
+                  >
+                    Remove
+                  </button>
+                )}
+              </div>
+              {!social.customImage && (
+                <p className="help">
+                  Cropped to 1200×630 and served with your page. Until you add
+                  one, links share without an image.
+                </p>
+              )}
+            </>
+          )}
+          <label className="field stack">
+            <span>Preview title</span>
+            <input
+              type="text"
+              value={social.title ?? ""}
+              placeholder={tree.displayName.trim() || "Ada Lovelace"}
+              onInput={(e) =>
+                updateSocial({ title: (e.target as HTMLInputElement).value })
+              }
+            />
+          </label>
+          <label className="field stack">
+            <span>Preview description</span>
+            <input
+              type="text"
+              value={social.description ?? ""}
+              placeholder={
+                tree.bio.trim() || "Mathematician · first computer programmer"
+              }
+              onInput={(e) =>
+                updateSocial({
+                  description: (e.target as HTMLInputElement).value,
+                })
+              }
+            />
+          </label>
+        </div>
+      )}
 
-      <div className="vcard-toggle-panel">
-        <label className="show-toggle">
-          <input
-            type="checkbox"
-            checked={tree.showVcard !== false}
-            onChange={(e) =>
-              updateTree({
-                ...tree,
-                showVcard: (e.target as HTMLInputElement).checked,
-              })
-            }
-          />
-          <span>Show a "Save contact" button</span>
-        </label>
-        <p className="help">
-          {vcardEligible(tree)
-            ? "Lets visitors download a contact card (.vcf) with your details."
-            : "Lets visitors download a contact card (.vcf). The button appears once your page has a name and a shown phone or email."}
-        </p>
-      </div>
-
-      <details className="social-preview-panel">
-        <summary>Social preview</summary>
-        <p className="help">
-          Shown when someone shares found.as links on X, LinkedIn, iMessage, and
-          similar apps. Leave fields blank to use your name and description.
-        </p>
-        <label className="show-toggle">
-          <input
-            type="checkbox"
-            checked={social.autoImage ?? true}
-            onChange={(e) =>
-              updateSocial({
-                autoImage: (e.target as HTMLInputElement).checked,
-              })
-            }
-          />
-          <span>Create a preview image automatically</span>
-        </label>
-        {ogPreview && (
-          <img
-            className="og-preview"
-            src={ogPreview}
-            alt="Preview image that will be published"
-            width={1200}
-            height={630}
-          />
-        )}
-        <label className="field stack">
-          <span>Preview title</span>
-          <input
-            type="text"
-            value={social.title ?? ""}
-            placeholder={tree.displayName.trim() || "Ada Lovelace"}
-            onInput={(e) =>
-              updateSocial({ title: (e.target as HTMLInputElement).value })
-            }
-          />
-        </label>
-        <label className="field stack">
-          <span>Preview description</span>
-          <input
-            type="text"
-            value={social.description ?? ""}
-            placeholder={
-              tree.bio.trim() || "Mathematician · first computer programmer"
-            }
-            onInput={(e) =>
-              updateSocial({
-                description: (e.target as HTMLInputElement).value,
-              })
-            }
-          />
-        </label>
-        <label className="field stack">
-          <span>Preview image address</span>
-          <input
-            type="url"
-            value={social.imageUrl ?? ""}
-            placeholder="https://example.com/card.jpg"
-            aria-describedby="social-image-help"
-            aria-invalid={socialImageInvalid}
-            onInput={(e) =>
-              updateSocial({ imageUrl: (e.target as HTMLInputElement).value })
-            }
-          />
-        </label>
-        <p
-          id="social-image-help"
-          className={socialImageInvalid ? "help error-text" : "help"}
-        >
-          {socialImageInvalid
-            ? "Enter a full https:// image address, or leave it blank."
-            : "Optional — replaces the automatic image. A hosted https image, ideally 1200×630 pixels."}
-        </p>
-      </details>
+      {showsPreview && (
+        <iframe
+          className="live-preview"
+          title="Page preview"
+          ref={pvRef}
+          onLoad={postPreview}
+          srcdoc={previewBootstrap}
+        ></iframe>
+      )}
     </section>
   );
 }
@@ -4478,39 +4845,34 @@ function BuilderModePicker({
   setAdvancedType: (type: Type) => void;
 }) {
   return (
-    <section className="intent-panel" aria-labelledby="intent-title">
-      <div className="section-heading">
-        <p className="eyebrow">Page type</p>
-        <h2 id="intent-title">What should this page do?</h2>
-      </div>
-      <div className="intent-grid">
-        <label className="intent-option">
-          <input
-            type="radio"
-            name="builder-mode"
-            value="contact"
-            checked={mode === "contact"}
-            onChange={() => setMode("contact")}
-          />
-          <span>
-            <strong>Contact page</strong>
-            <small>Links for web, email, social, phone, and more.</small>
-          </span>
-        </label>
-        <label className="intent-option">
-          <input
-            type="radio"
-            name="builder-mode"
-            value="advanced"
-            checked={mode === "advanced"}
-            onChange={() => setMode("advanced")}
-          />
-          <span>
-            <strong>Advanced publishing</strong>
-            <small>Redirect, markdown page, HTML page, or file.</small>
-          </span>
-        </label>
-      </div>
+    <section className="intent-row" aria-label="Page type">
+      <span className="accent-row-label">Page type</span>
+      <label
+        className="intent-choice"
+        title="Links for web, email, social, phone, and more."
+      >
+        <input
+          type="radio"
+          name="builder-mode"
+          value="contact"
+          checked={mode === "contact"}
+          onChange={() => setMode("contact")}
+        />
+        <span>Contact page</span>
+      </label>
+      <label
+        className="intent-choice"
+        title="Redirect, markdown page, HTML page, or file."
+      >
+        <input
+          type="radio"
+          name="builder-mode"
+          value="advanced"
+          checked={mode === "advanced"}
+          onChange={() => setMode("advanced")}
+        />
+        <span>Advanced</span>
+      </label>
       {mode === "advanced" && (
         <AdvancedModePicker value={advancedType} setValue={setAdvancedType} />
       )}
@@ -4549,35 +4911,24 @@ function AdvancedModePicker({
   ];
 
   return (
-    <fieldset className="advanced-mode-picker">
-      <legend>Advanced format</legend>
-      <div className="advanced-mode-grid">
-        {modes.map((mode) => (
-          <label className="advanced-mode-option" key={mode.type}>
-            <input
-              type="radio"
-              name="advanced-type"
-              value={mode.type}
-              checked={value === mode.type}
-              onChange={() => setValue(mode.type)}
-            />
-            <span>
-              <strong>{mode.label}</strong>
-              <small>{mode.description}</small>
-            </span>
-          </label>
-        ))}
-      </div>
-    </fieldset>
+    <div
+      className="design-nav advanced-nav"
+      role="group"
+      aria-label="Advanced format"
+    >
+      {modes.map((mode) => (
+        <button
+          type="button"
+          key={mode.type}
+          aria-pressed={value === mode.type}
+          title={mode.description}
+          onClick={() => setValue(mode.type)}
+        >
+          {mode.label}
+        </button>
+      ))}
+    </div>
   );
-}
-
-function publishLabel(type: Type): string {
-  if (type === Type.LINK_TREE) return "Publish contact page";
-  if (type === Type.REDIR) return "Publish redirect";
-  if (type === Type.MARKDOWN_PAGE) return "Publish markdown page";
-  if (type === Type.HTML_PAGE) return "Publish HTML page";
-  return "Publish file";
 }
 
 function modeSummary(type: Type): string {
@@ -5573,7 +5924,8 @@ function loadMainAddress(path: string): string | null {
 function saveMainAddress(path: string, domain: string | null): void {
   if (!path) return;
   try {
-    const map = JSON.parse(localStorage.getItem(MAIN_ADDRESS_KEY) || "{}") || {};
+    const map =
+      JSON.parse(localStorage.getItem(MAIN_ADDRESS_KEY) || "{}") || {};
     if (domain) {
       map[path] = domain;
     } else {
@@ -5601,7 +5953,8 @@ export function App() {
   const [pathIsNew, setPathIsNew] = useState<boolean>(false);
   const [setupComplete, setSetupComplete] = useState<boolean>(false);
   const [kp, setKP] = useState<SignKeyPair | null>(null);
-  const [remembered, setRemembered] = useState<RememberedPage[]>(loadRemembered);
+  const [remembered, setRemembered] =
+    useState<RememberedPage[]>(loadRemembered);
   const [remember, setRemember] = useState<boolean>(false);
   const [pwStatus, setPwStatus] = useState<boolean | undefined>(undefined);
   const [file, setFile] = useState<File | undefined>(undefined);
@@ -5622,6 +5975,14 @@ export function App() {
   const showError = (message: string) => {
     setToast(message);
     window.setTimeout(() => setToast(""), 6000);
+  };
+
+  // Transient confirmation in the publish bar; clears itself.
+  const statusTimer = useRef(0);
+  const flashStatus = (message: string) => {
+    setStatusMessage(message);
+    window.clearTimeout(statusTimer.current);
+    statusTimer.current = window.setTimeout(() => setStatusMessage(""), 8000);
   };
 
   const builderMode: BuilderMode =
@@ -5948,29 +6309,29 @@ export function App() {
           // keep source images
         }
         // The preview image rides the page's pub record as the `og`
-        // subresource, served at <path>/og — one atomic publish.
+        // subresource, served at <path>/og — one atomic publish. Either the
+        // automatic render or the uploaded custom image.
         let ogUrl: string | undefined;
         let subs: Public["subs"];
-        const wantAutoImage =
-          (tree.social?.autoImage ?? true) &&
-          !socialImageUrl(tree.social?.imageUrl);
-        if (wantAutoImage) {
+        if (tree.social?.autoImage ?? true) {
           try {
             const bytes = await renderOgImage(publishTree, shareDisplay);
             if (bytes) {
               subs = { og: { mime: "image/png", bytes } };
-              const digest = new Uint8Array(
-                await subtle.digest("SHA-256", bytes.slice()),
-              );
-              const version = Array.from(digest.slice(0, 4), (b) =>
-                b.toString(16).padStart(2, "0"),
-              ).join("");
-              ogUrl = `${publicPageUrl(path.trim())}/og?v=${version}`;
+              ogUrl = `${publicPageUrl(path.trim())}/og?v=${await subVersion(bytes)}`;
             }
           } catch {
             showError(
               "Couldn't render the social preview image — publishing the page without it.",
             );
+          }
+        } else {
+          const custom = tree.social?.customImage
+            ? dataUrlToSub(tree.social.customImage)
+            : null;
+          if (custom) {
+            subs = { og: custom };
+            ogUrl = `${publicPageUrl(path.trim())}/og?v=${await subVersion(custom.bytes)}`;
           }
         }
         // Custom background: serve the upload as-is, plus the custom dark
@@ -6024,7 +6385,7 @@ export function App() {
       }
       await updateData(kp, path, privateValue, pubToSend);
       setPathIsNew(false);
-      setStatusMessage(
+      flashStatus(
         `Your ${modeSummary(priv.value.type).toLowerCase()} is live.`,
       );
       setJustPublished(true);
@@ -6270,17 +6631,15 @@ export function App() {
       )}
 
       <footer className="publish-bar">
-        <div aria-live="polite">
+        <div className="publish-status" aria-live="polite">
           {statusMessage ||
-            (working
-              ? "Working..."
-              : contactNeedsContent
-                ? "Add a name, photo, description, or link."
-                : "Ready to publish.")}
+            (!working && contactNeedsContent
+              ? "Add a name, photo, description, or link."
+              : "")}
         </div>
         <div className="publish-actions">
           <button type="button" disabled={!canPublish} onClick={publish}>
-            {publishLabel(priv.value.type)}
+            {working ? "Working…" : "Publish"}
           </button>
         </div>
       </footer>
@@ -6321,9 +6680,7 @@ export function App() {
                 .then(() => {
                   setPw(newPw);
                   setNewPw("");
-                  setStatusMessage(
-                    "Password changed — save a fresh recovery kit.",
-                  );
+                  flashStatus("Password changed — save a fresh recovery kit.");
                   document.getElementById("changePw")?.hidePopover();
                 })
                 .catch((e) => {
@@ -6373,9 +6730,7 @@ export function App() {
             type="password"
             autoComplete="current-password"
             value={recoveryPw}
-            onInput={(e) =>
-              setRecoveryPw((e.target as HTMLInputElement).value)
-            }
+            onInput={(e) => setRecoveryPw((e.target as HTMLInputElement).value)}
           />
         </label>
         <div className="popover-actions">
@@ -6454,9 +6809,7 @@ export function App() {
           <button
             type="button"
             disabled={
-              working ||
-              !renameTo.trim() ||
-              renameTo.trim() === path.trim()
+              working || !renameTo.trim() || renameTo.trim() === path.trim()
             }
             onClick={() => {
               if (!kp) {
@@ -6470,7 +6823,7 @@ export function App() {
                   setPathIsNew(false);
                   renamingRef.current = true;
                   setPath(target);
-                  setStatusMessage(`Now at found.as/${target}.`);
+                  flashStatus(`Now at found.as/${target}.`);
                 })
                 .catch((e) => showError(e.message))
                 .finally(() => setWorking(false));
@@ -6501,8 +6854,8 @@ export function App() {
           </button>
         </div>
         <p className="help warning-text">
-          This permanently removes found.as/{path.trim()} and releases any custom
-          domains. There's no undo.
+          This permanently removes found.as/{path.trim()} and releases any
+          custom domains. There's no undo.
         </p>
         <label className="field stack">
           <span>

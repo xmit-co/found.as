@@ -181,7 +181,6 @@ h2 {
 .setup-form,
 .editor-panel,
 .preview-panel,
-.publish-bar,
 .notice,
 .popover-panel {
   border: 1px solid #d7dcd5;
@@ -332,7 +331,6 @@ h2 {
   min-width: 0;
 }
 
-
 .topbar-menu:popover-open {
   gap: 8px;
 }
@@ -412,8 +410,7 @@ h2 {
   padding: 0;
 }
 
-.panel-section,
-.intent-panel {
+.panel-section {
   display: grid;
   gap: 14px;
   padding: 16px;
@@ -433,66 +430,34 @@ h2 {
   margin: 0;
 }
 
-.intent-grid {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 10px;
-}
-
-.intent-option,
-.advanced-mode-option {
-  min-height: 92px;
+/* Page type: one compact inline row, no panel box. */
+.intent-row {
   display: flex;
-  align-items: stretch;
-  border: 1px solid #c9cec8;
-  border-radius: 8px;
-  background: #ffffff;
-  cursor: pointer;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 14px;
 }
 
-.intent-option input,
-.advanced-mode-option input {
-  width: auto;
-  margin: 16px 0 0 12px;
-}
-
-.intent-option span,
-.advanced-mode-option span {
-  display: grid;
+.intent-choice {
+  display: inline-flex;
+  align-items: center;
   gap: 6px;
-  align-content: center;
-  padding: 12px;
+  min-height: 36px;
+  cursor: pointer;
+  font-weight: 650;
 }
 
-.intent-option strong,
-.advanced-mode-option strong {
-  font-weight: 800;
+.intent-choice input {
+  width: auto;
+  margin: 0;
 }
 
-.intent-option small,
-.advanced-mode-option small {
-  color: #667067;
-  font-size: 0.86rem;
-  font-weight: 600;
-  line-height: 1.35;
-}
-
-.intent-option:has(input:checked),
-.advanced-mode-option:has(input:checked) {
-  border-color: #007f73;
-  background: #edf8f6;
-}
-
-.advanced-mode-picker {
-  display: grid;
-  gap: 10px;
-  padding-top: 4px;
-}
-
-.advanced-mode-grid {
-  display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: 10px;
+/* Advanced formats as the same text tabs as the design sections. */
+.advanced-nav {
+  flex-basis: 100%;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
 }
 
 .avatar-upload {
@@ -573,6 +538,7 @@ h2 {
   flex-basis: 100%;
   display: flex;
   align-items: center;
+  justify-content: center;
   flex-wrap: wrap;
   gap: 10px;
 }
@@ -613,6 +579,59 @@ h2 {
   outline-offset: 2px;
 }
 
+.accent-wheel-row {
+  flex-basis: 100%;
+  display: flex;
+  justify-content: center;
+}
+
+.accent-wheel {
+  position: relative;
+  /* Never taller than a quarter of the display, so the preview stays in view. */
+  width: min(100%, 236px, 25vh);
+  width: min(100%, 236px, 25dvh);
+  aspect-ratio: 1;
+  flex: none;
+  border: 1px solid rgba(20, 22, 20, 0.25);
+  border-radius: 50%;
+  cursor: crosshair;
+  touch-action: none;
+}
+
+.accent-wheel:focus-visible {
+  outline: 3px solid #69d5c9;
+  outline-offset: 2px;
+}
+
+/* A ring showing the resulting light/dark pair, encircling the picked spot —
+   the wheel itself stays visible through the punched-out center. */
+.accent-wheel-thumb {
+  position: absolute;
+  width: 32px;
+  height: 32px;
+  border: 2px solid #ffffff;
+  border-radius: 50%;
+  transform: translate(-50%, -50%);
+  pointer-events: none;
+  -webkit-mask: radial-gradient(circle, transparent 0 8px, #000 8.5px);
+  mask: radial-gradient(circle, transparent 0 8px, #000 8.5px);
+}
+
+/* Fingers need more room than cursors. */
+@media (pointer: coarse) {
+  .accent-dot {
+    width: 34px;
+    height: 34px;
+  }
+
+  .accent-wheel-thumb {
+    width: 38px;
+    height: 38px;
+    -webkit-mask: radial-gradient(circle, transparent 0 10px, #000 10.5px);
+    mask: radial-gradient(circle, transparent 0 10px, #000 10.5px);
+  }
+}
+
 .qr-mode {
   display: flex;
   gap: 8px;
@@ -631,6 +650,23 @@ h2 {
   display: flex;
   align-items: center;
   gap: 8px;
+}
+
+/* Compact theme + preview row under the accent wheel. */
+.theme-row {
+  flex-basis: 100%;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+}
+
+.theme-row .theme-select {
+  min-width: 0;
+}
+
+.theme-row .preview-mode {
+  flex-basis: auto;
 }
 
 .preview-mode button[aria-pressed="true"] {
@@ -679,18 +715,9 @@ h2 {
   overflow-wrap: anywhere;
 }
 
-.social-preview-panel {
+.social-preview-fields {
   display: grid;
   gap: 14px;
-  padding: 16px;
-  border: 1px solid #e2e6e0;
-  border-radius: 8px;
-  background: #fbfcfa;
-}
-
-.social-preview-panel summary {
-  cursor: pointer;
-  font-weight: 700;
 }
 
 .og-preview {
@@ -996,8 +1023,8 @@ h2 {
 }
 
 .live-bio {
-  min-height: 86px;
   resize: none;
+  overflow: hidden;
   color: #596059;
   font-size: 1rem;
   line-height: 1.5;
@@ -1104,6 +1131,17 @@ h2 {
   display: flex;
   flex-wrap: wrap;
   gap: 4px 14px;
+}
+
+/* The add menu lives in a popover; the page only carries its trigger. */
+.add-open {
+  justify-content: center;
+  border-style: dashed;
+}
+
+.add-popover .add-group {
+  display: grid;
+  gap: 6px;
 }
 
 .add-link-item {
@@ -1290,11 +1328,44 @@ h2 {
   padding-top: 4px;
 }
 
-.vcard-toggle-panel {
-  width: min(100%, 560px);
-  margin-inline: auto;
+/* In-place "Save contact" row in the live preview: mirrors the published
+   button (outline accent) with the show/hide checkbox in the reorder gutter,
+   so it lines up with the contact buttons around it. */
+.vcard-inplace {
   display: grid;
-  gap: 2px;
+  grid-template-columns: auto minmax(0, 1fr) 38px;
+  gap: 8px;
+  align-items: center;
+}
+
+.vcard-inplace-toggle {
+  width: 36px;
+  min-height: 0;
+  justify-content: center;
+}
+
+.vcard-button-preview {
+  min-height: 48px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 10px 16px;
+  border: 1px solid var(--pv-accent, #007f73);
+  border-radius: var(--radius, 8px);
+  color: var(--pv-accent, #007f73);
+  font-weight: 650;
+  text-align: center;
+}
+
+.vcard-inplace.is-off .vcard-button-preview {
+  border-style: dashed;
+  opacity: 0.45;
+}
+
+.vcard-inplace-help {
+  margin: -8px 0 0 44px;
+  font-size: 0.85rem;
+  color: var(--pv-muted, #596059);
 }
 
 .edit-and-preview {
@@ -1304,7 +1375,9 @@ h2 {
 }
 
 textarea.code {
-  min-height: 460px;
+  height: 72vh;
+  height: 72dvh;
+  min-height: 240px;
   font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
 }
 
@@ -1326,7 +1399,8 @@ textarea.code {
 
 iframe.preview {
   width: 100%;
-  min-height: 640px;
+  height: 72vh;
+  height: 72dvh;
   border: 1px solid #d7dcd5;
   border-radius: 8px;
   background: #ffffff;
@@ -1368,15 +1442,45 @@ iframe.preview {
   color: #8f1111;
 }
 
+/* No panel box — the button is its own frame; the bar only positions it,
+   centered, with any status line above. */
 .publish-bar {
   position: sticky;
-  bottom: 16px;
+  bottom: 8px;
   display: flex;
-  justify-content: space-between;
-  gap: 14px;
+  flex-direction: column;
   align-items: center;
-  margin-top: 18px;
-  padding: 14px 16px;
+  gap: 6px;
+  margin-top: 10px;
+  pointer-events: none;
+}
+
+.publish-bar > * {
+  pointer-events: auto;
+}
+
+/* Frosted so it stays readable over any page background scrolling under it. */
+.publish-status {
+  padding: 5px 14px;
+  border: 1px solid rgba(20, 22, 20, 0.12);
+  border-radius: 999px;
+  background: rgba(251, 251, 248, 0.7);
+  -webkit-backdrop-filter: blur(10px);
+  backdrop-filter: blur(10px);
+  color: #3f4741;
+  font-weight: 600;
+}
+
+.publish-status:empty {
+  display: none;
+}
+
+@media (prefers-color-scheme: dark) {
+  .publish-status {
+    border-color: rgba(255, 255, 255, 0.14);
+    background: rgba(16, 17, 18, 0.66);
+    color: #c8d0c8;
+  }
 }
 
 .popover-panel {
@@ -1518,6 +1622,14 @@ iframe.preview {
     grid-template-columns: 1fr;
   }
 
+  /* Stacked: editor and preview share the screen instead of 72dvh each. */
+  .edit-and-preview textarea.code,
+  .edit-and-preview iframe.preview {
+    height: 39vh;
+    height: 39dvh;
+    min-height: 0;
+  }
+
   .topbar {
     align-items: center;
   }
@@ -1535,11 +1647,6 @@ iframe.preview {
   .preview-panel {
     position: static;
   }
-
-  .intent-grid,
-  .advanced-mode-grid {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
 }
 
 @media (max-width: 640px) {
@@ -1549,16 +1656,6 @@ iframe.preview {
 
   .setup-panel {
     padding-block: 84px 32px;
-  }
-
-  .publish-bar {
-    grid-template-columns: 1fr;
-    display: grid;
-  }
-
-  .intent-grid,
-  .advanced-mode-grid {
-    grid-template-columns: 1fr;
   }
 
   .action-row,
@@ -1596,10 +1693,6 @@ iframe.preview {
   .link-edit-panel {
     margin-left: 0;
   }
-
-  iframe.preview {
-    min-height: 560px;
-  }
 }
 
 @media (prefers-color-scheme: dark) {
@@ -1617,11 +1710,8 @@ iframe.preview {
   textarea,
   .editor-panel,
   .preview-panel,
-  .publish-bar,
   .notice,
   .popover-panel,
-  .intent-option,
-  .advanced-mode-option,
   .theme-choice,
   .avatar-upload-preview,
   .empty-list,
@@ -1698,9 +1788,7 @@ iframe.preview {
     color: #c8d0c8;
   }
 
-  .panel-section,
-  .intent-panel,
-  .social-preview-panel {
+  .panel-section {
     background: #151816;
     border-color: #2f3531;
   }
@@ -1710,8 +1798,6 @@ iframe.preview {
   .link-status,
   .show-toggle,
   .preview-empty,
-  .intent-option small,
-  .advanced-mode-option small,
   .path-prefix {
     color: #b8c0b8;
   }
@@ -1735,9 +1821,7 @@ iframe.preview {
   .live-name:hover,
   .live-name:focus,
   .live-bio:hover,
-  .live-bio:focus,
-  .intent-option:has(input:checked),
-  .advanced-mode-option:has(input:checked) {
+  .live-bio:focus {
     background: #0c2d29;
   }
 
@@ -2062,27 +2146,89 @@ iframe.preview {
   text-align: center;
 }
 
-/* Collapsed "Theme & style" disclosure */
-.live-editor > .design-panel {
+/* Design-section tabs under the preview: |-separated text, active one
+   underlined. One section at a time; tap the active tab again to close it. */
+.live-editor > .design-nav {
+  width: min(100%, 560px);
+  margin-inline: auto;
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  align-items: center;
+  gap: 2px 0;
+}
+
+.design-nav button {
+  min-height: 36px;
+  padding: 4px 8px;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  color: #596059;
+  font-size: 0.9rem;
+  font-weight: 650;
+  white-space: nowrap;
+}
+
+.design-nav button + button {
+  border-left: 1px solid #c9cec8;
+}
+
+.design-nav button:hover {
+  background: transparent;
+  color: #007f73;
+}
+
+.design-nav button[aria-pressed="true"] {
+  background: transparent;
+  color: #007f73;
+  text-decoration: underline;
+  text-decoration-thickness: 2px;
+  text-underline-offset: 5px;
+}
+
+.live-editor > .social-preview-fields {
   width: min(100%, 560px);
   margin-inline: auto;
 }
-.design-panel > summary {
-  cursor: pointer;
-  font-weight: 800;
-  font-size: 1rem;
-  padding: 8px 0;
-}
-.design-panel[open] > summary {
-  margin-bottom: 14px;
-}
-.design-panel > .style-picker {
-  margin-top: 18px;
+
+/* True-to-publish preview shown while a design tab is open. Scales with the
+   viewport so tall screens get a taller preview, leaving room for the
+   controls below. */
+iframe.live-preview {
+  display: block;
+  width: min(100%, 496px);
+  height: 50vh;
+  height: 50dvh;
+  margin-inline: auto;
+  border: 1px solid #d7dcd5;
+  border-radius: 8px;
+  background: #ffffff;
 }
 
-.favicon-field {
-  margin-bottom: 18px;
+@media (prefers-color-scheme: dark) {
+  iframe.live-preview {
+    border-color: #3a403c;
+  }
 }
+
+@media (prefers-color-scheme: dark) {
+  .design-nav button {
+    background: transparent;
+    color: #b8c0b8;
+  }
+
+  .design-nav button + button {
+    border-left-color: #3a403c;
+  }
+
+  .design-nav button:hover,
+  .design-nav button[aria-pressed="true"] {
+    background: transparent;
+    color: #4fc3b3;
+  }
+}
+
 .favicon-field input {
   max-width: 120px;
   font-size: 1.2rem;
