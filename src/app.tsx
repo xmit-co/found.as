@@ -73,6 +73,9 @@ interface LinkItem {
   desc?: string;
   // A short tag shown on the button (e.g. "New").
   badge?: string;
+  // Text blocks only: render the text as GitHub-flavored Markdown instead of
+  // plain text. Opt-in, so a stray *, _ or # stays literal by default.
+  markdown?: boolean;
 }
 
 interface SocialPreview {
@@ -1695,8 +1698,15 @@ function canFeature(link: LinkItem): boolean {
 
 type RenderEntry =
   | { kind: "section"; title: string; id: string }
-  | { kind: "text"; text: string; id: string }
+  | { kind: "text"; text: string; id: string; markdown?: boolean }
   | { kind: "link"; link: NormalizedLink };
+
+// Renders an opt-in Markdown text block to HTML. Same GitHub-flavored settings
+// as the standalone Markdown page type, so both behave alike; the content is the
+// owner's own, published on their own page — the same trust model as everywhere.
+function renderTextBlockMarkdown(text: string): string {
+  return marked.parse(text, { gfm: true, breaks: true }) as string;
+}
 
 function linkTreeRenderEntries(tree: LinkTree): RenderEntry[] {
   const entries: RenderEntry[] = [];
@@ -1711,7 +1721,12 @@ function linkTreeRenderEntries(tree: LinkTree): RenderEntry[] {
     if (isText(normalized.item)) {
       const text = normalized.item.label.trim();
       if (normalized.item.enabled && text) {
-        entries.push({ kind: "text", text, id: normalized.item.id });
+        entries.push({
+          kind: "text",
+          text,
+          id: normalized.item.id,
+          markdown: normalized.item.markdown || undefined,
+        });
       }
       continue;
     }
@@ -2640,6 +2655,53 @@ p.link-text {
   white-space: pre-line;
   text-align: center;
 }
+.link-text.md {
+  padding: 2px 4px;
+  color: var(--text);
+  font-size: 0.95rem;
+  line-height: 1.55;
+  text-align: left;
+}
+.link-text.md > :first-child { margin-top: 0; }
+.link-text.md > :last-child { margin-bottom: 0; }
+.link-text.md p { margin: 0 0 0.6em; }
+.link-text.md ul, .link-text.md ol { margin: 0 0 0.6em; padding-left: 1.35em; }
+.link-text.md li { margin: 0.15em 0; }
+.link-text.md h1, .link-text.md h2, .link-text.md h3,
+.link-text.md h4, .link-text.md h5, .link-text.md h6 {
+  margin: 0.4em 0 0.3em;
+  line-height: 1.25;
+}
+.link-text.md h1 { font-size: 1.3rem; }
+.link-text.md h2 { font-size: 1.15rem; }
+.link-text.md h3 { font-size: 1.02rem; }
+.link-text.md a { color: var(--accent); }
+.link-text.md code {
+  font-size: 0.88em;
+  padding: 0.1em 0.35em;
+  border-radius: 5px;
+  background: color-mix(in srgb, var(--text) 9%, transparent);
+}
+.link-text.md pre {
+  margin: 0 0 0.6em;
+  padding: 10px 12px;
+  border-radius: 8px;
+  overflow-x: auto;
+  background: color-mix(in srgb, var(--text) 8%, transparent);
+}
+.link-text.md pre code { padding: 0; background: none; }
+.link-text.md blockquote {
+  margin: 0 0 0.6em;
+  padding: 0.1em 0 0.1em 0.8em;
+  border-left: 3px solid color-mix(in srgb, var(--text) 22%, transparent);
+  color: var(--muted);
+}
+.link-text.md hr {
+  border: 0;
+  border-top: 1px solid color-mix(in srgb, var(--text) 15%, transparent);
+  margin: 0.7em 0;
+}
+.link-text.md img { max-width: 100%; height: auto; border-radius: 8px; }
 ${btnFx}</style>
 </head>
 <body>
@@ -2669,7 +2731,9 @@ ${btnFx}</style>
         entry.kind === "section"
           ? `<h2 class="link-section">${escapeHtml(entry.title)}</h2>`
           : entry.kind === "text"
-            ? `<p class="link-text">${escapeHtml(entry.text)}</p>`
+            ? entry.markdown
+              ? `<div class="link-text md">${renderTextBlockMarkdown(entry.text)}</div>`
+              : `<p class="link-text">${escapeHtml(entry.text)}</p>`
             : `<a class="contact-link" href="${escapeHtml(entry.link.href)}"${linkRelAttr(entry.link)}>${linkInner(entry.link)}</a>`,
       ),
     ].join("\n    ")}
@@ -3424,6 +3488,28 @@ function EditableLink({
               />
             )}
           </label>
+          {textItem && (
+            <div className="panel-group">
+              <label className="show-toggle">
+                <input
+                  type="checkbox"
+                  checked={Boolean(link.markdown)}
+                  aria-describedby={`${detailId}-md`}
+                  onChange={(e) =>
+                    updateLink({
+                      ...link,
+                      markdown:
+                        (e.target as HTMLInputElement).checked || undefined,
+                    })
+                  }
+                />
+                <span>Format the text</span>
+              </label>
+              <p id={`${detailId}-md`} className="help">
+                Markdown: <strong>**bold**</strong>, <em>*italic*</em>, links, lists and headings.
+              </p>
+            </div>
+          )}
           {!blockItem && (
             <div className="panel-group">
               <label className="field stack">
