@@ -4070,6 +4070,114 @@ function AvatarEditor({
   );
 }
 
+// The editor's live preview can be widened or narrowed to taste; the choice is
+// remembered across sessions. min(100%, …) keeps it inside the column, so a
+// width saved on a wide screen still fits on a phone.
+const PREVIEW_WIDTH_KEY = "foundas.previewWidth";
+const PREVIEW_MIN_WIDTH = 300;
+const PREVIEW_DEFAULT_WIDTH = 496;
+const PREVIEW_WIDTH_STEP = 24;
+
+function readPreviewWidth(): number {
+  try {
+    const stored = Number(localStorage.getItem(PREVIEW_WIDTH_KEY));
+    if (Number.isFinite(stored) && stored >= PREVIEW_MIN_WIDTH) return stored;
+  } catch {
+    // Private mode / disabled storage: fall back to the default.
+  }
+  return PREVIEW_DEFAULT_WIDTH;
+}
+
+// The widest the preview can grow: its column, so it never forces a scrollbar.
+function previewMaxWidth(shell: HTMLElement): number {
+  return shell.parentElement?.clientWidth ?? shell.getBoundingClientRect().width;
+}
+
+// A grip on the preview's right edge. Pointer events cover mouse, touch and pen
+// alike, so the same drag works on desktop and mobile; arrow keys nudge it too.
+//
+// Width maps *absolutely* to the cursor, not to relative movement: the preview
+// is centered on a fixed point, so its width is twice the cursor's distance from
+// that center, clamped to [min, column]. Absolute mapping keeps the grip pinned
+// under the cursor — drag past the max and the grip parks at the edge; drag back
+// and it re-attaches the instant the cursor returns, with no banked overshoot.
+//
+// Pointer capture routes the whole gesture (including a release off the grip or
+// outside the window) to the handle, so the drag always ends with a commit — a
+// missed release would otherwise leave the width uncommitted and the next render
+// would snap it back. `buttons === 0` catches a release we somehow still missed.
+function PreviewResizeHandle({
+  width,
+  commit,
+}: {
+  width: number;
+  commit: (width: number) => void;
+}) {
+  const onPointerDown = (e: PointerEvent) => {
+    e.preventDefault();
+    const handle = e.currentTarget as HTMLElement;
+    const shell = handle.parentElement as HTMLElement;
+    const parent = shell.parentElement;
+    const rect = (parent ?? shell).getBoundingClientRect();
+    const centerX = rect.left + rect.width / 2;
+    const maxWidth = previewMaxWidth(shell);
+    let current = shell.getBoundingClientRect().width;
+    let done = false;
+    const onMove = (ev: PointerEvent) => {
+      if (ev.buttons === 0) {
+        finish();
+        return;
+      }
+      current = Math.max(
+        PREVIEW_MIN_WIDTH,
+        Math.min(2 * (ev.clientX - centerX), maxWidth),
+      );
+      shell.style.setProperty("--pv-w", `${Math.round(current)}px`);
+    };
+    const finish = () => {
+      if (done) return;
+      done = true;
+      handle.removeEventListener("pointermove", onMove);
+      handle.removeEventListener("pointerup", finish);
+      handle.removeEventListener("pointercancel", finish);
+      handle.removeEventListener("lostpointercapture", finish);
+      // No inline width to clear: the drag wrote --pv-w, and the commit below
+      // re-renders the same variable, so the final size just stays put.
+      commit(current);
+    };
+    try {
+      handle.setPointerCapture(e.pointerId);
+    } catch {
+      // No capture available; the listeners below still finish the drag.
+    }
+    handle.addEventListener("pointermove", onMove);
+    handle.addEventListener("pointerup", finish);
+    handle.addEventListener("pointercancel", finish);
+    handle.addEventListener("lostpointercapture", finish);
+  };
+  const onKeyDown = (e: KeyboardEvent) => {
+    if (e.key !== "ArrowLeft" && e.key !== "ArrowRight") return;
+    e.preventDefault();
+    const shell = (e.currentTarget as HTMLElement).parentElement;
+    const maxWidth = shell ? previewMaxWidth(shell) : Infinity;
+    const step = e.key === "ArrowRight" ? PREVIEW_WIDTH_STEP : -PREVIEW_WIDTH_STEP;
+    commit(Math.min(width + step, maxWidth));
+  };
+  return (
+    <div
+      className="preview-resize-handle"
+      role="separator"
+      aria-orientation="vertical"
+      aria-label="Drag to resize the preview"
+      tabIndex={0}
+      onPointerDown={onPointerDown}
+      onKeyDown={onKeyDown}
+    >
+      <span className="preview-resize-grip" aria-hidden="true" />
+    </div>
+  );
+}
+
 function LinkTreeEditor({
   priv,
   displayAddress,
@@ -4100,6 +4208,19 @@ function LinkTreeEditor({
   const [designTab, setDesignTab] = useState<
     "editor" | "colors" | "style" | "background" | "social"
   >("editor");
+  // Remembered preview width; shared by the editable page and the rendered
+  // iframe so both keep the size the owner picked.
+  const [previewWidth, setPreviewWidth] = useState(readPreviewWidth);
+  const commitPreviewWidth = (width: number) => {
+    const clamped = Math.round(Math.max(PREVIEW_MIN_WIDTH, width));
+    setPreviewWidth(clamped);
+    try {
+      localStorage.setItem(PREVIEW_WIDTH_KEY, String(clamped));
+    } catch {
+      // Nothing persisted, but the session still resizes.
+    }
+  };
+  const previewShellStyle = { "--pv-w": `${previewWidth}px` };
   // Tabs that show the rendered page under their controls. The editor tab is
   // the page; Sharing has its own preview image.
   const showsPreview =
@@ -4387,6 +4508,7 @@ function LinkTreeEditor({
 
       {designTab === "editor" && previewSwitch}
       {designTab === "editor" && (
+        <div className="preview-shell" style={previewShellStyle}>
         <div
           className={`live-page theme-${tree.theme || "system"} ${(tree.theme || "system") === "system" && previewDark ? "pv-dark" : ""} avatar-${tree.avatarShape ?? "circle"} btn-${tree.buttons ?? "soft"} ${tree.coverTitle && avatarImageSrc(tree.coverUrl) ? "cover-title" : ""} ${accentPair(tree.accent) ? "accent-custom" : ""} ${tree.background === "image" && tree.bgUrl ? "has-bg-image" : ""}`}
           style={{
@@ -4591,6 +4713,8 @@ function LinkTreeEditor({
               </div>
             ))}
           </div>
+        </div>
+        <PreviewResizeHandle width={previewWidth} commit={commitPreviewWidth} />
         </div>
       )}
 
@@ -5045,13 +5169,16 @@ function LinkTreeEditor({
       {showsPreview && (
         <>
           {previewSwitch}
-          <iframe
-            className="live-preview"
-            title="Page preview"
-            ref={pvRef}
-            onLoad={postPreview}
-            srcdoc={previewBootstrap}
-          ></iframe>
+          <div className="preview-shell" style={previewShellStyle}>
+            <iframe
+              className="live-preview"
+              title="Page preview"
+              ref={pvRef}
+              onLoad={postPreview}
+              srcdoc={previewBootstrap}
+            ></iframe>
+            <PreviewResizeHandle width={previewWidth} commit={commitPreviewWidth} />
+          </div>
         </>
       )}
     </section>
