@@ -81,6 +81,8 @@ interface SocialPreview {
   // Custom preview image as a data URL; published as the page's `og` sub.
   customImage?: string;
   autoImage?: boolean;
+  // Render the automatic image dark (Dark-themed pages always do).
+  imageDark?: boolean;
 }
 
 type FontChoice = "system" | "sans" | "serif" | "mono" | "rounded";
@@ -113,12 +115,16 @@ interface LinkTree {
   accent?: string;
   font?: FontChoice;
   buttons?: ButtonStyle;
+  // Button surface: background opacity (%) and backdrop blur (px), for
+  // glassy buttons over image backgrounds.
+  btnAlpha?: number;
+  btnBlur?: number;
   corners?: Corners;
   avatarShape?: AvatarShape;
   background?: Background;
   // Custom background: the uploaded image is served as-is (as a sub). Light
-  // themes show it under a white overlay at bgLighten%; dark ones swap in a
-  // custom upload or lay black at bgShade% — CSS overlays, page and preview.
+  // themes show it under a white overlay at bgLighten%; dark ones swap in the
+  // custom upload if any and lay black at bgShade% — CSS overlays everywhere.
   bgUrl?: string;
   bgDarkUrl?: string;
   bgShade?: number;
@@ -489,6 +495,8 @@ function ensureLinkTree(tree: LinkTree | undefined): LinkTree {
     accent: accentPair(current.accent) ? current.accent : "",
     font: current.font ?? "system",
     buttons: current.buttons ?? "soft",
+    btnAlpha: clampBtnAlpha(current.btnAlpha),
+    btnBlur: clampBtnBlur(current.btnBlur),
     corners: current.corners ?? "rounded",
     avatarShape: current.avatarShape ?? "circle",
     background: current.background ?? "none",
@@ -503,6 +511,7 @@ function ensureLinkTree(tree: LinkTree | undefined): LinkTree {
       description: current.social?.description ?? "",
       customImage: current.social?.customImage ?? "",
       autoImage: current.social?.autoImage ?? true,
+      imageDark: current.social?.imageDark ?? false,
     },
     showVcard: current.showVcard ?? true,
     links: current.links ?? [],
@@ -790,6 +799,18 @@ function clampZoom(z: number | undefined): number {
 function clampShade(s: number | undefined): number {
   const n = Number(s);
   return Math.min(90, Math.max(0, Number.isFinite(n) ? Math.round(n) : 55));
+}
+
+// Button background opacity, 10–100%.
+function clampBtnAlpha(v: number | undefined): number {
+  const n = Number(v);
+  return Math.min(100, Math.max(10, Number.isFinite(n) ? Math.round(n) : 100));
+}
+
+// Backdrop blur behind buttons, 0–24px.
+function clampBtnBlur(v: number | undefined): number {
+  const n = Number(v);
+  return Math.min(24, Math.max(0, Number.isFinite(n) ? Math.round(n) : 0));
 }
 
 // How much to lighten the background's light version, 0–90%. Defaults to 0 so
@@ -1884,10 +1905,15 @@ interface OgColors {
   accentText: string;
 }
 
-// og:image renders one fixed look per theme; System renders as light.
+// og:image renders one fixed look. The owner picks light or dark for the
+// automatic image; a Dark theme is always dark.
+function ogImageDark(tree: LinkTree): boolean {
+  return tree.theme === "dark" || Boolean(tree.social?.imageDark);
+}
+
 function ogColors(tree: LinkTree): OgColors {
   const pair = accentPair(tree.accent);
-  if (tree.theme === "dark") {
+  if (ogImageDark(tree)) {
     return {
       bg: "#101112",
       text: "#f5f5f0",
@@ -1928,7 +1954,7 @@ async function drawOgBackground(
   const h = 630;
   ctx.fillStyle = colors.bg;
   ctx.fillRect(0, 0, w, h);
-  const dark = tree.theme === "dark";
+  const dark = ogImageDark(tree);
   if (tree.background === "image") {
     // Only data: URLs are drawn — a remote image would taint the canvas.
     const src =
@@ -1944,11 +1970,9 @@ async function drawOgBackground(
       const iw = img.naturalWidth * scale;
       const ih = img.naturalHeight * scale;
       ctx.drawImage(img, (w - iw) / 2, (h - ih) / 2, iw, ih);
-      // The overlays lightenImage/darkenImage bake into the served variants.
+      // The same overlays the published page lays over each variant.
       const overlay = dark
-        ? tree.bgDarkUrl
-          ? 0
-          : clampShade(tree.bgShade) / 100
+        ? clampShade(tree.bgShade) / 100
         : clampLighten(tree.bgLighten) / 100;
       if (overlay > 0) {
         ctx.fillStyle = `rgba(${dark ? "0, 0, 0" : "255, 255, 255"}, ${overlay})`;
@@ -2248,8 +2272,8 @@ function linkTreeToHtml(
   const avatarRad = avatarRadius(tree);
   // Custom background image, served as a sub and shown as uploaded. The
   // lighten/darken treatments are CSS overlay layers, not baked into the
-  // image: light themes lay white at bgLighten% over it, dark ones swap in
-  // the custom dark image or lay black at bgShade% over the same image.
+  // image: light themes lay white at bgLighten% over it; dark ones swap in
+  // the custom dark image if there is one, and lay black at bgShade% over it.
   const bgImage = tree.background === "image" && bgLightUrl;
   const overlay = (rgb: string, alpha: number) =>
     alpha > 0
@@ -2264,9 +2288,10 @@ function linkTreeToHtml(
       )
     : "";
   const bgDark = bgImage
-    ? bgDarkUrl
-      ? bgImg(bgDarkUrl)
-      : bgImg(bgLightUrl!, overlay("0 0 0", clampShade(tree.bgShade) / 100))
+    ? bgImg(
+        bgDarkUrl ?? bgLightUrl!,
+        overlay("0 0 0", clampShade(tree.bgShade) / 100),
+      )
     : "";
   const bg = bgImage
     ? tree.theme === "dark"
@@ -2278,6 +2303,39 @@ function linkTreeToHtml(
       ? `@media (prefers-color-scheme: dark) {\n  html.theme-system body { background: ${bgDark}; }\n}\n`
       : "";
   const buttons = tree.buttons ?? "soft";
+  // Glassy buttons: a semi-transparent surface (per the chosen style) and a
+  // backdrop blur, emitted only when set so plain pages stay plain.
+  const btnAlpha = clampBtnAlpha(tree.btnAlpha);
+  const btnBlur = clampBtnBlur(tree.btnBlur);
+  const btnSurface =
+    buttons === "filled"
+      ? "var(--accent)"
+      : buttons === "outline"
+        ? "transparent"
+        : "color-mix(in srgb, var(--accent) 7%, var(--panel))";
+  const btnFx =
+    btnAlpha < 100 || btnBlur > 0
+      ? `${
+          btnBlur > 0
+            ? `a.contact-link,
+a.vcard-button {
+  -webkit-backdrop-filter: blur(${btnBlur}px);
+  backdrop-filter: blur(${btnBlur}px);
+}
+`
+            : ""
+        }${
+          btnAlpha < 100
+            ? `a.contact-link:not(.featured) {
+  background: color-mix(in srgb, ${btnSurface} ${btnAlpha}%, transparent);
+}
+a.contact-link.featured {
+  background: color-mix(in srgb, var(--accent) ${btnAlpha}%, transparent);
+}
+`
+            : ""
+        }`
+      : "";
   const cover = avatarImageSrc(tree.coverUrl);
   const coverObjectFit = tree.coverFit === "contain" ? "contain" : "cover";
   const coverObjectPos = sanitizeObjectPosition(tree.coverPos);
@@ -2364,8 +2422,6 @@ main {
   ${coverObjectFit === "contain" ? "" : `aspect-ratio: 440 / ${coverHeight};`}
   border-radius: var(--radius);
   overflow: hidden;
-  border: 1px solid var(--border);
-  background: var(--panel);
   margin-bottom: 16px;
 }
 .cover img {
@@ -2435,7 +2491,7 @@ h1 {
 }
 p {
   margin: 12px 0 0;
-  color: var(--muted);
+  color: var(--text);
   font-size: 1rem;
   line-height: 1.5;
 }
@@ -2506,7 +2562,8 @@ h2.link-section {
   letter-spacing: 0.08em;
   text-transform: uppercase;
   text-align: center;
-  color: var(--muted);
+  /* Full-contrast text: muted gray washes out on colorful backgrounds. */
+  color: var(--text);
 }
 h2.link-section:first-child {
   margin-top: 0;
@@ -2569,13 +2626,13 @@ span.link-icon-emoji {
 p.link-text {
   margin: 0;
   padding: 2px 4px;
-  color: var(--muted);
+  color: var(--text);
   font-size: 0.95rem;
   line-height: 1.55;
   white-space: pre-line;
   text-align: center;
 }
-</style>
+${btnFx}</style>
 </head>
 <body>
 <main>
@@ -3956,14 +4013,17 @@ function LinkTreeEditor({
     designTab === "style" ||
     designTab === "background";
 
-  // The bio grows and shrinks with its content.
+  // The name and bio grow and shrink with their content, wrapping like the
+  // published heading and paragraph do.
+  const nameRef = useRef<HTMLTextAreaElement>(null);
   const bioRef = useRef<HTMLTextAreaElement>(null);
   useEffect(() => {
-    const el = bioRef.current;
-    if (!el) return;
-    el.style.height = "auto";
-    el.style.height = `${el.scrollHeight + 2}px`;
-  }, [tree.bio, designTab]);
+    for (const el of [nameRef.current, bioRef.current]) {
+      if (!el) continue;
+      el.style.height = "auto";
+      el.style.height = `${el.scrollHeight + 2}px`;
+    }
+  }, [tree.displayName, tree.bio, designTab]);
 
   // While a design tab is open, the editable page gives way to the real
   // rendered page (same HTML that gets published), so changes preview true
@@ -4042,6 +4102,7 @@ function LinkTreeEditor({
     tree.coverPos,
     tree.coverZoom,
     tree.corners,
+    tree.social?.imageDark,
   ]);
 
   const updateTree = (nextTree: LinkTree) => {
@@ -4163,6 +4224,33 @@ function LinkTreeEditor({
     updateTree({ ...tree, links: nextLinks });
   };
 
+  const previewSwitch = tree.theme === "system" && (
+    <div
+      className="preview-mode preview-switch"
+      role="group"
+      aria-label="Preview appearance"
+      title="Auto follows each visitor's device — check both looks here"
+    >
+      <span className="accent-row-label">Preview</span>
+      <button
+        type="button"
+        className="quiet"
+        aria-pressed={!previewDark}
+        onClick={() => setPreviewDark(false)}
+      >
+        Light
+      </button>
+      <button
+        type="button"
+        className="quiet"
+        aria-pressed={previewDark}
+        onClick={() => setPreviewDark(true)}
+      >
+        Dark
+      </button>
+    </div>
+  );
+
   return (
     <section className="live-editor" aria-label="Contact page editor">
       <div className="design-nav" role="group" aria-label="Design sections">
@@ -4171,7 +4259,7 @@ function LinkTreeEditor({
           aria-pressed={designTab === "editor"}
           onClick={() => setDesignTab("editor")}
         >
-          Editor
+          Content
         </button>
         <button
           type="button"
@@ -4203,6 +4291,7 @@ function LinkTreeEditor({
         </button>
       </div>
 
+      {designTab === "editor" && previewSwitch}
       {designTab === "editor" && (
         <div
           className={`live-page theme-${tree.theme || "system"} ${(tree.theme || "system") === "system" && previewDark ? "pv-dark" : ""} avatar-${tree.avatarShape ?? "circle"} btn-${tree.buttons ?? "soft"} ${tree.coverTitle && avatarImageSrc(tree.coverUrl) ? "cover-title" : ""} ${accentPair(tree.accent) ? "accent-custom" : ""} ${tree.background === "image" && tree.bgUrl ? "has-bg-image" : ""}`}
@@ -4210,19 +4299,19 @@ function LinkTreeEditor({
             fontFamily: fontStack(tree),
             "--radius": cornerRadius(tree),
             "--avatar-radius": avatarRadius(tree),
+            "--pv-btn-alpha": String(clampBtnAlpha(tree.btnAlpha)),
+            "--pv-btn-blur": `${clampBtnBlur(tree.btnBlur)}px`,
             // Image backgrounds go through CSS vars so both derived variants
             // preview: the light one lightened by bgLighten%, and the dark one
-            // (custom image, or the source darkened by bgShade%) — matching what
-            // lightenImage/darkenImage produce at publish.
+            // (the custom dark image if any, darkened by bgShade%) — matching
+            // what the published page lays over each variant.
             ...(tree.background === "image" && tree.bgUrl
               ? {
                   "--pv-bg-light": `url("${tree.bgUrl}")`,
                   ...(tree.bgDarkUrl
                     ? { "--pv-bg-dark": `url("${tree.bgDarkUrl}")` }
                     : {}),
-                  "--pv-shade": tree.bgDarkUrl
-                    ? "0"
-                    : String(clampShade(tree.bgShade) / 100),
+                  "--pv-shade": String(clampShade(tree.bgShade) / 100),
                   "--pv-lighten": String(clampLighten(tree.bgLighten) / 100),
                 }
               : {
@@ -4247,19 +4336,25 @@ function LinkTreeEditor({
               updateTree={updateTree}
               onError={onError}
             />
-            <input
+            <textarea
               className="live-name"
               aria-label="Name"
-              type="text"
+              rows={1}
+              ref={nameRef}
               value={tree.displayName}
               placeholder="Ada Lovelace"
               onInput={(e) =>
                 updateTree({
                   ...tree,
-                  displayName: (e.target as HTMLInputElement).value,
+                  // One logical line that wraps like the published heading —
+                  // newlines (typed or pasted) become spaces.
+                  displayName: (e.target as HTMLTextAreaElement).value.replace(
+                    /\s*[\r\n]+\s*/g,
+                    " ",
+                  ),
                 })
               }
-            />
+            ></textarea>
             <input
               className="live-status"
               aria-label="Status line"
@@ -4277,7 +4372,7 @@ function LinkTreeEditor({
             <textarea
               className="live-bio"
               aria-label="Short description"
-              rows={2}
+              rows={1}
               ref={bioRef}
               value={tree.bio}
               placeholder="Mathematician · first computer programmer"
@@ -4426,32 +4521,6 @@ function LinkTreeEditor({
               <option value="light">Light</option>
               <option value="dark">Dark</option>
             </select>
-            {tree.theme === "system" && (
-              <div
-                className="preview-mode"
-                role="group"
-                aria-label="Preview appearance"
-                title="Auto follows each visitor's device — check both looks here"
-              >
-                <span className="accent-row-label">Preview</span>
-                <button
-                  type="button"
-                  className="quiet"
-                  aria-pressed={!previewDark}
-                  onClick={() => setPreviewDark(false)}
-                >
-                  Light
-                </button>
-                <button
-                  type="button"
-                  className="quiet"
-                  aria-pressed={previewDark}
-                  onClick={() => setPreviewDark(true)}
-                >
-                  Dark
-                </button>
-              </div>
-            )}
           </div>
           <div className="accent-row">
             <span className="sr-only">Accent</span>
@@ -4577,61 +4646,145 @@ function LinkTreeEditor({
               </select>
             </label>
           </div>
+          <div className="style-fx">
+            <label className="field-range">
+              <span>Button transparency</span>
+              <input
+                type="range"
+                min={0}
+                max={90}
+                step={5}
+                value={100 - clampBtnAlpha(tree.btnAlpha)}
+                onInput={(e) =>
+                  updateTree({
+                    ...tree,
+                    btnAlpha:
+                      100 - Number((e.target as HTMLInputElement).value),
+                  })
+                }
+              />
+            </label>
+            <label className="field-range">
+              <span>Blur behind</span>
+              <input
+                type="range"
+                min={0}
+                max={24}
+                step={2}
+                value={clampBtnBlur(tree.btnBlur)}
+                onInput={(e) =>
+                  updateTree({
+                    ...tree,
+                    btnBlur: Number((e.target as HTMLInputElement).value),
+                  })
+                }
+              />
+            </label>
+          </div>
         </fieldset>
       )}
 
       {designTab === "background" && (
         <fieldset className="style-picker">
           <legend className="sr-only">Background</legend>
-          <div className="style-grid">
-            <label className="field stack">
-              <span>Background</span>
-              <select
-                value={tree.background ?? "none"}
-                onChange={(e) =>
-                  updateTree({
-                    ...tree,
-                    background: (e.target as HTMLSelectElement)
-                      .value as Background,
-                  })
-                }
+          {/* First pick the background, then tune the light/dark variant
+              being previewed. */}
+          <div className="bg-kind-row" role="group" aria-label="Background">
+            {(
+              [
+                ["none", "None"],
+                ["gradient", "Gradient"],
+                ["dots", "Dots"],
+                ["grid", "Grid"],
+                ["image", "Image"],
+              ] as [Background, string][]
+            ).map(([kind, label]) => (
+              <button
+                type="button"
+                className="quiet"
+                key={kind}
+                aria-pressed={(tree.background ?? "none") === kind}
+                onClick={() => updateTree({ ...tree, background: kind })}
               >
-                <option value="none">None</option>
-                <option value="gradient">Gradient</option>
-                <option value="dots">Dots</option>
-                <option value="grid">Grid</option>
-                <option value="image">Custom image</option>
-              </select>
-            </label>
+                {label}
+              </button>
+            ))}
           </div>
           {tree.background === "image" && (
-            <div className="bg-image-controls">
-              <div className="cover-editor-actions">
-                <label className="button-link secondary">
-                  {tree.bgUrl ? "Replace background" : "Add background image"}
-                  <input
-                    type="file"
-                    accept="image/*"
-                    className="sr-only"
-                    onChange={pickBgImage("bgUrl")}
-                  />
-                </label>
-                {tree.bgUrl && (
-                  <button
-                    type="button"
-                    className="secondary"
-                    onClick={() =>
-                      updateTree({ ...tree, bgUrl: "", bgDarkUrl: "" })
-                    }
-                  >
-                    Remove
-                  </button>
-                )}
-              </div>
+            <div className="cover-editor-actions">
+              <label className="button-link secondary">
+                {tree.bgUrl ? "Replace image" : "Add an image"}
+                <input
+                  type="file"
+                  accept="image/*"
+                  className="sr-only"
+                  onChange={pickBgImage("bgUrl")}
+                />
+              </label>
               {tree.bgUrl && (
-                <>
-                  <label className="field stack">
-                    <span>Light version — lighten by</span>
+                <button
+                  type="button"
+                  className="secondary"
+                  onClick={() =>
+                    updateTree({ ...tree, bgUrl: "", bgDarkUrl: "" })
+                  }
+                >
+                  Remove
+                </button>
+              )}
+            </div>
+          )}
+          {tree.background === "image" && tree.bgUrl && (
+            <div className="bg-variant">
+              {tree.background === "image" &&
+                tree.bgUrl &&
+                (tree.theme === "dark" ||
+                (tree.theme === "system" && previewDark) ? (
+                  <>
+                    <label className="field-range">
+                      <span>Darken by</span>
+                      <input
+                        type="range"
+                        min={0}
+                        max={90}
+                        step={5}
+                        value={clampShade(tree.bgShade)}
+                        onInput={(e) =>
+                          updateTree({
+                            ...tree,
+                            bgShade: Number(
+                              (e.target as HTMLInputElement).value,
+                            ),
+                          })
+                        }
+                      />
+                    </label>
+                    <div className="cover-editor-actions">
+                      <label className="button-link secondary">
+                        {tree.bgDarkUrl
+                          ? "Replace dark image"
+                          : "Or upload a separate dark image"}
+                        <input
+                          type="file"
+                          accept="image/*"
+                          className="sr-only"
+                          onChange={pickBgImage("bgDarkUrl")}
+                        />
+                      </label>
+                      {tree.bgDarkUrl && (
+                        <button
+                          type="button"
+                          className="secondary"
+                          onClick={() => updateTree({ ...tree, bgDarkUrl: "" })}
+                        >
+                          Remove dark image
+                        </button>
+                      )}
+                    </div>
+                  </>
+                ) : (
+                  <label className="field-range">
+                    <span>Lighten by</span>
                     <input
                       type="range"
                       min={0}
@@ -4648,57 +4801,7 @@ function LinkTreeEditor({
                       }
                     />
                   </label>
-                  <label className="field stack">
-                    <span>
-                      Dark version{" "}
-                      {tree.bgDarkUrl ? "(custom image)" : "— darken by"}
-                    </span>
-                    {!tree.bgDarkUrl && (
-                      <input
-                        type="range"
-                        min={0}
-                        max={90}
-                        step={5}
-                        value={clampShade(tree.bgShade)}
-                        onInput={(e) =>
-                          updateTree({
-                            ...tree,
-                            bgShade: Number(
-                              (e.target as HTMLInputElement).value,
-                            ),
-                          })
-                        }
-                      />
-                    )}
-                  </label>
-                  <div className="cover-editor-actions">
-                    <label className="button-link secondary">
-                      {tree.bgDarkUrl
-                        ? "Replace dark image"
-                        : "Or upload a dark image"}
-                      <input
-                        type="file"
-                        accept="image/*"
-                        className="sr-only"
-                        onChange={pickBgImage("bgDarkUrl")}
-                      />
-                    </label>
-                    {tree.bgDarkUrl && (
-                      <button
-                        type="button"
-                        className="secondary"
-                        onClick={() => updateTree({ ...tree, bgDarkUrl: "" })}
-                      >
-                        Use auto-shaded dark
-                      </button>
-                    )}
-                  </div>
-                  <p className="help">
-                    The light image shows by default; the dark version appears
-                    in dark mode. Both are served with your page.
-                  </p>
-                </>
-              )}
+                ))}
             </div>
           )}
         </fieldset>
@@ -4743,6 +4846,31 @@ function LinkTreeEditor({
               <span>Custom preview image</span>
             </label>
           </div>
+          {(social.autoImage ?? true) && tree.theme !== "dark" && (
+            <div
+              className="preview-mode"
+              role="group"
+              aria-label="Preview image appearance"
+            >
+              <span className="accent-row-label">Looks</span>
+              <button
+                type="button"
+                className="quiet"
+                aria-pressed={!social.imageDark}
+                onClick={() => updateSocial({ imageDark: false })}
+              >
+                Light
+              </button>
+              <button
+                type="button"
+                className="quiet"
+                aria-pressed={Boolean(social.imageDark)}
+                onClick={() => updateSocial({ imageDark: true })}
+              >
+                Dark
+              </button>
+            </div>
+          )}
           {(social.autoImage ?? true) && ogPreview && (
             <img
               className="og-preview"
@@ -4821,13 +4949,16 @@ function LinkTreeEditor({
       )}
 
       {showsPreview && (
-        <iframe
-          className="live-preview"
-          title="Page preview"
-          ref={pvRef}
-          onLoad={postPreview}
-          srcdoc={previewBootstrap}
-        ></iframe>
+        <>
+          {previewSwitch}
+          <iframe
+            className="live-preview"
+            title="Page preview"
+            ref={pvRef}
+            onLoad={postPreview}
+            srcdoc={previewBootstrap}
+          ></iframe>
+        </>
       )}
     </section>
   );
