@@ -37,17 +37,25 @@ export function isText(item: LinkItem): boolean {
   return item.kind === "text";
 }
 
-// Section headings and text blocks are organizational, not links: they carry no
-// URL and can't be featured, iconed, or printed on a card.
+// A YouTube embed block: its `value` holds the video URL.
+export function isVideo(item: LinkItem): boolean {
+  return item.kind === "video";
+}
+
+// Section headings, text blocks and video embeds are organizational/media, not
+// links: they carry no button href and can't be featured, iconed, or carded.
 export function isBlock(item: LinkItem): boolean {
-  return isSection(item) || isText(item);
+  return isSection(item) || isText(item) || isVideo(item);
 }
 
 export function defaultLinkItem(kind: LinkKind): LinkItem {
   return {
     id: makeId(),
     kind,
-    label: kind === "section" || kind === "text" ? "" : kindLabels[kind],
+    label:
+      kind === "section" || kind === "text" || kind === "video"
+        ? ""
+        : kindLabels[kind],
     value: kindDefaultValues[kind],
     href: "",
     enabled: true,
@@ -524,6 +532,20 @@ export function isAllowedHref(href: string): boolean {
 
 export function normalizeLink(item: LinkItem): NormalizedLink {
   const label = item.label.trim() || kindLabels[item.kind];
+  if (isVideo(item)) {
+    const value = item.value.trim();
+    if (!item.enabled || !value) {
+      return { item, label, href: "" };
+    }
+    return youTubeId(value)
+      ? { item, label, href: "" }
+      : {
+          item,
+          label,
+          href: "",
+          error: "Enter a YouTube link (youtube.com or youtu.be).",
+        };
+  }
   if (isBlock(item)) {
     return { item, label, href: "" };
   }
@@ -548,16 +570,6 @@ export function normalizedLinks(tree: LinkTree): NormalizedLink[] {
   return tree.links.map(normalizeLink);
 }
 
-export function shownSectionIds(tree: LinkTree): Set<string> {
-  const ids = new Set<string>();
-  for (const entry of linkTreeListedEntries(tree)) {
-    if (entry.kind === "section") {
-      ids.add(entry.id);
-    }
-  }
-  return ids;
-}
-
 export function isDefaultLinkValue(link: LinkItem): boolean {
   const value = link.value.trim().replace(/\/$/, "");
   const defaultValue = kindDefaultValues[link.kind].trim().replace(/\/$/, "");
@@ -575,13 +587,127 @@ export function canFeature(link: LinkItem): boolean {
 export type RenderEntry =
   | { kind: "section"; title: string; id: string }
   | { kind: "text"; text: string; id: string; markdown?: boolean }
+  | { kind: "video"; id: string; itemId: string }
   | { kind: "link"; link: NormalizedLink };
 
 // Renders an opt-in Markdown text block to HTML. Same GitHub-flavored settings
 // as the standalone Markdown page type, so both behave alike; the content is the
 // owner's own, published on their own page — the same trust model as everywhere.
+// A YouTube URL → its video id, or null when it isn't one.
+export function youTubeId(rawUrl: string): string | null {
+  let u: URL;
+  try {
+    u = new URL(rawUrl);
+  } catch {
+    return null;
+  }
+  const host = u.hostname.replace(/^(www\.|m\.)/, "").toLowerCase();
+  let id = "";
+  if (host === "youtu.be") {
+    id = u.pathname.slice(1);
+  } else if (host === "youtube.com" || host === "youtube-nocookie.com") {
+    if (u.pathname === "/watch") id = u.searchParams.get("v") ?? "";
+    else {
+      const m = u.pathname.match(/^\/(?:embed|shorts|v|live)\/([^/?#]+)/);
+      if (m) id = m[1];
+    }
+  }
+  return /^[A-Za-z0-9_-]{6,20}$/.test(id) ? id : null;
+}
+
+// A privacy-preserving (nocookie) responsive embed — no tracking until the
+// viewer hits play, matching found.as's no-tracking stance.
+export function youTubeEmbedHtml(id: string): string {
+  return `<div class="yt-embed"><iframe src="https://www.youtube-nocookie.com/embed/${id}" title="YouTube video" loading="lazy" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe></div>`;
+}
+
 export function renderTextBlockMarkdown(text: string): string {
   return marked.parse(text, { gfm: true, breaks: true }) as string;
+}
+
+// Tags kept when rendering a markdown block inline in the editor, which runs on
+// the be.found.as origin (where page keys live) — unlike the published page's
+// own isolated origin. Everything else is unwrapped.
+const editorAllowedTags = new Set([
+  "p",
+  "br",
+  "strong",
+  "em",
+  "b",
+  "i",
+  "del",
+  "code",
+  "pre",
+  "blockquote",
+  "ul",
+  "ol",
+  "li",
+  "h1",
+  "h2",
+  "h3",
+  "h4",
+  "h5",
+  "h6",
+  "a",
+  "hr",
+  "img",
+  "div",
+  "span",
+  "iframe",
+]);
+
+// sanitizeEditorHtml allowlists the output of renderTextBlockMarkdown for safe
+// inline injection in the editor: it keeps formatting and the YouTube embed but
+// drops scripts, event handlers, javascript:/foreign iframes and unknown tags.
+export function sanitizeEditorHtml(html: string): string {
+  const doc = new DOMParser().parseFromString(
+    `<body>${html}</body>`,
+    "text/html",
+  );
+  const walk = (parent: Element) => {
+    for (const el of Array.from(parent.children)) {
+      const tag = el.tagName.toLowerCase();
+      if (!editorAllowedTags.has(tag)) {
+        el.replaceWith(...Array.from(el.childNodes));
+        continue;
+      }
+      if (
+        tag === "iframe" &&
+        !(el.getAttribute("src") ?? "").startsWith(
+          "https://www.youtube-nocookie.com/embed/",
+        )
+      ) {
+        el.remove();
+        continue;
+      }
+      for (const attr of Array.from(el.attributes)) {
+        const name = attr.name.toLowerCase();
+        const value = attr.value;
+        const keep =
+          (tag === "a" &&
+            name === "href" &&
+            /^(https?:|mailto:)/i.test(value)) ||
+          (tag === "img" &&
+            name === "src" &&
+            /^(https?:|data:image\/)/i.test(value)) ||
+          (tag === "img" && (name === "alt" || name === "title")) ||
+          (tag === "iframe" &&
+            [
+              "src",
+              "title",
+              "loading",
+              "allow",
+              "allowfullscreen",
+              "referrerpolicy",
+            ].includes(name)) ||
+          (tag === "div" && name === "class" && value === "yt-embed");
+        if (!keep) el.removeAttribute(attr.name);
+      }
+      walk(el);
+    }
+  };
+  walk(doc.body);
+  return doc.body.innerHTML;
 }
 
 export function linkTreeRenderEntries(tree: LinkTree): RenderEntry[] {
@@ -606,15 +732,20 @@ export function linkTreeRenderEntries(tree: LinkTree): RenderEntry[] {
       }
       continue;
     }
+    if (isVideo(normalized.item)) {
+      const id = normalized.item.enabled
+        ? youTubeId(normalized.item.value.trim())
+        : null;
+      if (id) {
+        entries.push({ kind: "video", id, itemId: normalized.item.id });
+      }
+      continue;
+    }
     if (normalized.href && !normalized.error) {
       entries.push({ kind: "link", link: normalized });
     }
   }
-  // A section heading with nothing under it is dropped; text blocks always show.
-  return entries.filter(
-    (entry, index) =>
-      entry.kind !== "section" || entries[index + 1]?.kind === "link",
-  );
+  return entries;
 }
 
 export function featuredLink(tree: LinkTree): NormalizedLink | undefined {
@@ -630,10 +761,7 @@ export function linkTreeListedEntries(tree: LinkTree): RenderEntry[] {
         (entry) => entry.kind !== "link" || entry.link.item !== featured.item,
       )
     : linkTreeRenderEntries(tree);
-  return listed.filter(
-    (entry, index) =>
-      entry.kind !== "section" || listed[index + 1]?.kind === "link",
-  );
+  return listed;
 }
 
 export function linkTreeHasPublishableContent(tree: LinkTree): boolean {

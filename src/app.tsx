@@ -7,6 +7,7 @@ import {
   updateData,
   updatePw,
 } from "./api";
+import { exportBackupZip, readPrivFromBackup } from "./backup";
 import { DomainPopover } from "./components/DomainPopover";
 import { EmailSignaturePopover } from "./components/EmailSignaturePopover";
 import {
@@ -104,6 +105,8 @@ export function App() {
     window.clearTimeout(statusTimer.current);
     statusTimer.current = window.setTimeout(() => setStatusMessage(""), 8000);
   };
+
+  const closeMenu = () => document.getElementById("topbarMenu")?.hidePopover();
 
   const builderMode: BuilderMode =
     priv.value.type === Type.LINK_TREE ? "contact" : "advanced";
@@ -397,124 +400,179 @@ export function App() {
     }
   };
 
+  // The page's private value with link hrefs normalized — what gets stored and
+  // exported.
+  const normalizedPrivateValue = (): Private =>
+    priv.value.type === Type.LINK_TREE
+      ? {
+          ...priv.value,
+          linkTree: {
+            ...tree,
+            links: tree.links.map((link) => ({
+              ...link,
+              href: normalizeLink(link).href,
+            })),
+          },
+        }
+      : priv.value;
+
+  // Build the published record (pub) from a private value — baking image crops,
+  // rendering the OG image, and collecting subresources. Shared by publish and
+  // export so both produce identical output.
+  const buildPubToSend = async (privateValue: Private): Promise<Public> => {
+    if (privateValue.type !== Type.LINK_TREE) {
+      if (pub === null) {
+        return file
+          ? { bytes: new Uint8Array(await file.arrayBuffer()), mime: file.type }
+          : {};
+      }
+      return pub;
+    }
+    // Publish the baked crops (the actual pixels), not the source + CSS — the
+    // untouched source stays in `priv` for re-cropping. Fall back to the source
+    // if baking fails so a publish never gets blocked.
+    let publishTree = ensureLinkTree(privateValue.linkTree);
+    try {
+      publishTree = await bakeTreeImages(publishTree);
+    } catch {
+      // keep source images
+    }
+    // The preview image rides the page's pub record as the `og` subresource,
+    // served at <path>/og — one atomic publish. Either the automatic render or
+    // the uploaded custom image.
+    let ogUrl: string | undefined;
+    let subs: Public["subs"];
+    if (tree.social?.autoImage ?? true) {
+      try {
+        const bytes = await renderOgImage(publishTree, shareDisplay);
+        if (bytes) {
+          subs = { og: { mime: "image/png", bytes } };
+          ogUrl = `${publicPageUrl(path.trim())}/og?v=${await subVersion(bytes)}`;
+        }
+      } catch {
+        showError(
+          "Couldn't render the social preview image — publishing the page without it.",
+        );
+      }
+    } else {
+      const custom = tree.social?.customImage
+        ? dataUrlToSub(tree.social.customImage)
+        : null;
+      if (custom) {
+        subs = { og: custom };
+        ogUrl = `${publicPageUrl(path.trim())}/og?v=${await subVersion(custom.bytes)}`;
+      }
+    }
+    // Custom background: serve the upload as-is, plus the custom dark image if
+    // one was chosen. The lighten/darken treatments are CSS overlays in the
+    // page, so no variant needs baking here.
+    let bgLightSubUrl: string | undefined;
+    let bgDarkSubUrl: string | undefined;
+    if (publishTree.background === "image" && publishTree.bgUrl) {
+      try {
+        const lightSub = dataUrlToSub(publishTree.bgUrl);
+        if (lightSub) {
+          subs = { ...(subs ?? {}), "bg-light": lightSub };
+          bgLightSubUrl = pageSubUrl(
+            path.trim(),
+            "bg-light",
+            await subVersion(lightSub.bytes),
+          );
+          const darkSub = publishTree.bgDarkUrl
+            ? dataUrlToSub(publishTree.bgDarkUrl)
+            : null;
+          if (darkSub) {
+            subs = { ...(subs ?? {}), "bg-dark": darkSub };
+            bgDarkSubUrl = pageSubUrl(
+              path.trim(),
+              "bg-dark",
+              await subVersion(darkSub.bytes),
+            );
+          }
+        }
+      } catch {
+        // publish without the custom background rather than block
+      }
+    }
+    const pubToSend: Public = {
+      html: linkTreeToHtml(
+        publishTree,
+        url,
+        ogUrl,
+        bgLightSubUrl,
+        bgDarkSubUrl,
+      ),
+    };
+    if (subs) {
+      pubToSend.subs = subs;
+    }
+    // Structured profile for the IndieAuth profile/email scopes.
+    const profile = linkTreeProfile(publishTree);
+    if (Object.keys(profile).length) {
+      pubToSend.profile = profile;
+    }
+    return pubToSend;
+  };
+
   const publish = async () => {
     if (!kp || !canPublish) {
       return;
     }
     setWorking(true);
-    const privateValue =
-      priv.value.type === Type.LINK_TREE
-        ? {
-            ...priv.value,
-            linkTree: {
-              ...tree,
-              links: tree.links.map((link) => ({
-                ...link,
-                href: normalizeLink(link).href,
-              })),
-            },
-          }
-        : priv.value;
-
     try {
-      let pubToSend = pub;
-      if (priv.value.type === Type.LINK_TREE) {
-        // Publish the baked crops (the actual pixels), not the source + CSS —
-        // the untouched source stays in `priv` for re-cropping. Fall back to the
-        // source if baking fails so a publish never gets blocked.
-        let publishTree = ensureLinkTree(privateValue.linkTree);
-        try {
-          publishTree = await bakeTreeImages(publishTree);
-        } catch {
-          // keep source images
-        }
-        // The preview image rides the page's pub record as the `og`
-        // subresource, served at <path>/og — one atomic publish. Either the
-        // automatic render or the uploaded custom image.
-        let ogUrl: string | undefined;
-        let subs: Public["subs"];
-        if (tree.social?.autoImage ?? true) {
-          try {
-            const bytes = await renderOgImage(publishTree, shareDisplay);
-            if (bytes) {
-              subs = { og: { mime: "image/png", bytes } };
-              ogUrl = `${publicPageUrl(path.trim())}/og?v=${await subVersion(bytes)}`;
-            }
-          } catch {
-            showError(
-              "Couldn't render the social preview image — publishing the page without it.",
-            );
-          }
-        } else {
-          const custom = tree.social?.customImage
-            ? dataUrlToSub(tree.social.customImage)
-            : null;
-          if (custom) {
-            subs = { og: custom };
-            ogUrl = `${publicPageUrl(path.trim())}/og?v=${await subVersion(custom.bytes)}`;
-          }
-        }
-        // Custom background: serve the upload as-is, plus the custom dark
-        // image if one was chosen. The lighten/darken treatments are CSS
-        // overlays in the page, so no variant needs baking here.
-        let bgLightSubUrl: string | undefined;
-        let bgDarkSubUrl: string | undefined;
-        if (publishTree.background === "image" && publishTree.bgUrl) {
-          try {
-            const lightSub = dataUrlToSub(publishTree.bgUrl);
-            if (lightSub) {
-              subs = { ...(subs ?? {}), "bg-light": lightSub };
-              bgLightSubUrl = pageSubUrl(
-                path.trim(),
-                "bg-light",
-                await subVersion(lightSub.bytes),
-              );
-              const darkSub = publishTree.bgDarkUrl
-                ? dataUrlToSub(publishTree.bgDarkUrl)
-                : null;
-              if (darkSub) {
-                subs = { ...(subs ?? {}), "bg-dark": darkSub };
-                bgDarkSubUrl = pageSubUrl(
-                  path.trim(),
-                  "bg-dark",
-                  await subVersion(darkSub.bytes),
-                );
-              }
-            }
-          } catch {
-            // publish without the custom background rather than block
-          }
-        }
-        pubToSend = {
-          html: linkTreeToHtml(
-            publishTree,
-            url,
-            ogUrl,
-            bgLightSubUrl,
-            bgDarkSubUrl,
-          ),
-        };
-        if (subs) {
-          pubToSend.subs = subs;
-        }
-        // Structured profile for the IndieAuth profile/email scopes.
-        const profile = linkTreeProfile(publishTree);
-        if (Object.keys(profile).length) {
-          pubToSend.profile = profile;
-        }
-      } else if (pubToSend === null) {
-        pubToSend = {
-          bytes: new Uint8Array(await file!.arrayBuffer()),
-          mime: file!.type,
-        };
-      }
-      await updateData(kp, path, privateValue, pubToSend);
+      const privateValue = normalizedPrivateValue();
+      await updateData(
+        kp,
+        path,
+        privateValue,
+        await buildPubToSend(privateValue),
+      );
       setPathIsNew(false);
       flashStatus(
         `Your ${modeSummary(priv.value.type).toLowerCase()} is live.`,
       );
       setJustPublished(true);
       setShareOpen(true);
+    } catch (e) {
+      showError((e as Error).message);
+    } finally {
+      setWorking(false);
+    }
+  };
+
+  // Export the page as a ZIP: priv.cbor plus pub exploded into a directory
+  // (index.html and any subresources).
+  const exportBackup = async () => {
+    setWorking(true);
+    try {
+      const privateValue = normalizedPrivateValue();
+      const blob = await exportBackupZip(
+        privateValue,
+        await buildPubToSend(privateValue),
+      );
+      const base = (path.trim() || "page").replace(/[^\w.-]+/g, "-");
+      // Filesystem-safe timestamp, e.g. 2026-07-09T153045 (no colons).
+      const stamp = new Date().toISOString().slice(0, 19).replace(/:/g, "");
+      downloadFile(`found.as-${base}-${stamp}.zip`, blob);
+    } catch (e) {
+      showError((e as Error).message);
+    } finally {
+      setWorking(false);
+    }
+  };
+
+  const importInputRef = useRef<HTMLInputElement>(null);
+  const importBackup = async (event: Event) => {
+    const input = event.target as HTMLInputElement;
+    const chosen = input.files?.[0];
+    input.value = "";
+    if (!chosen) return;
+    setWorking(true);
+    try {
+      priv.value = await readPrivFromBackup(
+        new Uint8Array(await chosen.arrayBuffer()),
+      );
+      flashStatus("Imported — review and publish to make it live.");
     } catch (e) {
       showError((e as Error).message);
     } finally {
@@ -618,45 +676,23 @@ export function App() {
       </header>
 
       <div popover="auto" id="topbarMenu" className="popover-panel topbar-menu">
-        {signatureAvailable && (
+        <div className="popover-heading">
+          <h2>Menu</h2>
           <button
             type="button"
-            className="secondary"
-            onClick={() => {
-              document.getElementById("topbarMenu")?.hidePopover();
-              document.getElementById("emailSignature")?.showPopover();
-            }}
+            className="icon-button"
+            aria-label="Close"
+            onClick={closeMenu}
           >
-            Email signature
+            <span aria-hidden="true">×</span>
           </button>
-        )}
-        {priv.value.type === Type.LINK_TREE && (
-          <button
-            type="button"
-            className="secondary"
-            onClick={() => {
-              document.getElementById("topbarMenu")?.hidePopover();
-              openPrintables();
-            }}
-          >
-            Print cards &amp; poster
-          </button>
-        )}
+        </div>
+        <p className="menu-heading">Backup</p>
         <button
           type="button"
           className="secondary"
           onClick={() => {
-            document.getElementById("topbarMenu")?.hidePopover();
-            document.getElementById("customDomain")?.showPopover();
-          }}
-        >
-          Custom domains
-        </button>
-        <button
-          type="button"
-          className="secondary"
-          onClick={() => {
-            document.getElementById("topbarMenu")?.hidePopover();
+            closeMenu();
             saveRecoveryKit();
           }}
         >
@@ -666,18 +702,65 @@ export function App() {
           type="button"
           className="secondary"
           onClick={() => {
-            document.getElementById("topbarMenu")?.hidePopover();
+            closeMenu();
+            exportBackup();
+          }}
+        >
+          Export backup (.zip)
+        </button>
+        <button
+          type="button"
+          className="secondary"
+          onClick={() => {
+            closeMenu();
+            importInputRef.current?.click();
+          }}
+        >
+          Import backup
+        </button>
+
+        <p className="menu-heading">Address</p>
+        {!pathIsNew && (
+          <button
+            type="button"
+            className="secondary"
+            onClick={() => {
+              closeMenu();
+              setRenameTo("");
+              document.getElementById("renamePage")?.showPopover();
+            }}
+          >
+            Change address
+          </button>
+        )}
+        <button
+          type="button"
+          className="secondary"
+          onClick={() => {
+            closeMenu();
+            document.getElementById("customDomain")?.showPopover();
+          }}
+        >
+          Custom domains
+        </button>
+
+        <p className="menu-heading">Access</p>
+        <button
+          type="button"
+          className="secondary"
+          onClick={() => {
+            closeMenu();
             document.getElementById("changePw")?.showPopover();
           }}
         >
-          Password
+          Change password
         </button>
         {!pathIsNew && (
           <button
             type="button"
             className="secondary"
             onClick={() => {
-              document.getElementById("topbarMenu")?.hidePopover();
+              closeMenu();
               if (remembered.some((r) => r.path === path.trim())) {
                 forgetPage(path.trim());
                 setRemember(false);
@@ -698,20 +781,9 @@ export function App() {
             <hr className="menu-divider" />
             <button
               type="button"
-              className="secondary"
-              onClick={() => {
-                document.getElementById("topbarMenu")?.hidePopover();
-                setRenameTo("");
-                document.getElementById("renamePage")?.showPopover();
-              }}
-            >
-              Change address
-            </button>
-            <button
-              type="button"
               className="secondary menu-danger"
               onClick={() => {
-                document.getElementById("topbarMenu")?.hidePopover();
+                closeMenu();
                 setDeleteConfirm("");
                 document.getElementById("deletePage")?.showPopover();
               }}
@@ -721,6 +793,14 @@ export function App() {
           </>
         )}
       </div>
+
+      <input
+        ref={importInputRef}
+        type="file"
+        accept=".zip,application/zip,application/octet-stream"
+        className="sr-only"
+        onChange={importBackup}
+      />
 
       <section className="workspace workspace-compact">
         <div className="editor-panel">
@@ -1055,7 +1135,7 @@ export function App() {
           <div className="publish-success">
             <div className="popover-heading">
               <h2 id="publish-success-title">
-                {justPublished ? "You're live 🎉" : "Share your page"}
+                {justPublished ? "You're live 🎉" : "Share"}
               </h2>
               <button
                 type="button"
@@ -1094,33 +1174,24 @@ export function App() {
                 </button>
               </div>
             )}
-            {vcardQrShown && (
-              <p className="help qr-mode-help">
-                Scanning saves your contact card directly — even without
-                internet.
-              </p>
+            {vcardQrShown ? (
+              <p className="help qr-mode-help">Works offline</p>
+            ) : (
+              <a
+                className="success-url"
+                href={shareUrl}
+                target="_blank"
+                rel="noreferrer"
+              >
+                {shareUrl}
+              </a>
             )}
-            <a
-              className="success-url"
-              href={shareUrl}
-              target="_blank"
-              rel="noreferrer"
-            >
-              {shareUrl}
-            </a>
             <div className="success-actions">
               <button type="button" onClick={sharePublicUrl} aria-live="polite">
                 {canShare ? "Share" : copied ? "Copied ✓" : "Copy link"}
               </button>
               <button type="button" className="secondary" onClick={saveQr}>
                 Save QR
-              </button>
-              <button
-                type="button"
-                className="secondary"
-                onClick={saveRecoveryKit}
-              >
-                Save recovery kit
               </button>
               {signatureAvailable && (
                 <button
@@ -1137,7 +1208,7 @@ export function App() {
                   className="secondary"
                   onClick={openPrintables}
                 >
-                  Print cards &amp; poster
+                  Cards &amp; poster
                 </button>
               )}
               <a

@@ -16,9 +16,13 @@ import {
   isDefaultLinkValue,
   isSection,
   isText,
+  isVideo,
   normalizeLink,
   normalizeUrl,
-  shownSectionIds,
+  renderTextBlockMarkdown,
+  sanitizeEditorHtml,
+  youTubeEmbedHtml,
+  youTubeId,
 } from "../linktree";
 import { renderOgImage } from "../og";
 import { linkTreeToHtml } from "../render";
@@ -236,7 +240,6 @@ export function EditableLink({
   setDragOver,
   selected,
   setSelected,
-  sectionShown,
 }: {
   link: LinkItem;
   index: number;
@@ -255,12 +258,18 @@ export function EditableLink({
   setDragOver: (id: string, after?: boolean) => void;
   selected: boolean;
   setSelected: (id: string) => void;
-  sectionShown: boolean;
 }) {
   const normalized = normalizeLink(link);
   const sectionItem = isSection(link);
   const textItem = isText(link);
-  const blockItem = sectionItem || textItem;
+  const videoItem = isVideo(link);
+  const blockItem = sectionItem || textItem || videoItem;
+  // A markdown text block previews its rendered content (matching the published
+  // page) instead of showing raw source; needs a non-button element since it
+  // may contain block content.
+  const mdPreview =
+    textItem && Boolean(link.markdown) && link.label.trim() !== "";
+  const videoId = videoItem ? youTubeId(link.value.trim()) : null;
   const fieldId = `link-${link.id}`;
   const detailId = `${fieldId}-detail`;
   const valueLabel = linkValueLabel(link.kind);
@@ -349,33 +358,77 @@ export function EditableLink({
             <span aria-hidden="true">▼</span>
           </button>
         </span>
-        <button
-          type="button"
-          className="contact-button-preview"
-          aria-expanded={selected}
-          aria-controls={selected ? detailId : undefined}
-          onClick={() => setSelected(selected ? "" : link.id)}
-        >
-          {iconSrc ? (
-            <img className="row-link-icon" src={iconSrc} alt="" />
-          ) : iconEmoji ? (
-            <span className="row-link-emoji" aria-hidden="true">
-              {iconEmoji}
-            </span>
-          ) : null}
-          {featuredShown && (
-            <span className="featured-tag">
-              <span aria-hidden="true">★ </span>Featured
-            </span>
-          )}
-          {label}
-          {link.badge?.trim() && (
-            <span className="row-badge">{link.badge.trim()}</span>
-          )}
-          {link.desc?.trim() && (
-            <span className="row-desc">{link.desc.trim()}</span>
-          )}
-        </button>
+        {mdPreview ? (
+          <div
+            className="md-preview"
+            role="button"
+            tabIndex={0}
+            aria-expanded={selected}
+            aria-controls={selected ? detailId : undefined}
+            onClick={() => setSelected(selected ? "" : link.id)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter" || e.key === " ") {
+                e.preventDefault();
+                setSelected(selected ? "" : link.id);
+              }
+            }}
+            dangerouslySetInnerHTML={{
+              __html: sanitizeEditorHtml(renderTextBlockMarkdown(link.label)),
+            }}
+          />
+        ) : videoItem ? (
+          <div
+            className="video-preview"
+            role="button"
+            tabIndex={0}
+            aria-expanded={selected}
+            aria-controls={selected ? detailId : undefined}
+            onClick={() => setSelected(selected ? "" : link.id)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter" || e.key === " ") {
+                e.preventDefault();
+                setSelected(selected ? "" : link.id);
+              }
+            }}
+          >
+            {videoId ? (
+              // Controlled embed HTML (fixed nocookie iframe) — safe to inject.
+              <div
+                dangerouslySetInnerHTML={{ __html: youTubeEmbedHtml(videoId) }}
+              />
+            ) : (
+              <span className="video-placeholder">▶ Add a YouTube video</span>
+            )}
+          </div>
+        ) : (
+          <button
+            type="button"
+            className="contact-button-preview"
+            aria-expanded={selected}
+            aria-controls={selected ? detailId : undefined}
+            onClick={() => setSelected(selected ? "" : link.id)}
+          >
+            {iconSrc ? (
+              <img className="row-link-icon" src={iconSrc} alt="" />
+            ) : iconEmoji ? (
+              <span className="row-link-emoji" aria-hidden="true">
+                {iconEmoji}
+              </span>
+            ) : null}
+            {featuredShown && (
+              <span className="featured-tag">
+                <span aria-hidden="true">★ </span>Featured
+              </span>
+            )}
+            {label}
+            {link.badge?.trim() && (
+              <span className="row-badge">{link.badge.trim()}</span>
+            )}
+            {link.desc?.trim() && (
+              <span className="row-desc">{link.desc.trim()}</span>
+            )}
+          </button>
+        )}
         <button
           type="button"
           className="icon-button"
@@ -391,9 +444,28 @@ export function EditableLink({
         <div className="link-edit-panel" id={detailId}>
           <label className="field stack">
             <span>
-              {sectionItem ? "Heading" : textItem ? "Text" : "Button text"}
+              {videoItem
+                ? "YouTube link"
+                : sectionItem
+                  ? "Heading"
+                  : textItem
+                    ? "Text"
+                    : "Button text"}
             </span>
-            {textItem ? (
+            {videoItem ? (
+              <input
+                type="url"
+                value={link.value}
+                placeholder={kindExamples.video}
+                aria-describedby={`${detailId}-status`}
+                onInput={(e) =>
+                  updateLink({
+                    ...link,
+                    value: (e.target as HTMLInputElement).value,
+                  })
+                }
+              />
+            ) : textItem ? (
               <textarea
                 rows={3}
                 value={link.label}
@@ -647,13 +719,11 @@ export function EditableLink({
           )}
           {sectionItem ? (
             <p id={`${detailId}-status`} className="link-status">
-              {sectionShown
-                ? "Shown as a heading."
-                : !link.label.trim()
-                  ? "Hidden until it has text."
-                  : link.enabled
-                    ? "Hidden until a link below it is shown."
-                    : "Hidden."}
+              {!link.label.trim()
+                ? "Hidden until it has text."
+                : link.enabled
+                  ? "Shown as a heading."
+                  : "Hidden."}
             </p>
           ) : textItem ? (
             <p id={`${detailId}-status`} className="link-status">
@@ -662,6 +732,18 @@ export function EditableLink({
                 : link.enabled
                   ? "Shown as text."
                   : "Hidden."}
+            </p>
+          ) : videoItem ? (
+            <p
+              id={`${detailId}-status`}
+              className={`link-status ${normalized.error ? "error-text" : ""}`}
+            >
+              {normalized.error ??
+                (!link.value.trim()
+                  ? "Add a YouTube link."
+                  : link.enabled
+                    ? "Shown as a video."
+                    : "Hidden.")}
             </p>
           ) : (
             <p
@@ -1128,7 +1210,6 @@ export function LinkTreeEditor({
   onError: (message: string) => void;
 }) {
   const tree = ensureLinkTree(priv.value.linkTree);
-  const shownSections = shownSectionIds(tree);
   const [draggingId, setDraggingId] = useState("");
   const [dragOverId, setDragOverId] = useState("");
   const [dragAfter, setDragAfter] = useState(false);
@@ -1589,7 +1670,6 @@ export function LinkTreeEditor({
                     setDragOver={setDragOver}
                     selected={selectedLinkId === link.id}
                     setSelected={setSelectedLinkId}
-                    sectionShown={shownSections.has(link.id)}
                   />
                 ))
               ) : (

@@ -43,7 +43,8 @@ export type LinkKind =
   | "googlereview"
   | "custom"
   | "section"
-  | "text";
+  | "text"
+  | "video";
 
 export interface LinkItem {
   id: string;
@@ -183,6 +184,10 @@ export class FourXX extends Error {
 // The add menu, grouped so generic contact details sit apart from platforms.
 export const addGroups: { label: string; kinds: LinkKind[] }[] = [
   {
+    label: "Content",
+    kinds: ["section", "text", "video"],
+  },
+  {
     label: "Contact",
     kinds: ["phone", "email", "website", "address", "custom"],
   },
@@ -219,10 +224,6 @@ export const addGroups: { label: string; kinds: LinkKind[] }[] = [
   {
     label: "Payments",
     kinds: ["paypal", "venmo", "cashapp"],
-  },
-  {
-    label: "Layout",
-    kinds: ["section", "text"],
   },
 ];
 
@@ -262,6 +263,7 @@ export const kindLabels: Record<LinkKind, string> = {
   custom: "Custom link",
   section: "Section header",
   text: "Text",
+  video: "YouTube video",
 };
 
 export const kindExamples: Record<LinkKind, string> = {
@@ -300,6 +302,7 @@ export const kindExamples: Record<LinkKind, string> = {
   custom: "https://example.com",
   section: "Work",
   text: "A line or two of text",
+  video: "https://youtube.com/watch?v=…",
 };
 
 export const kindDefaultValues: Record<LinkKind, string> = {
@@ -338,6 +341,7 @@ export const kindDefaultValues: Record<LinkKind, string> = {
   custom: "https://",
   section: "",
   text: "",
+  video: "",
 };
 
 export const kindDefaultIcons: Partial<Record<LinkKind, string>> = {
