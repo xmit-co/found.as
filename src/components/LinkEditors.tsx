@@ -1516,7 +1516,7 @@ export function LinkTreeEditor({
           aria-pressed={designTab === "background"}
           onClick={() => setDesignTab("background")}
         >
-          Background
+          Canvas
         </button>
         <button
           type="button"
