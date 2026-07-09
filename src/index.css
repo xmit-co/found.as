@@ -1014,11 +1014,11 @@ h2 {
 .live-page .md-preview a {
   color: var(--pv-accent);
 }
-.live-page .yt-embed {
+.live-page .video-embed {
   aspect-ratio: 16 / 9;
   margin: 0.6em 0;
 }
-.live-page .yt-embed iframe {
+.live-page .video-embed iframe {
   display: block;
   width: 100%;
   height: 100%;
@@ -1026,7 +1026,7 @@ h2 {
   border-radius: var(--radius, 0.6rem);
 }
 
-/* YouTube video row: click anywhere to open the URL editor. */
+/* Video row: click anywhere to open the URL editor. */
 .live-page .video-preview {
   display: block;
   width: 100%;
@@ -1040,12 +1040,12 @@ h2 {
   outline: none;
   border-color: var(--pv-accent);
 }
-.live-page .video-preview .yt-embed {
+.live-page .video-preview .video-embed {
   margin: 0;
 }
 /* The embed is a static preview in the editor — a click opens the editor,
    not the player. */
-.live-page .video-preview .yt-embed iframe {
+.live-page .video-preview .video-embed iframe {
   pointer-events: none;
 }
 .live-page .video-placeholder {

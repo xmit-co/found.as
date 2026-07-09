@@ -1088,6 +1088,9 @@ export function App() {
               setWorking(true);
               deletePage(kp, path)
                 .then(() => {
+                  // A deleted page can never be reopened, so drop it from this
+                  // device's remembered pages.
+                  forgetPage(path.trim());
                   window.location.href = "https://be.found.as/";
                 })
                 .catch((e) => {

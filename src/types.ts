@@ -263,7 +263,7 @@ export const kindLabels: Record<LinkKind, string> = {
   custom: "Custom link",
   section: "Section header",
   text: "Text",
-  video: "YouTube video",
+  video: "Video",
 };
 
 export const kindExamples: Record<LinkKind, string> = {
@@ -302,7 +302,7 @@ export const kindExamples: Record<LinkKind, string> = {
   custom: "https://example.com",
   section: "Work",
   text: "A line or two of text",
-  video: "https://youtube.com/watch?v=…",
+  video: "youtube.com, vimeo.com, or a PeerTube link",
 };
 
 export const kindDefaultValues: Record<LinkKind, string> = {

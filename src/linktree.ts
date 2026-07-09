@@ -537,13 +537,13 @@ export function normalizeLink(item: LinkItem): NormalizedLink {
     if (!item.enabled || !value) {
       return { item, label, href: "" };
     }
-    return youTubeId(value)
+    return videoEmbedSrc(value)
       ? { item, label, href: "" }
       : {
           item,
           label,
           href: "",
-          error: "Enter a YouTube link (youtube.com or youtu.be).",
+          error: "Enter a YouTube, Vimeo, or PeerTube link.",
         };
   }
   if (isBlock(item)) {
@@ -587,14 +587,14 @@ export function canFeature(link: LinkItem): boolean {
 export type RenderEntry =
   | { kind: "section"; title: string; id: string }
   | { kind: "text"; text: string; id: string; markdown?: boolean }
-  | { kind: "video"; id: string; itemId: string }
+  | { kind: "video"; src: string; itemId: string }
   | { kind: "link"; link: NormalizedLink };
 
 // Renders an opt-in Markdown text block to HTML. Same GitHub-flavored settings
 // as the standalone Markdown page type, so both behave alike; the content is the
 // owner's own, published on their own page — the same trust model as everywhere.
 // A YouTube URL → its video id, or null when it isn't one.
-export function youTubeId(rawUrl: string): string | null {
+function youTubeId(rawUrl: string): string | null {
   let u: URL;
   try {
     u = new URL(rawUrl);
@@ -615,10 +615,36 @@ export function youTubeId(rawUrl: string): string | null {
   return /^[A-Za-z0-9_-]{6,20}$/.test(id) ? id : null;
 }
 
-// A privacy-preserving (nocookie) responsive embed — no tracking until the
-// viewer hits play, matching found.as's no-tracking stance.
-export function youTubeEmbedHtml(id: string): string {
-  return `<div class="yt-embed"><iframe src="https://www.youtube-nocookie.com/embed/${id}" title="YouTube video" loading="lazy" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe></div>`;
+// A video URL from a supported platform → its embed src, or null. YouTube goes
+// through the privacy-friendly nocookie host; PeerTube is federated so it's
+// matched by path on any https host.
+export function videoEmbedSrc(rawUrl: string): string | null {
+  const yt = youTubeId(rawUrl);
+  if (yt) return `https://www.youtube-nocookie.com/embed/${yt}`;
+  let u: URL;
+  try {
+    u = new URL(rawUrl);
+  } catch {
+    return null;
+  }
+  if (u.protocol !== "https:") return null;
+  const host = u.hostname.replace(/^www\./, "").toLowerCase();
+  // Vimeo: vimeo.com/{id} or player.vimeo.com/video/{id}.
+  if (host === "vimeo.com" || host === "player.vimeo.com") {
+    const m = u.pathname.match(/^\/(?:video\/)?(\d+)/);
+    if (m) return `https://player.vimeo.com/video/${m[1]}`;
+  }
+  // PeerTube: /w/{id}, /videos/watch/{id}, or /videos/embed/{id} on any host.
+  const pt = u.pathname.match(
+    /^\/(?:w|videos\/(?:watch|embed))\/([\w-]{6,})\/?$/,
+  );
+  if (pt) return `${u.origin}/videos/embed/${pt[1]}`;
+  return null;
+}
+
+// A responsive, privacy-minded embed frame for a resolved embed src.
+export function videoEmbedFrame(src: string): string {
+  return `<div class="video-embed"><iframe src="${src}" title="Video" loading="lazy" allow="accelerometer; autoplay; clipboard-write; encrypted-media; fullscreen; gyroscope; picture-in-picture; web-share" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe></div>`;
 }
 
 export function renderTextBlockMarkdown(text: string): string {
@@ -700,7 +726,7 @@ export function sanitizeEditorHtml(html: string): string {
               "allowfullscreen",
               "referrerpolicy",
             ].includes(name)) ||
-          (tag === "div" && name === "class" && value === "yt-embed");
+          (tag === "div" && name === "class" && value === "video-embed");
         if (!keep) el.removeAttribute(attr.name);
       }
       walk(el);
@@ -733,11 +759,11 @@ export function linkTreeRenderEntries(tree: LinkTree): RenderEntry[] {
       continue;
     }
     if (isVideo(normalized.item)) {
-      const id = normalized.item.enabled
-        ? youTubeId(normalized.item.value.trim())
+      const src = normalized.item.enabled
+        ? videoEmbedSrc(normalized.item.value.trim())
         : null;
-      if (id) {
-        entries.push({ kind: "video", id, itemId: normalized.item.id });
+      if (src) {
+        entries.push({ kind: "video", src, itemId: normalized.item.id });
       }
       continue;
     }

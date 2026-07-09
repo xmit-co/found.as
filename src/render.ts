@@ -10,7 +10,7 @@ import {
   isBlock,
   linkTreeListedEntries,
   renderTextBlockMarkdown,
-  youTubeEmbedHtml,
+  videoEmbedFrame,
 } from "./linktree";
 import { qrSvgString } from "./qr";
 import {
@@ -608,8 +608,8 @@ p.link-text {
 .link-text.md p { margin: 0 0 0.6em; }
 .link-text.md ul, .link-text.md ol { margin: 0 0 0.6em; padding-left: 1.35em; }
 .link-text.md li { margin: 0.15em 0; }
-.yt-embed { aspect-ratio: 16 / 9; margin: 0.6em 0; }
-.yt-embed iframe { display: block; width: 100%; height: 100%; border: 0; border-radius: var(--radius); }
+.video-embed { aspect-ratio: 16 / 9; margin: 0.6em 0; }
+.video-embed iframe { display: block; width: 100%; height: 100%; border: 0; border-radius: var(--radius); }
 .link-text.md h1, .link-text.md h2, .link-text.md h3,
 .link-text.md h4, .link-text.md h5, .link-text.md h6 {
   margin: 0.4em 0 0.3em;
@@ -678,7 +678,7 @@ ${btnFx}</style>
               ? `<div class="link-text md">${renderTextBlockMarkdown(entry.text)}</div>`
               : `<p class="link-text">${escapeHtml(entry.text)}</p>`
             : entry.kind === "video"
-              ? youTubeEmbedHtml(entry.id)
+              ? videoEmbedFrame(entry.src)
               : `<a class="contact-link" href="${escapeHtml(entry.link.href)}"${linkRelAttr(entry.link)}>${linkInner(entry.link)}</a>`,
       ),
     ].join("\n    ")}

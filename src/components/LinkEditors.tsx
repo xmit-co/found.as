@@ -21,8 +21,8 @@ import {
   normalizeUrl,
   renderTextBlockMarkdown,
   sanitizeEditorHtml,
-  youTubeEmbedHtml,
-  youTubeId,
+  videoEmbedFrame,
+  videoEmbedSrc,
 } from "../linktree";
 import { renderOgImage } from "../og";
 import { linkTreeToHtml } from "../render";
@@ -269,7 +269,7 @@ export function EditableLink({
   // may contain block content.
   const mdPreview =
     textItem && Boolean(link.markdown) && link.label.trim() !== "";
-  const videoId = videoItem ? youTubeId(link.value.trim()) : null;
+  const videoSrc = videoItem ? videoEmbedSrc(link.value.trim()) : null;
   const fieldId = `link-${link.id}`;
   const detailId = `${fieldId}-detail`;
   const valueLabel = linkValueLabel(link.kind);
@@ -391,13 +391,13 @@ export function EditableLink({
               }
             }}
           >
-            {videoId ? (
-              // Controlled embed HTML (fixed nocookie iframe) — safe to inject.
+            {videoSrc ? (
+              // Controlled embed HTML (fixed platform iframe) — safe to inject.
               <div
-                dangerouslySetInnerHTML={{ __html: youTubeEmbedHtml(videoId) }}
+                dangerouslySetInnerHTML={{ __html: videoEmbedFrame(videoSrc) }}
               />
             ) : (
-              <span className="video-placeholder">▶ Add a YouTube video</span>
+              <span className="video-placeholder">▶ Add a video</span>
             )}
           </div>
         ) : (
@@ -445,7 +445,7 @@ export function EditableLink({
           <label className="field stack">
             <span>
               {videoItem
-                ? "YouTube link"
+                ? "Video link"
                 : sectionItem
                   ? "Heading"
                   : textItem
@@ -740,7 +740,7 @@ export function EditableLink({
             >
               {normalized.error ??
                 (!link.value.trim()
-                  ? "Add a YouTube link."
+                  ? "Add a video link."
                   : link.enabled
                     ? "Shown as a video."
                     : "Hidden.")}
