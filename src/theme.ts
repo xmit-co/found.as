@@ -1,5 +1,5 @@
 import { normalizeUrl } from "./linktree";
-import { FontChoice, LinkTree } from "./types";
+import { FontChoice, LinkTree, LoadedFont } from "./types";
 import { splitGraphemes } from "./util";
 
 export function avatarImageSrc(value: string | undefined): string | null {
@@ -12,7 +12,8 @@ export function avatarImageSrc(value: string | undefined): string | null {
   return URL.canParse(normalized) ? normalized : null;
 }
 
-// Curated system-font stacks — no web fonts, so pages stay request-free.
+// Curated system-font stacks — request-free by default. An optional loaded
+// font (tree.loadedFont) is prepended by name; the chosen stack is its fallback.
 export const fontStacks: Record<FontChoice, string> = {
   system: "system-ui, sans-serif",
   sans: 'ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif',
@@ -23,7 +24,24 @@ export const fontStacks: Record<FontChoice, string> = {
 };
 
 export function fontStack(tree: LinkTree): string {
-  return fontStacks[tree.font ?? "system"];
+  const fallback = fontStacks[tree.font ?? "system"];
+  const loaded = tree.loadedFont?.name?.trim().replace(/["';]/g, "");
+  return loaded ? `"${loaded}", ${fallback}` : fallback;
+}
+
+// @font-face rules for a loaded font, one per face, served from cc.me/fonts.
+// Variable faces declare the whole weight axis (one file covers every weight);
+// static faces declare their own weight. font-display: swap keeps text visible.
+export function fontFaceCss(font: LoadedFont): string {
+  const family = font.name.replace(/["\\]/g, "");
+  return font.faces
+    .map((face) => {
+      const url = `https://cc.me/fonts/${encodeURIComponent(font.slug)}/${encodeURIComponent(face.file)}`;
+      const weight = font.variable ? "100 900" : String(face.weight);
+      const style = face.italic ? "italic" : "normal";
+      return `@font-face{font-family:"${family}";font-style:${style};font-weight:${weight};font-display:swap;src:url("${url}") format("truetype");}`;
+    })
+    .join("");
 }
 
 export function cornerRadius(tree: LinkTree): string {

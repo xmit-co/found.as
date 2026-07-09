@@ -23,6 +23,7 @@ import {
   clampShade,
   clampZoom,
   cornerRadius,
+  fontFaceCss,
   fontStack,
   linkIconEmoji,
   linkIconSrc,
@@ -35,7 +36,7 @@ import {
   identityKinds,
   kindDefaultIcons,
 } from "./types";
-import { encodePath, escapeHtml } from "./util";
+import { escapeHtml } from "./util";
 import { buildVcard, vcardFileName } from "./vcard";
 
 export function signatureAvatarSrc(value: string | undefined): string | null {
@@ -327,6 +328,13 @@ a.contact-link.featured {
         `<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><text x='16' y='25' font-size='28' text-anchor='middle'>${favicon}</text></svg>`,
       )}"/>\n`
     : "";
+  // cc.me/fonts serves the raw .ttf per face; @font-face (regular/bold/italic/
+  // bold-italic) streams them in behind the fallback, lazily per face.
+  const lf = tree.loadedFont;
+  const fontLink = lf
+    ? `<link rel="preconnect" href="https://cc.me" crossorigin/>\n`
+    : "";
+  const fontFace = lf ? `${fontFaceCss(lf)}\n` : "";
   const htmlClass = `${themeClass} btn-${buttons}${cover ? " has-cover" : ""}${coverIsTitle ? " cover-title" : ""}`;
 
   return `<!DOCTYPE html>
@@ -341,10 +349,10 @@ a.contact-link.featured {
 <meta property="og:url" content="${escapeHtml(url)}"/>
 ${ogImage ? `<meta property="og:image" content="${escapeHtml(ogImage)}"/>\n` : ""}<meta name="twitter:card" content="${ogImage ? "summary_large_image" : "summary"}"/>
 <title>${escapeHtml(metaTitle)}</title>
-${faviconLink}<link rel="authorization_endpoint" href="https://be.found.as/indieauth"/>
+${fontLink}${faviconLink}<link rel="authorization_endpoint" href="https://be.found.as/indieauth"/>
 <link rel="indieauth-metadata" href="https://be.found.as/.well-known/oauth-authorization-server"/>
 <style>
-:root {
+${fontFace}:root {
   color-scheme: light dark;
   --bg: #fbfbf8;
   --text: #181818;
@@ -705,14 +713,18 @@ ${btnFx}</style>
 </html>`;
 }
 
-export function recoveryKitHtml(path: string, pw: string, url: string): string {
+export function recoveryKitHtml(
+  path: string,
+  url: string,
+  recoveryUrl: string,
+): string {
   let qr = "";
   try {
-    qr = qrSvgString(url, "128");
+    // The QR is the recovery link, so scanning it reopens the editor directly.
+    qr = qrSvgString(recoveryUrl, "128");
   } catch {
     // Without a QR the kit is still complete.
   }
-  const editUrl = `https://be.found.as/${encodePath(path)}`;
   const date = new Date().toLocaleDateString(undefined, {
     year: "numeric",
     month: "long",
@@ -744,11 +756,12 @@ code { padding: 2px 8px; border: 1px solid #d7d7d0; border-radius: 6px; backgrou
 <p class="date">Saved on ${escapeHtml(date)}</p>
 <dl>
 <dt>Your page</dt><dd><a href="${escapeHtml(url)}">${escapeHtml(url)}</a></dd>
-<dt>Edit it at</dt><dd><a href="${escapeHtml(editUrl)}">${escapeHtml(editUrl)}</a></dd>
-<dt>Password</dt><dd>${pw ? `<code>${escapeHtml(pw)}</code>` : "<em>blank — no password was set</em>"}</dd>
+<dt>Recovery link</dt><dd><a href="${escapeHtml(recoveryUrl)}">${escapeHtml(recoveryUrl)}</a></dd>
 </dl>
-<p class="warning"><strong>Keep this file private.</strong> Anyone who has it can edit your page. found.as has no password reset — if you forget your password, this file is the only way back in. Keep it in your password manager, or print it and keep it somewhere safe.</p>
+<p class="warning"><strong>Keep this file private.</strong> The recovery link holds your page's key — anyone who has it can edit your page. It's your way back in: found.as has no password reset. Keep it in your password manager, or print it and store it somewhere safe.</p>
+<p class="warning"><strong>Changing your password invalidates this kit.</strong> A new password means a new key, so this link stops working — save a fresh kit after any password change.</p>
 <p class="qr">${qr}</p>
+<p class="date">Scan to open the editor.</p>
 </main>
 </body>
 </html>`;

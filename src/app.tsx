@@ -3,7 +3,6 @@ import {
   deriveKP,
   fetchData,
   renamePage,
-  sameKeyPair,
   updateData,
   updatePw,
 } from "./api";
@@ -43,11 +42,13 @@ import {
 import {
   RememberedPage,
   forgetPage,
+  fromBase64Url,
   loadMainAddress,
   loadRemembered,
   rememberPage,
   rememberedKeyPair,
   saveMainAddress,
+  toBase64Url,
 } from "./storage";
 import { BuilderMode, FourOFour, FourXX, Private, Public, Type } from "./types";
 import { downloadFile, encodePath, pageSubUrl, publicPageUrl } from "./util";
@@ -56,7 +57,21 @@ import { useSignal } from "@preact/signals";
 import fm from "front-matter";
 import { marked } from "marked";
 import { useEffect, useMemo, useRef, useState } from "preact/hooks";
-import { SignKeyPair } from "tweetnacl";
+import { SignKeyPair, sign } from "tweetnacl";
+
+// A recovery link carries the page's Ed25519 seed (32 bytes) in the URL
+// fragment: https://be.found.as/<page>#<seed>. The fragment never reaches the
+// server, so it opens the editor without the password.
+function hashSeed(): Uint8Array | null {
+  const raw = window.location.hash.replace(/^#/, "").trim();
+  if (!raw) return null;
+  try {
+    const bytes = fromBase64Url(raw);
+    return bytes.length === 32 ? bytes : null;
+  } catch {
+    return null;
+  }
+}
 
 export function App() {
   const priv = useSignal<Private>(createDefaultPrivate());
@@ -72,8 +87,25 @@ export function App() {
     decodeURIComponent(window.location.pathname.substring(1)),
   );
   const [pathIsNew, setPathIsNew] = useState<boolean>(false);
-  const [setupComplete, setSetupComplete] = useState<boolean>(false);
-  const [kp, setKP] = useState<SignKeyPair | null>(null);
+  // A recovery link (#seed in the URL) opens the editor straight away.
+  const seedRef = useRef<Uint8Array | null>(hashSeed());
+  const openedFromLink = useRef<boolean>(seedRef.current !== null);
+  // The only path a device-remembered key may open without confirmation: the
+  // one from the URL on arrival, or one the visitor explicitly picks from the
+  // remembered list. Typing an address into the field never auto-opens it.
+  const autoOpenPath = useRef<string>(
+    decodeURIComponent(window.location.pathname.substring(1)).trim(),
+  );
+  // Set when the visitor picks a remembered page from the list, so even the
+  // root ("") opens on demand — while a bare landing at be.found.as/ still
+  // shows the entry screen rather than auto-opening a remembered root.
+  const explicitOpen = useRef<boolean>(false);
+  const [setupComplete, setSetupComplete] = useState<boolean>(
+    () => seedRef.current !== null,
+  );
+  const [kp, setKP] = useState<SignKeyPair | null>(() =>
+    seedRef.current ? sign.keyPair.fromSeed(seedRef.current) : null,
+  );
   const [remembered, setRemembered] =
     useState<RememberedPage[]>(loadRemembered);
   const [remember, setRemember] = useState<boolean>(false);
@@ -89,9 +121,6 @@ export function App() {
   const [shareDomain, setShareDomain] = useState<string | null>(null);
   const [renameTo, setRenameTo] = useState<string>("");
   const [deleteConfirm, setDeleteConfirm] = useState<string>("");
-  // Password re-entered for the recovery kit when the page was opened from a
-  // remembered key (the password itself isn't in memory then).
-  const [recoveryPw, setRecoveryPw] = useState<string>("");
 
   const showError = (message: string) => {
     setToast(message);
@@ -206,8 +235,20 @@ export function App() {
     validationErrors.length === 0;
 
   useEffect(() => {
+    // Drop the #seed from the address bar so the key doesn't linger there.
     window.history.replaceState(null, "", path ? `/${encodePath(path)}` : "/");
     setRemember(loadRemembered().some((r) => r.path === path.trim()));
+    if (openedFromLink.current) {
+      // Opened from a recovery link: kp is already set from the #seed. Remember
+      // it on this device so reloads work, and stay in the editor.
+      openedFromLink.current = false;
+      if (seedRef.current) {
+        rememberPage(path.trim(), sign.keyPair.fromSeed(seedRef.current));
+        setRemembered(loadRemembered());
+        setRemember(true);
+      }
+      return;
+    }
     if (renamingRef.current) {
       // A rename just moved the page; the new key derives from the same
       // password, so stay in the editor rather than re-prompting.
@@ -221,11 +262,18 @@ export function App() {
   useEffect(() => {
     let cancelled = false;
     // With no password typed, open straight from a key remembered on this
-    // device, skipping the unlock screen. Never for the empty root path — that
-    // is the entry screen, not a page.
-    if (pw === "" && path.trim() !== "") {
+    // device, skipping the unlock screen — but only for a path arrived at by
+    // URL or picked from the remembered list, never one just typed in (that
+    // would log in mid-keystroke, without confirmation). The root ("") only
+    // auto-opens when explicitly picked, so be.found.as/ stays the entry screen.
+    if (
+      pw === "" &&
+      path.trim() === autoOpenPath.current &&
+      (path.trim() !== "" || explicitOpen.current)
+    ) {
       const saved = rememberedKeyPair(path.trim());
       if (saved) {
+        explicitOpen.current = false;
         setKP(saved);
         setRemember(true);
         setSetupComplete(true);
@@ -363,28 +411,22 @@ export function App() {
     win.document.close();
   };
 
-  const downloadRecoveryKit = (password: string) => {
+  // The recovery link carries this page's Ed25519 seed in the URL fragment, so
+  // it opens the editor with no password — the key itself is the credential.
+  const recoveryUrl = (keyPair: SignKeyPair) =>
+    `https://be.found.as/${encodePath(path.trim())}#${toBase64Url(
+      keyPair.secretKey.slice(0, 32),
+    )}`;
+
+  const saveRecoveryKit = () => {
+    if (!kp) return;
     const slug = path.trim().replace(/\//g, "-") || "found-as";
     downloadFile(
       `${slug}-recovery-kit.html`,
-      new Blob([recoveryKitHtml(path.trim(), password, url)], {
+      new Blob([recoveryKitHtml(path.trim(), url, recoveryUrl(kp))], {
         type: "text/html",
       }),
     );
-  };
-
-  const saveRecoveryKit = async () => {
-    if (!kp) return;
-    // Opened from a key remembered on this device, the password isn't in
-    // memory (pw is ""). The kit is the only way back in, so its password has
-    // to be real: "blank" must actually derive this page's key — otherwise
-    // ask for the password before writing it into the kit.
-    if (pw === "" && !sameKeyPair(await deriveKP(path, ""), kp)) {
-      setRecoveryPw("");
-      document.getElementById("recoveryPw")?.showPopover();
-      return;
-    }
-    downloadRecoveryKit(pw);
   };
 
   const saveQr = () => {
@@ -591,8 +633,20 @@ export function App() {
   };
 
   const openRemembered = (p: string) => {
+    // Explicitly chosen from the remembered list — open it. Set the key here
+    // rather than leaning on the path-change effect, since picking the current
+    // path (e.g. "/" from the root entry screen) wouldn't change it and so
+    // wouldn't re-run anything.
+    const saved = rememberedKeyPair(p.trim());
+    autoOpenPath.current = p.trim();
+    explicitOpen.current = true;
     setPw("");
     setPath(p);
+    if (saved) {
+      setKP(saved);
+      setRemember(true);
+      setSetupComplete(true);
+    }
   };
 
   const forgetRemembered = (p: string) => {
@@ -635,21 +689,21 @@ export function App() {
     <main className={`app-shell ${wideEditor ? "" : "app-shell-compact"}`}>
       <header className="topbar">
         <div className="topbar-id">
-          <p className="eyebrow">Your public page</p>
+          <a
+            className="topbar-home"
+            href="/"
+            aria-label="found.as home — switch to another page"
+          >
+            found.as
+          </a>
           <a
             className="page-url"
             href={shareUrl}
             target="_blank"
             rel="noreferrer"
+            title="Open your public page"
           >
-            {shareDomain ? (
-              <span className="page-url-path">{shareDomain}</span>
-            ) : (
-              <>
-                <span className="page-url-prefix">found.as/</span>
-                <span className="page-url-path">{path.trim()}</span>
-              </>
-            )}
+            {shareDomain ?? `/${path.trim()}`}
           </a>
         </div>
         <div className="topbar-actions">
@@ -741,7 +795,7 @@ export function App() {
             document.getElementById("customDomain")?.showPopover();
           }}
         >
-          Custom domains
+          Manage domains
         </button>
 
         <p className="menu-heading">Access</p>
@@ -772,7 +826,7 @@ export function App() {
             }}
           >
             {remembered.some((r) => r.path === path.trim())
-              ? "Forget this device"
+              ? "Forget on this device"
               : "Remember on this device"}
           </button>
         )}
@@ -873,6 +927,10 @@ export function App() {
             onInput={(e) => setNewPw((e.target as HTMLInputElement).value)}
           />
         </label>
+        <p className="help">
+          This replaces your page's key, so any recovery kit you've saved stops
+          working — save a fresh one afterwards.
+        </p>
         <div className="popover-actions">
           <button
             type="button"
@@ -908,64 +966,6 @@ export function App() {
         </div>
       </div>
 
-      <div
-        popover="auto"
-        id="recoveryPw"
-        className="popover-panel password-popover"
-      >
-        <div className="popover-heading">
-          <h2>Save recovery kit</h2>
-          <button
-            type="button"
-            className="icon-button"
-            aria-label="Close"
-            onClick={() => document.getElementById("recoveryPw")?.hidePopover()}
-          >
-            <span aria-hidden="true">×</span>
-          </button>
-        </div>
-        <p className="help">
-          This page was opened with the key remembered on this device, so its
-          password isn't at hand. The kit is your way back in — enter the
-          password so it can be included.
-        </p>
-        <label className="field stack">
-          <span>Page password</span>
-          <input
-            type="password"
-            autoComplete="current-password"
-            value={recoveryPw}
-            onInput={(e) => setRecoveryPw((e.target as HTMLInputElement).value)}
-          />
-        </label>
-        <div className="popover-actions">
-          <button
-            type="button"
-            disabled={working}
-            onClick={async () => {
-              if (!kp) {
-                return;
-              }
-              if (!sameKeyPair(await deriveKP(path, recoveryPw), kp)) {
-                showError("That password doesn't match this page.");
-                return;
-              }
-              document.getElementById("recoveryPw")?.hidePopover();
-              downloadRecoveryKit(recoveryPw);
-              setRecoveryPw("");
-            }}
-          >
-            Save recovery kit
-          </button>
-          <button
-            type="button"
-            className="secondary"
-            onClick={() => document.getElementById("recoveryPw")?.hidePopover()}
-          >
-            Cancel
-          </button>
-        </div>
-      </div>
 
       <div popover="auto" id="renamePage" className="popover-panel">
         <div className="popover-heading">
@@ -1091,7 +1091,7 @@ export function App() {
                   // A deleted page can never be reopened, so drop it from this
                   // device's remembered pages.
                   forgetPage(path.trim());
-                  window.location.href = "https://be.found.as/";
+                  window.location.href = "/";
                 })
                 .catch((e) => {
                   showError(e.message);

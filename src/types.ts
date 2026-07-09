@@ -79,6 +79,24 @@ export interface SocialPreview {
 }
 
 export type FontChoice = "system" | "sans" | "serif" | "mono" | "rounded";
+
+// One face of a loaded font; the .ttf lives at cc.me/fonts/<slug>/<file>.
+export interface LoadedFontFace {
+  file: string;
+  italic: boolean;
+  weight: number;
+}
+
+// A web font picked from cc.me/fonts. `faces` carries regular/bold/italic/
+// bold-italic as available so bold and markdown italics render for real rather
+// than faux-synthesized; unused faces are declared but never fetched. Variable
+// faces span the whole weight axis from one file (see `variable`).
+export interface LoadedFont {
+  name: string;
+  slug: string;
+  variable: boolean;
+  faces: LoadedFontFace[];
+}
 export type ButtonStyle = "soft" | "outline" | "filled";
 export type Corners = "rounded" | "sharp" | "pill";
 export type AvatarShape = "circle" | "rounded";
@@ -111,6 +129,11 @@ export interface LinkTree {
   theme: "system" | "light" | "dark";
   accent?: string;
   font?: FontChoice;
+  // An optional web font resolved from cc.me/fonts and loaded lazily via
+  // @font-face, so `font` is the fallback stack: rendered while it loads, if
+  // loading fails, or when no loaded font is set. `slug`/`file` build the .ttf
+  // URL https://cc.me/fonts/<slug>/<file>; `name` is the CSS family.
+  loadedFont?: LoadedFont;
   buttons?: ButtonStyle;
   // Button surface: background opacity (%) and backdrop blur (px), for
   // glassy buttons over image backgrounds.

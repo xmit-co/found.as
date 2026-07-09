@@ -1,4 +1,4 @@
-import { RememberedPage } from "../storage";
+import { RememberedPage, loadMainAddress } from "../storage";
 import { BuilderMode, Type } from "../types";
 import { useState } from "preact/hooks";
 
@@ -255,7 +255,7 @@ export function SetupPanel({
           There is no password reset. Once you're in, save the recovery kit from
           the menu — it keeps your address and password somewhere safe.
         </p>
-        {pwStatus === true && path.trim() !== "" && (
+        {pwStatus === true && (
           <>
             <label className="show-toggle">
               <input
@@ -292,7 +292,7 @@ export function SetupPanel({
                   className="remembered-open"
                   onClick={() => openRemembered(r.path)}
                 >
-                  found.as/{r.path}
+                  {loadMainAddress(r.path) ?? `/${r.path}`}
                 </button>
                 <button
                   type="button"

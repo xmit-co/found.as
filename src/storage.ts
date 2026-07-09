@@ -23,15 +23,25 @@ export function fromBase64(value: string): Uint8Array {
   return bytes;
 }
 
+// URL-safe base64 (for the recovery link's #fragment key): no +, /, or =.
+export function toBase64Url(bytes: Uint8Array): string {
+  return toBase64(bytes)
+    .replace(/\+/g, "-")
+    .replace(/\//g, "_")
+    .replace(/=+$/, "");
+}
+
+export function fromBase64Url(value: string): Uint8Array {
+  const b64 = value.replace(/-/g, "+").replace(/_/g, "/");
+  return fromBase64(b64.padEnd(Math.ceil(b64.length / 4) * 4, "="));
+}
+
 export function loadRemembered(): RememberedPage[] {
   try {
     const parsed = JSON.parse(localStorage.getItem(REMEMBERED_KEY) || "[]");
     return Array.isArray(parsed)
       ? parsed.filter(
-          (p) =>
-            typeof p?.path === "string" &&
-            p.path.trim() !== "" &&
-            typeof p?.key === "string",
+          (p) => typeof p?.path === "string" && typeof p?.key === "string",
         )
       : [];
   } catch {
@@ -48,7 +58,6 @@ export function saveRemembered(list: RememberedPage[]): void {
 }
 
 export function rememberPage(path: string, keyPair: SignKeyPair): void {
-  if (path.trim() === "") return; // the root is the entry screen, not a page
   const list = loadRemembered().filter((p) => p.path !== path);
   list.push({ path, key: toBase64(keyPair.secretKey) });
   saveRemembered(list);

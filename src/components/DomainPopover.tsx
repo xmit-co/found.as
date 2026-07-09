@@ -317,7 +317,7 @@ export function DomainPopover({
       className="popover-panel domain-popover"
     >
       <div className="popover-heading">
-        <h2>Custom domains</h2>
+        <h2>Manage domains</h2>
         <button
           type="button"
           className="icon-button"

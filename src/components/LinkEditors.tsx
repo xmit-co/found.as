@@ -36,6 +36,7 @@ import {
   clampShade,
   clampZoom,
   cornerRadius,
+  fontFaceCss,
   fontStack,
   linkIconEmoji,
   linkIconSrc,
@@ -52,6 +53,8 @@ import {
   LinkItem,
   LinkKind,
   LinkTree,
+  LoadedFont,
+  LoadedFontFace,
   Private,
   Public,
   SocialPreview,
@@ -69,6 +72,112 @@ import { vcardEligible } from "../vcard";
 import { AccentWheel } from "./AccentWheel";
 import { Signal } from "@preact/signals";
 import { useEffect, useMemo, useRef, useState } from "preact/hooks";
+
+// A cc.me/fonts search result. `variable` fonts cover every weight from one
+// file per style; static fonts have a file per weight.
+interface CcFont {
+  slug: string;
+  name: string;
+  variable: boolean;
+  files: { filename: string; style: string; weight: number }[];
+}
+
+// Resolve the faces to load: regular + bold + italic + bold-italic, as the
+// family offers them. Variable fonts need only one file per style (the axis
+// covers bold); static fonts pick the nearest file to 400 and 700 per style.
+function facesFor(font: CcFont): LoadedFont | undefined {
+  const nearest = (italic: boolean, weight: number) => {
+    const pool = font.files.filter((f) => (f.style === "italic") === italic);
+    return pool.length
+      ? pool.reduce((a, b) =>
+          Math.abs(b.weight - weight) < Math.abs(a.weight - weight) ? b : a,
+        )
+      : undefined;
+  };
+  const faces: LoadedFontFace[] = [];
+  const seen = new Set<string>();
+  const add = (f: CcFont["files"][number] | undefined, italic: boolean) => {
+    if (f && !seen.has(f.filename)) {
+      seen.add(f.filename);
+      faces.push({ file: f.filename, italic, weight: f.weight });
+    }
+  };
+  add(nearest(false, 400), false);
+  add(nearest(true, 400), true);
+  if (!font.variable) {
+    add(nearest(false, 700), false);
+    add(nearest(true, 700), true);
+  }
+  return faces.length
+    ? { name: font.name, slug: font.slug, variable: font.variable, faces }
+    : undefined;
+}
+
+// Search-as-you-type over the cc.me/fonts catalog via a native datalist (which
+// works on mobile). Picking a suggestion resolves it to { name, slug, file };
+// the live preview then reflects the committed choice.
+function FontPicker({
+  value,
+  onChange,
+}: {
+  value?: LoadedFont;
+  onChange: (font: LoadedFont | undefined) => void;
+}) {
+  const [query, setQuery] = useState(value?.name ?? "");
+  const [results, setResults] = useState<CcFont[]>([]);
+
+  // Keep the box in sync when the page (and its font) loads or resets.
+  useEffect(() => setQuery(value?.name ?? ""), [value?.name]);
+
+  useEffect(() => {
+    const q = query.trim();
+    if (!q) {
+      setResults([]);
+      onChange(undefined);
+      return;
+    }
+    const timer = window.setTimeout(async () => {
+      try {
+        const res = await fetch(
+          `https://cc.me/fonts?q=${encodeURIComponent(q)}&limit=8`,
+        );
+        if (!res.ok) return;
+        const families: CcFont[] = (await res.json())?.families ?? [];
+        setResults(families);
+        // Choosing a suggestion (or typing the name out) sets the box to a
+        // family name; resolve it to the slug + file and commit.
+        const exact = families.find(
+          (f) => f.name.toLowerCase() === q.toLowerCase(),
+        );
+        const loaded = exact && facesFor(exact);
+        if (loaded && value?.slug !== loaded.slug) onChange(loaded);
+      } catch {
+        // Offline or blocked — the field still works, just without suggestions.
+      }
+    }, 160);
+    return () => window.clearTimeout(timer);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [query]);
+
+  return (
+    <label className="font-inline font-loaded">
+      <span className="field-label">Font</span>
+      <input
+        type="text"
+        className="font-name"
+        list="cc-fonts"
+        placeholder="Search fonts…"
+        value={query}
+        onInput={(e) => setQuery((e.target as HTMLInputElement).value)}
+      />
+      <datalist id="cc-fonts">
+        {results.map((f) => (
+          <option value={f.name} key={f.slug} />
+        ))}
+      </datalist>
+    </label>
+  );
+}
 
 export function PageEditor({
   priv,
@@ -1261,20 +1370,50 @@ export function LinkTreeEditor({
     }
   }, [tree.displayName, tree.bio, designTab]);
 
+  // Load the chosen web font into the editor document so the live WYSIWYG shows
+  // it — same @font-face rules the published page emits, from the cc.me .ttfs.
+  const lf = tree.loadedFont;
+  const fontKey = lf ? `${lf.slug}:${lf.faces.map((f) => f.file).join(",")}` : "";
+  useEffect(() => {
+    const existing = document.getElementById(
+      "cc-loaded-font",
+    ) as HTMLStyleElement | null;
+    if (!lf) {
+      existing?.remove();
+      return;
+    }
+    const css = fontFaceCss(lf);
+    const style = existing ?? document.createElement("style");
+    style.id = "cc-loaded-font";
+    if (style.textContent !== css) style.textContent = css;
+    if (!existing) document.head.appendChild(style);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [fontKey]);
+
+  // "Preview fallback" drops the loaded font from the preview only (never from
+  // what's published), so the fallback family is visible on its own.
+  const [previewFallback, setPreviewFallback] = useState(false);
+  const previewTree: LinkTree =
+    previewFallback && tree.loadedFont
+      ? { ...tree, loadedFont: undefined }
+      : tree;
+
   // While a design tab is open, the editable page gives way to the real
   // rendered page (same HTML that gets published), so changes preview true
   // to life. Auto theme renders as whatever the Preview toggle shows.
   const pvRef = useRef<HTMLIFrameElement>(null);
   const previewHtml = showsPreview
     ? linkTreeToHtml(
-        tree.theme === "system"
-          ? { ...tree, theme: previewDark ? "dark" : "light" }
-          : tree,
+        previewTree.theme === "system"
+          ? { ...previewTree, theme: previewDark ? "dark" : "light" }
+          : previewTree,
         `https://${displayAddress}`,
         undefined,
-        tree.background === "image" && tree.bgUrl ? tree.bgUrl : undefined,
-        tree.background === "image" && tree.bgDarkUrl
-          ? tree.bgDarkUrl
+        previewTree.background === "image" && previewTree.bgUrl
+          ? previewTree.bgUrl
+          : undefined,
+        previewTree.background === "image" && previewTree.bgDarkUrl
+          ? previewTree.bgDarkUrl
           : undefined,
       )
     : "";
@@ -1821,24 +1960,6 @@ export function LinkTreeEditor({
           <legend className="sr-only">Style</legend>
           <div className="style-grid">
             <label className="field stack">
-              <span>Font</span>
-              <select
-                value={tree.font ?? "system"}
-                onChange={(e) =>
-                  updateTree({
-                    ...tree,
-                    font: (e.target as HTMLSelectElement).value as FontChoice,
-                  })
-                }
-              >
-                <option value="system">System</option>
-                <option value="sans">Sans</option>
-                <option value="serif">Serif</option>
-                <option value="mono">Mono</option>
-                <option value="rounded">Rounded</option>
-              </select>
-            </label>
-            <label className="field stack">
               <span>Buttons</span>
               <select
                 value={tree.buttons ?? "soft"}
@@ -1922,6 +2043,51 @@ export function LinkTreeEditor({
                 }
               />
             </label>
+          </div>
+          <div className="font-section">
+            <div className="font-row">
+              <FontPicker
+                value={tree.loadedFont}
+                onChange={(loadedFont) => updateTree({ ...tree, loadedFont })}
+              />
+              <label className="font-inline">
+                <span className="field-label">Fallback</span>
+                <select
+                  value={tree.font ?? "system"}
+                  onChange={(e) =>
+                    updateTree({
+                      ...tree,
+                      font: (e.target as HTMLSelectElement).value as FontChoice,
+                    })
+                  }
+                >
+                  <option value="system">System</option>
+                  <option value="sans">Sans</option>
+                  <option value="serif">Serif</option>
+                  <option value="mono">Mono</option>
+                  <option value="rounded">Rounded</option>
+                </select>
+              </label>
+            </div>
+            <p className="field-hint">
+              Any family from the{" "}
+              <a href="https://fonts.google.com/" target="_blank" rel="noopener">
+                Google Fonts catalog ↗
+              </a>
+              . Google is never involved.
+            </p>
+            {tree.loadedFont && (
+              <label className="font-preview-toggle">
+                <input
+                  type="checkbox"
+                  checked={previewFallback}
+                  onChange={(e) =>
+                    setPreviewFallback((e.target as HTMLInputElement).checked)
+                  }
+                />
+                Preview fallback
+              </label>
+            )}
           </div>
         </fieldset>
       )}

@@ -111,6 +111,23 @@ export function ensureLinkTree(tree: LinkTree | undefined): LinkTree {
         : "system",
     accent: accentPair(current.accent) ? current.accent : "",
     font: current.font ?? "system",
+    loadedFont:
+      current.loadedFont?.name?.trim() &&
+      current.loadedFont?.slug?.trim() &&
+      current.loadedFont?.faces?.some((f) => f?.file?.trim())
+        ? {
+            name: current.loadedFont.name.trim(),
+            slug: current.loadedFont.slug.trim(),
+            variable: Boolean(current.loadedFont.variable),
+            faces: current.loadedFont.faces
+              .filter((f) => f?.file?.trim())
+              .map((f) => ({
+                file: f.file.trim(),
+                italic: Boolean(f.italic),
+                weight: Number(f.weight) || 400,
+              })),
+          }
+        : undefined,
     buttons: current.buttons ?? "soft",
     btnAlpha: clampBtnAlpha(current.btnAlpha),
     btnBlur: clampBtnBlur(current.btnBlur),

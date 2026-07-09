@@ -350,7 +350,23 @@ h2 {
 }
 
 .topbar-id {
+  display: flex;
+  flex-direction: column;
+  gap: 0.125rem;
   min-width: 0;
+}
+/* "found.as" is the title and the home link (back to the entry screen). */
+.topbar-home {
+  width: fit-content;
+  font-size: 1.4rem;
+  font-weight: 850;
+  letter-spacing: -0.02em;
+  line-height: 1.15;
+  color: #181918;
+  text-decoration: none;
+}
+.topbar-home:hover {
+  color: #007f73;
 }
 
 .popover-panel.topbar-menu:popover-open {
@@ -403,11 +419,11 @@ h2 {
   display: inline-flex;
   align-items: baseline;
   max-width: 100%;
-  font-size: 1.5rem;
-  font-weight: 800;
-  line-height: 1.15;
+  font-size: 1rem;
+  font-weight: 700;
+  line-height: 1.2;
   text-decoration: none;
-  color: #181918;
+  color: #007f73;
   overflow-wrap: anywhere;
 }
 
@@ -1995,11 +2011,11 @@ iframe.preview {
   }
 
   .page-url {
-    color: #f2f4ef;
+    color: #4fc3b3;
   }
 
-  .page-url-prefix {
-    color: #b8c0b8;
+  .topbar-home {
+    color: #f2f4ef;
   }
 
   .drag-grip {
@@ -2666,6 +2682,73 @@ iframe.live-preview {
   display: grid;
   gap: 0.75rem;
   margin-top: 0.875rem;
+}
+
+/* Font controls, kept last in the Style tab: label, loaded-font input and
+   fallback select on one line. */
+.font-section {
+  display: grid;
+  gap: 0.625rem;
+  margin-top: 1.125rem;
+  padding-top: 1rem;
+  border-top: 1px solid #e2e6e0;
+}
+.font-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem 0.875rem;
+}
+.font-inline {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+.font-inline.font-loaded {
+  flex: 1 1 10rem;
+}
+.font-inline .field-label {
+  flex: 0 0 auto;
+}
+.font-name {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+/* Transient "show the fallback in the preview" switch, on its own line. */
+.font-preview-toggle {
+  flex-basis: 100%;
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-size: 0.85rem;
+  color: #6a716a;
+  cursor: pointer;
+}
+.font-preview-toggle input {
+  flex: 0 0 auto;
+  width: auto;
+  padding: 0;
+  margin: 0;
+  accent-color: #007f73;
+}
+
+.field-hint {
+  margin: 0;
+  font-size: 0.82rem;
+  line-height: 1.5;
+  color: #6a716a;
+}
+
+@media (prefers-color-scheme: dark) {
+  .font-section {
+    border-top-color: #2a302c;
+  }
+  .font-preview-toggle {
+    color: #b8c0b8;
+  }
+  .field-hint {
+    color: #b8c0b8;
+  }
 }
 
 /* A slider with a small inline label, not a headed form field. */
