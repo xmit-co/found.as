@@ -9,6 +9,7 @@
       content="A free contact page and digital business card at found.as/you — one link and QR code for your profiles, links and contact details. No account, no cookies, no tracking. Hosted in the EU on renewable energy."
     />
     <link rel="canonical" href="https://found.as/" />
+    <link rel="preconnect" href="https://hono.coffee" crossorigin />
     <meta property="og:type" content="website" />
     <meta property="og:site_name" content="found.as" />
     <meta property="og:url" content="https://found.as/" />
@@ -20,7 +21,14 @@
       property="og:description"
       content="One link and QR code for your profiles, links and contact details. No account, no cookies, no tracking. Hosted in the EU on renewable energy."
     />
-    <meta name="twitter:card" content="summary" />
+    <meta property="og:image" content="https://found.as/og" />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    <meta
+      property="og:image:alt"
+      content="found.as — no account, no app, no tracking, just your page"
+    />
+    <meta name="twitter:card" content="summary_large_image" />
     <script type="application/ld+json">
       {
         "@context": "https://schema.org",
@@ -55,6 +63,7 @@
         --grad: linear-gradient(115deg, #007f73 0%, #0a9d8f 45%, #1aa34a 100%);
         --glow: rgba(0, 127, 115, 0.28);
         --shadow: rgba(20, 22, 20, 0.13);
+        --dot: rgba(0, 127, 115, 0.07);
       }
       @media (prefers-color-scheme: dark) {
         :root {
@@ -74,6 +83,7 @@
           );
           --glow: rgba(79, 195, 179, 0.24);
           --shadow: rgba(0, 0, 0, 0.4);
+          --dot: rgba(79, 195, 179, 0.09);
         }
       }
       * {
@@ -81,11 +91,15 @@
       }
       body {
         margin: 0;
-        padding: 3.5rem 1.25rem 4.5rem;
+        padding: 3.5rem 1.25rem 4rem;
         position: relative;
         overflow-x: hidden;
-        background: var(--bg);
         color: var(--text);
+        background-color: var(--bg);
+        /* Dogfood: the product's own dotted background, kept faint. */
+        background-image: radial-gradient(var(--dot) 1px, transparent 1px);
+        background-size: 1.5rem 1.5rem;
+        background-position: -0.75rem -0.75rem;
         font-family:
           ui-sans-serif,
           system-ui,
@@ -96,9 +110,24 @@
         font-size: 1.0625rem;
         line-height: 1.6;
       }
+      /* Soft brand glow behind the fold. */
+      body::before {
+        content: "";
+        position: absolute;
+        inset: 0 0 auto 0;
+        height: 40rem;
+        background: radial-gradient(
+          60% 55% at 50% 0%,
+          var(--glow),
+          transparent 70%
+        );
+        opacity: 0.5;
+        pointer-events: none;
+        z-index: -1;
+      }
 
       main {
-        width: min(100%, 60rem);
+        width: min(100%, 64rem);
         margin-inline: auto;
       }
 
@@ -111,6 +140,13 @@
       .muted {
         color: var(--muted);
       }
+      .grad {
+        background: var(--grad);
+        -webkit-background-clip: text;
+        background-clip: text;
+        color: transparent;
+        -webkit-text-fill-color: transparent;
+      }
 
       /* Hero */
       .hero {
@@ -119,9 +155,9 @@
         gap: 2.5rem;
         align-items: center;
       }
-      @media (min-width: 720px) {
+      @media (min-width: 760px) {
         .hero {
-          grid-template-columns: 1.08fr 0.92fr;
+          grid-template-columns: 1.06fr 0.94fr;
           gap: 3rem;
         }
       }
@@ -134,18 +170,11 @@
         color: var(--accent);
       }
       .wordmark {
-        margin: 0 0 1.25rem;
-        font-size: clamp(3rem, 11vw, 5.25rem);
+        margin: 0 0 1rem;
+        font-size: clamp(3rem, 11vw, 5rem);
         line-height: 0.92;
         letter-spacing: -0.035em;
         font-weight: 850;
-      }
-      .wordmark .grad {
-        background: var(--grad);
-        -webkit-background-clip: text;
-        background-clip: text;
-        color: transparent;
-        -webkit-text-fill-color: transparent;
       }
       .wave {
         display: inline-block;
@@ -174,11 +203,22 @@
           transform: rotate(10deg);
         }
       }
+      .hook {
+        margin: 0 0 0.875rem;
+        font-size: clamp(1.2rem, 2.7vw, 1.6rem);
+        font-weight: 820;
+        letter-spacing: -0.015em;
+        line-height: 1.2;
+      }
       .lead {
-        margin: 0 0 1.625rem;
-        font-size: clamp(1.12rem, 2.3vw, 1.36rem);
+        margin: 0 0 1.5rem;
+        font-size: clamp(1.05rem, 2vw, 1.2rem);
         line-height: 1.5;
-        max-width: 34ch;
+        max-width: 36ch;
+        color: var(--muted);
+      }
+      .lead strong {
+        color: var(--text);
       }
       .cta {
         display: flex;
@@ -215,13 +255,21 @@
       .button:hover .arr {
         transform: translateX(4px);
       }
+      .signin {
+        margin: 0.875rem 0 0;
+        color: var(--muted);
+        font-size: 0.98rem;
+      }
+      .signin a {
+        font-weight: 700;
+      }
       .chips {
         list-style: none;
         display: flex;
         flex-wrap: wrap;
         gap: 0.5rem;
         padding: 0;
-        margin: 1.625rem 0 0;
+        margin: 1.5rem 0 0;
       }
       .chips li {
         font-size: 0.85rem;
@@ -232,16 +280,8 @@
         background: var(--panel);
         color: var(--muted);
       }
-      .signin {
-        margin: 0.875rem 0 0;
-        color: var(--muted);
-        font-size: 0.98rem;
-      }
-      .signin a {
-        font-weight: 700;
-      }
 
-      /* Phone preview stack */
+      /* Phone preview stack (the live demo) */
       .preview {
         justify-self: center;
       }
@@ -286,7 +326,7 @@
         filter: brightness(0.96) saturate(0.9);
         box-shadow: 0 22px 50px var(--shadow);
       }
-      @media (min-width: 720px) {
+      @media (min-width: 760px) {
         #demo-ada:checked ~ .stack .phone-ada,
         #demo-hono:checked ~ .stack .phone-hono {
           transform: rotate(2.2deg);
@@ -309,13 +349,69 @@
       #demo-hono:checked ~ .stack .phone-ada .bring-front {
         display: block;
       }
+      .screen {
+        position: relative;
+        border-radius: 1.625rem;
+        overflow: hidden;
+        background: var(--bg);
+      }
       .preview-frame {
+        position: relative;
+        z-index: 2;
         display: block;
         width: 100%;
         height: 45rem;
         border: 0;
-        border-radius: 1.625rem;
-        background: var(--bg);
+        background: transparent;
+      }
+      /* Skeleton behind each frame — kills load jank while a page wakes up. */
+      .skeleton {
+        position: absolute;
+        inset: 0;
+        z-index: 1;
+        padding: 2.25rem 1.5rem;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 0.75rem;
+        overflow: hidden;
+      }
+      .skeleton::after {
+        content: "";
+        position: absolute;
+        inset: 0;
+        background: linear-gradient(
+          100deg,
+          transparent 20%,
+          color-mix(in srgb, var(--accent) 10%, transparent) 50%,
+          transparent 80%
+        );
+        transform: translateX(-100%);
+        animation: shimmer 1.6s ease-in-out infinite;
+      }
+      .sk-avatar {
+        width: 4.5rem;
+        height: 4.5rem;
+        border-radius: 50%;
+        background: color-mix(in srgb, var(--accent) 14%, var(--border));
+        margin-bottom: 0.5rem;
+      }
+      .sk-line {
+        height: 0.75rem;
+        border-radius: 0.375rem;
+        background: color-mix(in srgb, var(--accent) 10%, var(--border));
+      }
+      .sk-btn {
+        width: 100%;
+        height: 2.75rem;
+        border-radius: 0.75rem;
+        margin-top: 0.35rem;
+        background: color-mix(in srgb, var(--accent) 8%, var(--border));
+      }
+      @keyframes shimmer {
+        to {
+          transform: translateX(100%);
+        }
       }
       .preview-caption {
         margin: 1.125rem 0 0;
@@ -351,116 +447,242 @@
         display: inline;
       }
 
-      /* Feature cards */
-      .features {
-        margin-top: 4.5rem;
-        display: grid;
-        grid-template-columns: 1fr;
-        gap: 1rem;
-      }
-      @media (min-width: 560px) {
-        .features {
-          grid-template-columns: 1fr 1fr;
-        }
-      }
-      @media (min-width: 860px) {
-        .features {
-          grid-template-columns: repeat(3, 1fr);
-        }
-      }
-      .feature {
-        position: relative;
-        overflow: hidden;
-        background: var(--panel);
-        border: 1px solid var(--border);
-        border-radius: 1rem;
-        padding: 1.375rem 1.375rem 1.5rem;
-        transition:
-          transform 0.2s ease,
-          box-shadow 0.2s ease,
-          border-color 0.2s ease;
-      }
-      .feature::before {
-        content: "";
-        position: absolute;
-        inset: 0 0 auto 0;
-        height: 0.1875rem;
-        background: var(--grad);
-        transform: scaleX(0);
-        transform-origin: left;
-        transition: transform 0.28s ease;
-      }
-      .feature:hover {
-        transform: translateY(-5px);
-        border-color: color-mix(in srgb, var(--accent) 50%, var(--border));
-        box-shadow: 0 18px 44px var(--shadow);
-      }
-      .feature:hover::before {
-        transform: scaleX(1);
-      }
-      .feature-icon {
-        display: block;
-        font-size: 1.7rem;
-        line-height: 1;
-        margin-bottom: 0.75rem;
-      }
-      .feature h3 {
-        margin: 0 0 0.375rem;
-        font-size: 1.05rem;
-        font-weight: 750;
-      }
-      .feature p {
-        margin: 0;
-        color: var(--muted);
-        font-size: 0.95rem;
-      }
-
-      /* Why */
+      /* Section heading */
       .section-h {
-        margin: 4.5rem 0 1.125rem;
+        margin: 5rem 0 0.5rem;
         font-size: clamp(1.5rem, 3.4vw, 2rem);
         font-weight: 850;
         letter-spacing: -0.02em;
       }
-      .section-h .grad {
-        background: var(--grad);
-        -webkit-background-clip: text;
-        background-clip: text;
-        color: transparent;
-        -webkit-text-fill-color: transparent;
+      .section-sub {
+        margin: 0 0 1.75rem;
+        color: var(--muted);
+        max-width: 46ch;
       }
-      .why {
-        list-style: none;
-        margin: 0;
-        padding: 0;
+
+      /* Three steps */
+      .steps {
         display: grid;
-        gap: 0.75rem;
+        grid-template-columns: 1fr;
+        gap: 1rem;
       }
-      @media (min-width: 620px) {
-        .why {
-          grid-template-columns: 1fr 1fr;
-          gap: 0.75rem 2rem;
+      @media (min-width: 760px) {
+        .steps {
+          grid-template-columns: repeat(3, 1fr);
         }
       }
-      .why li {
-        position: relative;
-        margin: 0;
-        padding-left: 2rem;
+      .step {
+        display: flex;
+        flex-direction: column;
+        gap: 1rem;
+        padding: 1.5rem;
+        border: 1px solid var(--border);
+        border-radius: 1.25rem;
+        background: var(--panel);
+        animation: rise 0.6s cubic-bezier(0.2, 0.7, 0.2, 1) both;
       }
-      .why li::before {
-        content: "✓";
-        position: absolute;
-        left: 0;
-        top: 0.05em;
-        width: 1.375rem;
-        height: 1.375rem;
+      .step:nth-child(2) {
+        animation-delay: 0.08s;
+      }
+      .step:nth-child(3) {
+        animation-delay: 0.16s;
+      }
+      .step-head {
+        display: flex;
+        align-items: center;
+        gap: 0.625rem;
+      }
+      .step-num {
+        flex: 0 0 auto;
+        width: 1.75rem;
+        height: 1.75rem;
         display: grid;
         place-items: center;
         border-radius: 50%;
         background: var(--grad);
         color: var(--accent-text);
-        font-size: 0.78rem;
+        font-size: 0.85rem;
         font-weight: 800;
+      }
+      .step h3 {
+        margin: 0;
+        font-size: 1.05rem;
+        font-weight: 750;
+      }
+      .step p {
+        margin: 0;
+        color: var(--muted);
+        font-size: 0.95rem;
+      }
+      /* Mock canvas shared by the three step demos */
+      .mock {
+        display: grid;
+        place-items: center;
+        min-height: 9.5rem;
+        padding: 1.25rem;
+        border-radius: 0.875rem;
+        border: 1px solid var(--border);
+        background:
+          radial-gradient(var(--dot) 1px, transparent 1px) 0 0 / 1rem 1rem,
+          color-mix(in srgb, var(--bg) 55%, var(--panel));
+      }
+      .mock-url {
+        font-size: clamp(1.05rem, 3.2vw, 1.3rem);
+        font-weight: 750;
+        letter-spacing: -0.01em;
+      }
+      .mock-url .host {
+        color: var(--muted);
+      }
+      .caret {
+        display: inline-block;
+        width: 0.11em;
+        height: 1.1em;
+        margin-left: 0.06em;
+        vertical-align: -0.14em;
+        background: var(--accent);
+        animation: blink 1.1s step-end infinite;
+      }
+      @keyframes blink {
+        50% {
+          opacity: 0;
+        }
+      }
+      .mock-links {
+        width: 100%;
+        display: flex;
+        flex-direction: column;
+        gap: 0.5rem;
+      }
+      .mock-btn {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        padding: 0.5rem 0.75rem;
+        border-radius: 0.625rem;
+        font-size: 0.85rem;
+        font-weight: 650;
+        border: 1px solid var(--border);
+        background: var(--panel);
+      }
+      .mock-btn.featured {
+        border-color: transparent;
+        background: var(--grad);
+        color: var(--accent-text);
+      }
+      .mock-emoji {
+        font-size: 0.95rem;
+        line-height: 1;
+      }
+      .mock-share {
+        display: flex;
+        align-items: center;
+        gap: 1.125rem;
+      }
+      .qr-chip {
+        flex: 0 0 auto;
+        padding: 0.55rem;
+        border-radius: 0.75rem;
+        background: #ffffff;
+        box-shadow: inset 0 0 0 1px var(--border);
+      }
+      .qr {
+        display: block;
+        width: 5rem;
+        height: 5rem;
+        color: #141614;
+      }
+      .share-side {
+        display: flex;
+        flex-direction: column;
+        gap: 0.5rem;
+        align-items: flex-start;
+      }
+      .share-pill {
+        padding: 0.375rem 0.75rem;
+        border-radius: 999px;
+        background: var(--grad);
+        color: var(--accent-text);
+        font-weight: 700;
+        font-size: 0.85rem;
+      }
+      .share-side small {
+        color: var(--muted);
+      }
+      .included {
+        margin: 1.5rem 0 0;
+        color: var(--muted);
+        font-size: 0.95rem;
+        max-width: 60ch;
+      }
+      .included strong {
+        color: var(--text);
+        font-weight: 700;
+      }
+
+      /* No catch — the manifesto */
+      .nolist {
+        list-style: none;
+        margin: 0;
+        padding: 0;
+        display: grid;
+        gap: 1.125rem;
+      }
+      @media (min-width: 640px) {
+        .nolist {
+          grid-template-columns: 1fr 1fr;
+          gap: 1.25rem 2.5rem;
+        }
+      }
+      .nolist li {
+        position: relative;
+        margin: 0;
+        padding-left: 2.375rem;
+        font-size: 0.98rem;
+        color: var(--muted);
+      }
+      .nolist li::before {
+        content: "✓";
+        position: absolute;
+        left: 0;
+        top: 0.05em;
+        width: 1.6rem;
+        height: 1.6rem;
+        display: grid;
+        place-items: center;
+        border-radius: 0.5rem;
+        background: var(--grad);
+        color: var(--accent-text);
+        font-size: 0.82rem;
+        font-weight: 800;
+      }
+      .nolist strong {
+        color: var(--text);
+        font-weight: 800;
+      }
+
+      /* Closing CTA band */
+      .cta-band {
+        margin-top: 5rem;
+        padding: 3.25rem 1.5rem;
+        text-align: center;
+        border: 1px solid var(--border);
+        border-radius: 1.5rem;
+        background:
+          radial-gradient(70% 120% at 50% 0%, var(--glow), transparent 70%),
+          color-mix(in srgb, var(--accent) 5%, var(--panel));
+      }
+      .cta-band h2 {
+        margin: 0 0 1.5rem;
+        font-size: clamp(1.6rem, 4vw, 2.4rem);
+        font-weight: 850;
+        letter-spacing: -0.02em;
+      }
+      .cta-band .sub {
+        display: block;
+        margin-top: 0.875rem;
+        color: var(--muted);
+        font-size: 0.95rem;
       }
 
       /* Entrance */
@@ -469,24 +691,6 @@
       }
       .reveal-2 {
         animation-delay: 0.1s;
-      }
-      .feature {
-        animation: rise 0.6s cubic-bezier(0.2, 0.7, 0.2, 1) both;
-      }
-      .feature:nth-child(2) {
-        animation-delay: 0.06s;
-      }
-      .feature:nth-child(3) {
-        animation-delay: 0.12s;
-      }
-      .feature:nth-child(4) {
-        animation-delay: 0.18s;
-      }
-      .feature:nth-child(5) {
-        animation-delay: 0.24s;
-      }
-      .feature:nth-child(6) {
-        animation-delay: 0.3s;
       }
       @keyframes rise {
         from {
@@ -499,20 +703,10 @@
         }
       }
 
-      .site-footer {
-        margin-top: 4rem;
-        padding-top: 1.5rem;
-        border-top: 1px solid var(--border);
-        color: var(--muted);
-        font-size: 0.92rem;
-      }
-      .site-footer a {
-        font-weight: 700;
-      }
-
       @media (prefers-reduced-motion: reduce) {
         *,
-        *::before {
+        *::before,
+        *::after {
           animation: none !important;
           transition: none !important;
         }
@@ -527,11 +721,14 @@
           <h1 class="wordmark">
             <span class="wave">👋</span> <span class="grad">found.as</span>
           </h1>
+          <p class="hook">
+            No account. No app. No tracking.<br/>
+            <span class="grad">Just your page.</span>
+          </p>
           <p class="lead">
-            One little page for everywhere you are — your profiles, links, and
-            however people reach you. Live at
-            <strong>found.as/yourname</strong> or your own domain, shared with a
-            link or a QR code.
+            Your profiles, links, and ways to reach you — one little page at
+            <strong>found.as/you</strong> or your own domain, shared by link or
+            QR code.
           </p>
           <div class="cta">
             <a class="button" href="https://be.found.as"
@@ -540,20 +737,27 @@
             <span class="muted">Ready in about a minute.</span>
           </div>
           <p class="signin">
-            Already have a page?
-            <a href="https://be.found.as">Open the editor</a> and enter your
-            address and password to edit it.
+            <a href="https://be.found.as">Already have a page?</a>
           </p>
           <ul class="chips">
             <li>🇪🇺 EU-hosted</li>
             <li>🔋 Renewable energy</li>
-            <li>🚫 No tracking</li>
-            <li>✨ Free forever</li>
           </ul>
         </div>
         <div class="preview reveal reveal-2">
-          <input type="radio" name="demo" id="demo-ada" checked />
-          <input type="radio" name="demo" id="demo-hono" />
+          <input
+            type="radio"
+            name="demo"
+            id="demo-ada"
+            aria-label="Show the found.as/ada example"
+            checked
+          />
+          <input
+            type="radio"
+            name="demo"
+            id="demo-hono"
+            aria-label="Show the hono.coffee example"
+          />
           <div class="stack">
             <div class="phone phone-ada">
               <label
@@ -562,12 +766,22 @@
                 title="Show found.as/ada"
                 aria-label="Show found.as/ada"
               ></label>
-              <iframe
-                class="preview-frame"
-                src="https://found.as/ada"
-                title="Ada Lovelace's found.as page"
-                loading="lazy"
-              ></iframe>
+              <div class="screen">
+                <div class="skeleton" aria-hidden="true">
+                  <div class="sk-avatar"></div>
+                  <div class="sk-line" style="width: 55%"></div>
+                  <div class="sk-line" style="width: 38%"></div>
+                  <div class="sk-btn"></div>
+                  <div class="sk-btn"></div>
+                  <div class="sk-btn"></div>
+                </div>
+                <iframe
+                  class="preview-frame"
+                  src="https://found.as/ada"
+                  title="Ada Lovelace's found.as page"
+                  loading="lazy"
+                ></iframe>
+              </div>
             </div>
             <div class="phone phone-hono">
               <label
@@ -576,15 +790,26 @@
                 title="Show hono.coffee"
                 aria-label="Show hono.coffee"
               ></label>
-              <iframe
-                class="preview-frame"
-                src="https://hono.coffee"
-                title="Hono Coffee House's found.as page"
-                loading="lazy"
-              ></iframe>
+              <div class="screen">
+                <div class="skeleton" aria-hidden="true">
+                  <div class="sk-avatar"></div>
+                  <div class="sk-line" style="width: 55%"></div>
+                  <div class="sk-line" style="width: 38%"></div>
+                  <div class="sk-btn"></div>
+                  <div class="sk-btn"></div>
+                  <div class="sk-btn"></div>
+                </div>
+                <iframe
+                  class="preview-frame"
+                  src="https://hono.coffee"
+                  title="Hono Coffee House's found.as page"
+                  loading="lazy"
+                ></iframe>
+              </div>
             </div>
           </div>
           <p class="preview-caption">
+            <span class="muted">Live examples:</span>
             <span class="cap cap-ada">
               <label for="demo-ada">found.as/ada</label>
               <a href="https://found.as/ada" target="_blank" rel="noopener"
@@ -602,100 +827,137 @@
         </div>
       </div>
 
-      <div class="features">
-        <div class="feature">
-          <span class="feature-icon" aria-hidden="true">🔗</span>
-          <h3>Everything, one tap away</h3>
+      <h2 class="section-h">Yours in <span class="grad">three steps</span></h2>
+      <p class="section-sub">
+        No sign-up wall, no download — you're editing in seconds.
+      </p>
+      <div class="steps">
+        <div class="step">
+          <div class="step-head">
+            <span class="step-num">1</span>
+            <h3>Claim your address</h3>
+          </div>
+          <div class="mock">
+            <span class="mock-url"
+              ><span class="host">found.as/</span>you<span
+                class="caret"
+              ></span
+            ></span>
+          </div>
+          <p>Pick a name — or point your own domain at it. A password, done.</p>
+        </div>
+        <div class="step">
+          <div class="step-head">
+            <span class="step-num">2</span>
+            <h3>Add your links</h3>
+          </div>
+          <div class="mock">
+            <div class="mock-links">
+              <span class="mock-btn featured"
+                ><span class="mock-emoji">📸</span> Instagram</span
+              >
+              <span class="mock-btn"
+                ><span class="mock-emoji">✉️</span> Email</span
+              >
+              <span class="mock-btn"
+                ><span class="mock-emoji">💬</span> WhatsApp</span
+              >
+            </div>
+          </div>
           <p>
-            Type a username or paste a link — WhatsApp, Instagram, your site,
-            anything — and found.as turns it into a tidy button. Reorder,
-            rename, or hide.
+            Paste any URL or handle — it becomes a tidy button. Reorder,
+            rename, theme.
           </p>
         </div>
-        <div class="feature">
-          <span class="feature-icon" aria-hidden="true">🎨</span>
-          <h3>Make it yours</h3>
+        <div class="step">
+          <div class="step-head">
+            <span class="step-num">3</span>
+            <h3>Share it anywhere</h3>
+          </div>
+          <div class="mock">
+            <div class="mock-share">
+              <span class="qr-chip">
+                <svg
+                  class="qr"
+                  viewBox="-2 -2 29 29"
+                  role="img"
+                  aria-label="QR code linking to found.as"
+                  fill="currentColor"
+                  shape-rendering="crispEdges"
+                >
+                  <path
+                    d="M0 0h7v1h-7zM8 0h1v1h-1zM10 0h1v1h-1zM12 0h1v1h-1zM15 0h2v1h-2zM18 0h7v1h-7zM0 1h1v1h-1zM6 1h1v1h-1zM8 1h1v1h-1zM10 1h1v1h-1zM12 1h1v1h-1zM14 1h2v1h-2zM18 1h1v1h-1zM24 1h1v1h-1zM0 2h1v1h-1zM2 2h3v1h-3zM6 2h1v1h-1zM13 2h3v1h-3zM18 2h1v1h-1zM20 2h3v1h-3zM24 2h1v1h-1zM0 3h1v1h-1zM2 3h3v1h-3zM6 3h1v1h-1zM8 3h1v1h-1zM11 3h2v1h-2zM18 3h1v1h-1zM20 3h3v1h-3zM24 3h1v1h-1zM0 4h1v1h-1zM2 4h3v1h-3zM6 4h1v1h-1zM9 4h1v1h-1zM11 4h1v1h-1zM13 4h1v1h-1zM18 4h1v1h-1zM20 4h3v1h-3zM24 4h1v1h-1zM0 5h1v1h-1zM6 5h1v1h-1zM9 5h1v1h-1zM12 5h1v1h-1zM14 5h1v1h-1zM18 5h1v1h-1zM24 5h1v1h-1zM0 6h7v1h-7zM8 6h1v1h-1zM10 6h1v1h-1zM12 6h1v1h-1zM14 6h1v1h-1zM16 6h1v1h-1zM18 6h7v1h-7zM8 7h8v1h-8zM0 8h1v1h-1zM2 8h2v1h-2zM5 8h3v1h-3zM10 8h1v1h-1zM12 8h3v1h-3zM18 8h1v1h-1zM21 8h1v1h-1zM23 8h2v1h-2zM1 9h3v1h-3zM5 9h1v1h-1zM7 9h2v1h-2zM10 9h1v1h-1zM16 9h1v1h-1zM19 9h1v1h-1zM23 9h1v1h-1zM0 10h3v1h-3zM6 10h2v1h-2zM10 10h1v1h-1zM12 10h1v1h-1zM14 10h1v1h-1zM16 10h1v1h-1zM18 10h1v1h-1zM1 11h3v1h-3zM7 11h2v1h-2zM13 11h2v1h-2zM16 11h3v1h-3zM21 11h2v1h-2zM1 12h1v1h-1zM3 12h2v1h-2zM6 12h4v1h-4zM15 12h1v1h-1zM17 12h2v1h-2zM20 12h1v1h-1zM22 12h3v1h-3zM1 13h2v1h-2zM4 13h1v1h-1zM7 13h1v1h-1zM11 13h1v1h-1zM13 13h1v1h-1zM15 13h2v1h-2zM18 13h3v1h-3zM24 13h1v1h-1zM1 14h1v1h-1zM3 14h1v1h-1zM6 14h5v1h-5zM12 14h1v1h-1zM14 14h1v1h-1zM16 14h2v1h-2zM20 14h1v1h-1zM22 14h2v1h-2zM0 15h1v1h-1zM7 15h3v1h-3zM12 15h2v1h-2zM16 15h5v1h-5zM24 15h1v1h-1zM3 16h6v1h-6zM10 16h2v1h-2zM15 16h10v1h-10zM8 17h2v1h-2zM12 17h2v1h-2zM16 17h1v1h-1zM20 17h1v1h-1zM22 17h1v1h-1zM24 17h1v1h-1zM0 18h7v1h-7zM8 18h1v1h-1zM11 18h2v1h-2zM16 18h1v1h-1zM18 18h1v1h-1zM20 18h1v1h-1zM22 18h3v1h-3zM0 19h1v1h-1zM6 19h1v1h-1zM8 19h2v1h-2zM12 19h1v1h-1zM16 19h1v1h-1zM20 19h1v1h-1zM23 19h1v1h-1zM0 20h1v1h-1zM2 20h3v1h-3zM6 20h1v1h-1zM9 20h1v1h-1zM11 20h3v1h-3zM16 20h6v1h-6zM0 21h1v1h-1zM2 21h3v1h-3zM6 21h1v1h-1zM8 21h3v1h-3zM12 21h4v1h-4zM17 21h2v1h-2zM20 21h5v1h-5zM0 22h1v1h-1zM2 22h3v1h-3zM6 22h1v1h-1zM8 22h2v1h-2zM11 22h3v1h-3zM15 22h1v1h-1zM17 22h2v1h-2zM20 22h1v1h-1zM22 22h2v1h-2zM0 23h1v1h-1zM6 23h1v1h-1zM9 23h1v1h-1zM17 23h2v1h-2zM20 23h1v1h-1zM22 23h1v1h-1zM0 24h7v1h-7zM8 24h3v1h-3zM12 24h1v1h-1zM14 24h1v1h-1zM19 24h6v1h-6z"
+                  />
+                </svg>
+              </span>
+              <span class="share-side">
+                <span class="share-pill">found.as/you</span>
+                <small>One link + a QR — card, poster, signature.</small>
+              </span>
+            </div>
+          </div>
           <p>
-            Themes, an accent color, your photo, button icons. Shared anywhere,
-            your page brings its own preview card, made automatically.
-          </p>
-        </div>
-        <div class="feature">
-          <span class="feature-icon" aria-hidden="true">💳</span>
-          <h3>A real business card</h3>
-          <p>
-            A QR for your link, and one that saves your contact to a phone with
-            no internet — plus printable cards, a poster, and an email
-            signature.
-          </p>
-        </div>
-        <div class="feature">
-          <span class="feature-icon" aria-hidden="true">🌐</span>
-          <h3>Bring your own domain</h3>
-          <p>
-            Point <strong>yourname.com</strong> at your page: one DNS record for
-            a subdomain, two for a bare domain. We handle the padlock — still
-            free.
-          </p>
-        </div>
-        <div class="feature">
-          <span class="feature-icon" aria-hidden="true">✨</span>
-          <h3>More than a bio link</h3>
-          <p>
-            Send visitors to another site, publish a short write-up, or hand out
-            a file. There if you need it, easy to ignore if you don't.
-          </p>
-        </div>
-        <div class="feature">
-          <span class="feature-icon" aria-hidden="true">🛡️</span>
-          <h3>Nothing changes behind your back</h3>
-          <p>
-            Your page updates only when you publish. Take your time — visitors
-            keep seeing the last version until you're ready.
+            A link and a QR that saves your contact even with no internet.
           </p>
         </div>
       </div>
+      <p class="included">
+        <strong>Everything's included:</strong> themes, your photo and colors,
+        an auto-made social preview card, a vCard QR that works offline,
+        printable cards and a poster, an email signature, redirects, short
+        write-ups, and file drops.
+      </p>
 
-      <h2 class="section-h">Why <span class="grad">found.as</span>?</h2>
-      <ul class="why">
+      <h2 class="section-h">No <span class="grad">catch</span></h2>
+      <p class="section-sub">
+        What most link pages do quietly, we don't.
+      </p>
+      <ul class="nolist">
         <li>
-          <strong>No account.</strong> An address and a password — no email, no
-          signup.
+          <strong>No account.</strong> Just an address and a password — no
+          email, no signup.
         </li>
         <li>
-          <strong>No tracking.</strong> No cookies, analytics, or ads besides
-          examples on this page — for you or your visitors.
+          <strong>No tracking.</strong> No cookies, analytics, or ads — for you
+          or your visitors.
         </li>
         <li>
-          <strong>Fast &amp; free.</strong> A plain page with zero scripts;
-          every feature included, no paid tier.
+          <strong>No lock-in.</strong> Bring your own domain and export any
+          time. We handle the padlock.
         </li>
         <li>
-          <strong>Built on web standards.</strong> A valid
+          <strong>No paid tier.</strong> Every feature included, free forever —
+          <a href="https://found.as/donations">donations</a> keep it running.
+        </li>
+        <li>
+          <strong>No black box.</strong> Built on web standards: a valid
           <a
             href="https://microformats.org/wiki/h-card"
             target="_blank"
             rel="noopener"
             >h-card</a
-          >
-          apps can read, links that prove they're yours (Mastodon's green
-          check), and
+          >, links that prove they're yours (Mastodon's green check), and
           <a
             href="https://indieweb.org/IndieAuth"
             target="_blank"
             rel="noopener"
             >IndieAuth</a
           >
-          sign-in built in.
+          sign-in.
+        </li>
+        <li>
+          <strong>No surprises.</strong> Your page changes only when you
+          publish — visitors keep the last version until you're ready.
         </li>
       </ul>
 
-      <footer class="site-footer">
-        Provided by
-        <a href="https://xmit.dev" target="_blank" rel="noopener">xmit</a>.
-        found.as is free for everyone —
-        <a href="https://found.as/donations">donations</a> keep it running.
-      </footer>
+      <section class="cta-band">
+        <h2>Grab your <span class="grad">found.as</span>.</h2>
+        <a class="button" href="https://be.found.as"
+          >Make yours — it's free <span class="arr">→</span></a
+        >
+        <span class="sub">No account. No app. About a minute.</span>
+      </section>
     </main>
   </body>
 </html>

@@ -25,8 +25,12 @@
           buildInputs = with pkgs; [
             nodejs
             pnpm
+            resvg
+            inter
             xmit.packages.${system}.default
           ];
+          # Deterministic font for the og:image rasterizer (publish.mjs).
+          INTER_FONT = "${pkgs.inter}/share/fonts/truetype/InterVariable.ttf";
         };
       }
     );

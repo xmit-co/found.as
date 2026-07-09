@@ -1,0 +1,68 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="630" viewBox="0 0 1200 630" font-family="Inter Variable">
+  <defs>
+    <linearGradient id="grad" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#007f73"/>
+      <stop offset="0.45" stop-color="#0a9d8f"/>
+      <stop offset="1" stop-color="#1aa34a"/>
+    </linearGradient>
+    <radialGradient id="glow" cx="50%" cy="0%" r="85%">
+      <stop offset="0" stop-color="#0a9d8f" stop-opacity="0.14"/>
+      <stop offset="0.7" stop-color="#fbfbf8" stop-opacity="0"/>
+    </radialGradient>
+    <filter id="shadow" x="-40%" y="-40%" width="180%" height="180%">
+      <feDropShadow dx="0" dy="24" stdDeviation="30" flood-color="#141614" flood-opacity="0.16"/>
+    </filter>
+  </defs>
+
+  <!-- Canvas -->
+  <rect width="1200" height="630" fill="#fbfbf8"/>
+  <rect width="1200" height="630" fill="url(#glow)"/>
+
+  <!-- Left column -->
+  <text x="80" y="150" font-size="21" font-weight="800" letter-spacing="3.4" fill="#007f73">CONTACT PAGE · DIGITAL BUSINESS CARD</text>
+
+  <text x="78" y="272" font-size="118" font-weight="850" letter-spacing="-4" fill="url(#grad)">found.as</text>
+
+  <text x="80" y="350" font-size="34" font-weight="800" fill="#181818">No account. No app. No tracking.</text>
+  <text x="80" y="396" font-size="34" font-weight="800" fill="url(#grad)">Just your page.</text>
+
+  <!-- URL pill -->
+  <rect x="80" y="438" width="268" height="64" rx="32" fill="url(#grad)"/>
+  <text x="214" y="480" font-size="27" font-weight="750" fill="#ffffff" text-anchor="middle">found.as/you</text>
+
+  <!-- Trust line -->
+  <text x="80" y="566" font-size="22" font-weight="650" fill="#6a736b">EU-hosted&#160;&#160;·&#160;&#160;Renewable energy&#160;&#160;·&#160;&#160;Free forever</text>
+
+  <!-- Right: phone mock -->
+  <g filter="url(#shadow)">
+    <rect x="822" y="86" width="300" height="470" rx="46" fill="#ffffff" stroke="#e2e6e0" stroke-width="1.5"/>
+  </g>
+  <rect x="842" y="106" width="260" height="430" rx="30" fill="#fbfbf8"/>
+
+  <!-- avatar + name -->
+  <circle cx="972" cy="182" r="44" fill="url(#grad)"/>
+  <rect x="902" y="246" width="140" height="18" rx="9" fill="#1a1c1a"/>
+  <rect x="927" y="278" width="90" height="12" rx="6" fill="#586059" opacity="0.55"/>
+
+  <!-- buttons -->
+  <g>
+    <rect x="864" y="322" width="216" height="46" rx="13" fill="url(#grad)"/>
+    <circle cx="890" cy="345" r="9" fill="#ffffff" opacity="0.9"/>
+    <rect x="912" y="339" width="120" height="12" rx="6" fill="#ffffff" opacity="0.9"/>
+  </g>
+  <g>
+    <rect x="864" y="380" width="216" height="46" rx="13" fill="#ffffff" stroke="#e2e6e0" stroke-width="1.5"/>
+    <circle cx="890" cy="403" r="9" fill="#007f73" opacity="0.85"/>
+    <rect x="912" y="397" width="132" height="12" rx="6" fill="#586059" opacity="0.7"/>
+  </g>
+  <g>
+    <rect x="864" y="438" width="216" height="46" rx="13" fill="#ffffff" stroke="#e2e6e0" stroke-width="1.5"/>
+    <circle cx="890" cy="461" r="9" fill="#0a9d8f" opacity="0.85"/>
+    <rect x="912" y="455" width="104" height="12" rx="6" fill="#586059" opacity="0.7"/>
+  </g>
+  <g>
+    <rect x="864" y="496" width="216" height="46" rx="13" fill="#ffffff" stroke="#e2e6e0" stroke-width="1.5"/>
+    <circle cx="890" cy="519" r="9" fill="#1aa34a" opacity="0.85"/>
+    <rect x="912" y="513" width="120" height="12" rx="6" fill="#586059" opacity="0.7"/>
+  </g>
+</svg>
