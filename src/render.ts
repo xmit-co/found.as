@@ -221,6 +221,20 @@ export function linkTreeToHtml(
       .join(" ");
     return `${rel ? ` rel="${rel}"` : ""}${blank ? ' target="_blank"' : ""}`;
   };
+  // Microformats2 property so the page parses as an h-card: email/phone become
+  // u-email/u-tel, and the owner's own identity links become u-url.
+  const linkMf2 = (link: NormalizedLink) => {
+    if (/^mailto:/i.test(link.href)) return " u-email";
+    if (/^tel:/i.test(link.href)) return " u-tel";
+    if (
+      identityKinds.has(link.item.kind) &&
+      link.item.relMe !== false &&
+      /^https?:/i.test(link.href)
+    ) {
+      return " u-url";
+    }
+    return "";
+  };
   const linkInner = (link: NormalizedLink) => {
     const badge = link.item.badge?.trim();
     const desc = link.item.desc?.trim();
@@ -648,13 +662,14 @@ p.link-text {
 ${btnFx}</style>
 </head>
 <body>
-<main>
+<main class="h-card">
   ${cover ? `<div class="cover"${coverIsTitle ? "" : ' aria-hidden="true"'}><img src="${escapeHtml(cover)}" alt="${coverIsTitle ? escapeHtml(safeName) : ""}"/></div>` : ""}
   <section class="profile" aria-labelledby="profile-title">
-    ${avatar ? `<div class="avatar" aria-hidden="true"><img src="${escapeHtml(avatar)}" alt=""/></div>` : ""}
-    <h1 id="profile-title">${escapeHtml(safeName)}</h1>
+    ${avatar ? `<div class="avatar" aria-hidden="true"><img class="u-photo" src="${escapeHtml(avatar)}" alt=""/></div>` : ""}
+    <h1 id="profile-title" class="p-name">${escapeHtml(safeName)}</h1>
     ${status ? `<p class="status">${escapeHtml(status)}</p>` : ""}
-    ${safeBio ? `<p>${escapeHtml(safeBio)}</p>` : ""}
+    ${safeBio ? `<p class="p-note">${escapeHtml(safeBio)}</p>` : ""}
+    <a class="u-url u-uid" href="${escapeHtml(url)}" hidden></a>
   </section>
   ${
     vcard
@@ -667,7 +682,7 @@ ${btnFx}</style>
     ${[
       ...(featured
         ? [
-            `<a class="contact-link featured" href="${escapeHtml(featured.href)}"${linkRelAttr(featured)}>${linkInner(featured)}</a>`,
+            `<a class="contact-link featured${linkMf2(featured)}" href="${escapeHtml(featured.href)}"${linkRelAttr(featured)}>${linkInner(featured)}</a>`,
           ]
         : []),
       ...entries.map((entry) =>
@@ -679,7 +694,7 @@ ${btnFx}</style>
               : `<p class="link-text">${escapeHtml(entry.text)}</p>`
             : entry.kind === "video"
               ? videoEmbedFrame(entry.src)
-              : `<a class="contact-link" href="${escapeHtml(entry.link.href)}"${linkRelAttr(entry.link)}>${linkInner(entry.link)}</a>`,
+              : `<a class="contact-link${linkMf2(entry.link)}" href="${escapeHtml(entry.link.href)}"${linkRelAttr(entry.link)}>${linkInner(entry.link)}</a>`,
       ),
     ].join("\n    ")}
   </nav>`
