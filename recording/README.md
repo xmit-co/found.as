@@ -6,7 +6,7 @@ Two 9:16 cuts, both exported as 1080×1920 H.264.
 
 The primary Instagram cut is a self-contained animation. It opens on the
 finished product and the landing-page promise, then moves through five beats:
-privacy → no account → links → sharing → no cookie banner, followed by a
+privacy → no account → links → no cookie banner → sharing, followed by a
 direct end-card CTA. EU hosting and renewable energy appear as supporting proof.
 
 ```sh

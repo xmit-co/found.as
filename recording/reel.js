@@ -15,8 +15,8 @@
       key: "privacy",
       start: 0,
       end: 2500,
-      kicker: "NO COOKIES · NO ANALYTICS · NO ADS",
-      headline: "Private by<br><em>default.</em>",
+      kicker: "NO COOKIES · NO TRACKING · NO ADS",
+      headline: "Make your own<br><em>page?</em>",
     },
     {
       key: "no-account",
@@ -33,18 +33,18 @@
       headline: "Your links.<br><em>One address.</em>",
     },
     {
-      key: "share",
+      key: "no-banner",
       start: 8800,
       end: 11800,
-      kicker: "ONE LINK + A QR",
-      headline: "Ready to<br><em>share.</em>",
-    },
-    {
-      key: "no-banner",
-      start: 11800,
-      end: 14900,
       kicker: "NO COOKIE BANNER",
       headline: "Nothing to<br><em>consent to.</em>",
+    },
+    {
+      key: "share",
+      start: 11800,
+      end: 14900,
+      kicker: "ONE LINK + A QR",
+      headline: "Ready to<br><em>share.</em>",
     },
   ];
 

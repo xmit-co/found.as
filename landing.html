@@ -304,38 +304,33 @@
       }
       .phone {
         position: relative;
-        z-index: 2;
         padding: 0.75rem;
         border-radius: 2.375rem;
         border: 1px solid var(--border);
         background: linear-gradient(165deg, var(--panel), var(--bg));
-        box-shadow: 0 34px 70px var(--shadow);
         transition:
           transform 0.45s cubic-bezier(0.2, 0.7, 0.2, 1),
           box-shadow 0.45s ease,
           filter 0.45s ease;
-      }
-      .phone-hono {
-        position: absolute;
-        inset: 0;
-      }
-      #demo-ada:checked ~ .stack .phone-hono,
-      #demo-hono:checked ~ .stack .phone-ada {
-        z-index: 1;
-        transform: translate(-14px, 20px) rotate(-3.5deg) scale(0.96);
+        /* Back of the stack by default; the checked phone's rule below
+           brings it forward. --fan is -1 (fan left) or 1 (fan right). */
+        z-index: var(--back-z, 1);
+        transform: translate(calc(var(--fan, -1) * 0.875rem), 1.25rem)
+          rotate(calc(var(--fan, -1) * 3.5deg)) scale(0.96);
         filter: brightness(0.96) saturate(0.9);
         box-shadow: 0 22px 50px var(--shadow);
       }
-      @media (min-width: 760px) {
-        #demo-ada:checked ~ .stack .phone-ada,
-        #demo-hono:checked ~ .stack .phone-hono {
-          transform: rotate(2.2deg);
-        }
-        #demo-ada:checked ~ .stack .phone-ada:hover,
-        #demo-hono:checked ~ .stack .phone-hono:hover {
-          transform: rotate(0deg) translateY(-4px);
-          box-shadow: 0 44px 90px var(--shadow);
-        }
+      .phone-hono,
+      .phone-clem {
+        position: absolute;
+        inset: 0;
+      }
+      /* clem fans right behind the others; when clem is up front, hono
+         takes the right slot instead. */
+      .phone-clem,
+      #demo-clem:checked ~ .stack .phone-hono {
+        --fan: 1;
+        --back-z: 0;
       }
       .bring-front {
         position: absolute;
@@ -343,11 +338,27 @@
         z-index: 5;
         border-radius: 2.375rem;
         cursor: pointer;
-        display: none;
       }
-      #demo-ada:checked ~ .stack .phone-hono .bring-front,
-      #demo-hono:checked ~ .stack .phone-ada .bring-front {
-        display: block;
+      /* The selected phone comes to the front. */
+      #demo-ada:checked ~ .stack .phone-ada,
+      #demo-hono:checked ~ .stack .phone-hono,
+      #demo-clem:checked ~ .stack .phone-clem {
+        z-index: 2;
+        transform: none;
+        filter: none;
+        box-shadow: 0 34px 70px var(--shadow);
+        & .bring-front {
+          display: none;
+        }
+        @media (min-width: 760px) {
+          & {
+            transform: rotate(2.2deg);
+          }
+          &:hover {
+            transform: rotate(0deg) translateY(-4px);
+            box-shadow: 0 44px 90px var(--shadow);
+          }
+        }
       }
       .screen {
         position: relative;
@@ -431,20 +442,25 @@
         text-decoration: underline;
       }
       .preview-caption label {
-        display: none;
         color: var(--muted);
         cursor: pointer;
       }
       .preview-caption label:hover {
         color: var(--accent);
       }
-      #demo-ada:checked ~ .preview-caption .cap-hono a,
-      #demo-hono:checked ~ .preview-caption .cap-ada a {
+      /* Unselected captions are switch labels; the selected one links out. */
+      .preview-caption a {
         display: none;
       }
-      #demo-ada:checked ~ .preview-caption .cap-hono label,
-      #demo-hono:checked ~ .preview-caption .cap-ada label {
-        display: inline;
+      #demo-ada:checked ~ .preview-caption .cap-ada,
+      #demo-hono:checked ~ .preview-caption .cap-hono,
+      #demo-clem:checked ~ .preview-caption .cap-clem {
+        & a {
+          display: inline;
+        }
+        & label {
+          display: none;
+        }
       }
 
       /* Section heading */
@@ -759,6 +775,12 @@
             id="demo-hono"
             aria-label="Show the hono.coffee example"
           />
+          <input
+            type="radio"
+            name="demo"
+            id="demo-clem"
+            aria-label="Show the found.as/clem example"
+          />
           <div class="stack">
             <div class="phone phone-ada">
               <label
@@ -808,6 +830,30 @@
                 ></iframe>
               </div>
             </div>
+            <div class="phone phone-clem">
+              <label
+                class="bring-front"
+                for="demo-clem"
+                title="Show found.as/clem"
+                aria-label="Show found.as/clem"
+              ></label>
+              <div class="screen">
+                <div class="skeleton" aria-hidden="true">
+                  <div class="sk-avatar"></div>
+                  <div class="sk-line" style="width: 55%"></div>
+                  <div class="sk-line" style="width: 38%"></div>
+                  <div class="sk-btn"></div>
+                  <div class="sk-btn"></div>
+                  <div class="sk-btn"></div>
+                </div>
+                <iframe
+                  class="preview-frame"
+                  src="https://found.as/clem"
+                  title="Clem's found.as page"
+                  loading="lazy"
+                ></iframe>
+              </div>
+            </div>
           </div>
           <p class="preview-caption">
             <span class="muted">Live examples:</span>
@@ -822,6 +868,13 @@
               <label for="demo-hono">hono.coffee</label>
               <a href="https://hono.coffee" target="_blank" rel="noopener"
                 >hono.coffee ↗</a
+              >
+            </span>
+            <span class="sep">·</span>
+            <span class="cap cap-clem">
+              <label for="demo-clem">found.as/clem</label>
+              <a href="https://found.as/clem" target="_blank" rel="noopener"
+                >found.as/clem ↗</a
               >
             </span>
           </p>
