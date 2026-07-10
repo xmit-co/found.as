@@ -863,7 +863,6 @@ body { margin: 0; font-family: ui-sans-serif, system-ui, sans-serif; color: #181
 .poster-avatar { width: 30mm; height: 30mm; border-radius: 50%; object-fit: cover; margin-bottom: 2mm; }
 .poster-name { margin: 0; font-size: 24pt; font-weight: 800; }
 .poster-bio { margin: 0; max-width: 120mm; color: #595959; font-size: 12pt; white-space: pre-line; }
-.poster-cta { margin: 8mm 0 1mm; color: ${accent}; font-size: 10pt; font-weight: 800; letter-spacing: 0.14em; text-transform: uppercase; }
 .poster-url { margin: 0; font-size: 13pt; font-weight: 700; color: ${accent}; }
 @media print { .toolbar { display: none; } .sheet { padding: 0; } }
 </style>
@@ -881,7 +880,6 @@ ${Array.from({ length: 8 }, () => card).join("\n")}
 ${avatar ? `<img class="poster-avatar" src="${escapeHtml(avatar)}" alt=""/>` : ""}
 <h1 class="poster-name">${escapeHtml(name)}</h1>
 ${bio ? `<p class="poster-bio">${escapeHtml(bio)}</p>` : ""}
-<p class="poster-cta">Scan to reach me</p>
 ${posterQr}
 <p class="poster-url">${escapeHtml(display)}</p>
 </section>
