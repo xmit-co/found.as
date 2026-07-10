@@ -8,7 +8,11 @@
     "build": "tsc && vite build",
     "preview": "vite preview",
     "deploy": "npm run build && xmit be.found.as",
-    "publish:landing": "node publish.mjs"
+    "publish:landing": "node publish.mjs",
+    "record": "node recording/record.mjs",
+    "record:live": "node recording/record-live.mjs",
+    "record:vo": "node recording/vo.mjs",
+    "record:vo:polished": "node recording/vo-polished.mjs"
   },
   "dependencies": {
     "@preact/signals": "^1.3.4",
@@ -23,6 +27,7 @@
     "@preact/preset-vite": "^2.10.5",
     "@vitejs/plugin-basic-ssl": "^1.2.0",
     "prettier": "^3.9.4",
+    "puppeteer-core": "^25.3.0",
     "typescript": "^5.9.3",
     "vite": "^5.4.21"
   }

@@ -1,0 +1,279 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <title>found.as reel</title>
+    <style>
+      /* 1080×1920 stage — the recorder captures this exactly. Every visual is a
+         pure function of time via window.__renderAt(ms), so each grabbed frame
+         is deterministic (no wall-clock CSS animations). */
+      :root {
+        --a: #007f73; /* accent, animated */
+        --grad: linear-gradient(115deg, #007f73 0%, #0a9d8f 45%, #1aa34a 100%);
+        --f: ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+        --serif: ui-serif, "Iowan Old Style", Georgia, serif;
+      }
+      * { box-sizing: border-box; margin: 0; }
+      html, body {
+        width: 1080px; height: 1920px; overflow: hidden;
+        background: #f7f6f1;
+        background-image: radial-gradient(rgba(0,127,115,0.06) 2px, transparent 2px);
+        background-size: 34px 34px; background-position: -17px -17px;
+        font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+      }
+      #stage { position: relative; width: 1080px; height: 1920px; }
+      #glow {
+        position: absolute; inset: 0 0 auto 0; height: 900px;
+        background: radial-gradient(60% 55% at 50% 0%, rgba(26,163,74,0.18), transparent 70%);
+        pointer-events: none;
+      }
+
+      /* Phone */
+      #phone {
+        position: absolute; left: 50%; top: 250px; width: 600px; height: 1180px;
+        transform: translateX(-50%);
+        transform-origin: 50% 42%;
+        border-radius: 74px; padding: 22px;
+        background: linear-gradient(165deg, #ffffff, #f4f3ee);
+        border: 1.5px solid #e2e6e0;
+        box-shadow: 0 60px 120px rgba(20,22,20,0.18);
+      }
+      #screen {
+        width: 100%; height: 100%; border-radius: 54px; overflow: hidden;
+        background: #fbfbf8; position: relative;
+        display: flex; flex-direction: column; align-items: center;
+        padding: 54px 40px;
+        font-family: var(--f);
+      }
+      #url {
+        font-size: 26px; font-weight: 750; letter-spacing: -0.01em;
+        color: #1a1c1a; margin-bottom: 30px; min-height: 32px;
+      }
+      #url .host { color: #7a827a; }
+      #url .caret { display:inline-block; width:2px; height:0.95em; background: var(--a); vertical-align:-2px; }
+      #avatar {
+        width: 168px; height: 168px; border-radius: 50%;
+        background: var(--grad);
+        display: grid; place-items: center; font-size: 78px; color: #fff;
+        box-shadow: 0 12px 30px rgba(0,127,115,0.25);
+      }
+      #name { font-size: 44px; font-weight: 820; letter-spacing: -0.02em; color: #17181a; margin-top: 26px; }
+      #bio { font-size: 24px; color: #5c6560; margin-top: 8px; }
+      #buttons { width: 100%; margin-top: 34px; display: flex; flex-direction: column; gap: 18px; }
+      .btn {
+        display: flex; align-items: center; gap: 16px;
+        padding: 22px 26px; border-radius: 20px;
+        font-size: 27px; font-weight: 680; color: #1a1c1a;
+        background: #fff; border: 1.5px solid #e6e8e2;
+      }
+      .btn .i { font-size: 30px; line-height: 1; }
+      .btn.f { background: var(--a); color: #fff; border-color: transparent; }
+      .btn.f .i { filter: grayscale(1) brightness(3); }
+
+      /* QR sheet */
+      #qr {
+        position: absolute; left: 50%; top: 620px; transform: translateX(-50%);
+        width: 640px; padding: 44px; border-radius: 40px;
+        background: #fff; box-shadow: 0 40px 90px rgba(20,22,20,0.22);
+        display: flex; flex-direction: column; align-items: center; gap: 20px;
+      }
+      #qr svg { width: 320px; height: 320px; color: #141614; }
+      #qr .pill {
+        font-size: 30px; font-weight: 750; color: #fff; background: var(--grad);
+        padding: 12px 26px; border-radius: 999px;
+      }
+
+      /* Caption (burned-in, lower third, sound-off) */
+      #cap {
+        position: absolute; left: 90px; right: 90px; top: 1520px;
+        text-align: center; font-size: 58px; font-weight: 850;
+        letter-spacing: -0.02em; line-height: 1.1; color: #17181a;
+      }
+      #cap b { color: var(--a); }
+
+      /* End card */
+      #end {
+        position: absolute; inset: 0; background: #0d0f0e; color: #eef2ec;
+        display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 26px;
+        background-image: radial-gradient(70% 45% at 50% 34%, rgba(26,163,74,0.25), transparent 70%);
+      }
+      #end .wm { font-size: 116px; font-weight: 860; letter-spacing: -0.03em; }
+      #end .grad, #name.grad, #url.grad {
+        background: var(--grad); -webkit-background-clip: text; background-clip: text;
+        color: transparent; -webkit-text-fill-color: transparent;
+      }
+      #end .cta { font-size: 40px; color: #b6beb6; }
+      #end .chips { display: flex; gap: 16px; margin-top: 10px; }
+      #end .chips span { font-size: 26px; font-weight: 640; color: #cfd6cf; border: 1.5px solid #2a302c; border-radius: 999px; padding: 12px 24px; }
+    </style>
+    <link rel="stylesheet" href="./reel.css" />
+  </head>
+  <body>
+    <div id="stage">
+      <div id="backdrop" aria-hidden="true">
+        <span class="stripe mint"></span>
+        <span class="stripe coral"></span>
+      </div>
+      <div id="glow"></div>
+      <div id="mast">
+        <div class="brand">found.as</div>
+        <div class="promise">PRIVATE BY DEFAULT</div>
+      </div>
+      <div id="message">
+        <div id="kicker">NO COOKIES · NO ANALYTICS · NO ADS</div>
+        <div id="headline">Private by<br /><em>default.</em></div>
+      </div>
+      <div id="phone">
+        <div id="screen">
+          <div id="url"></div>
+          <div id="avatar"><img src="./ada.png" alt="" /></div>
+          <div id="name">Ada Lovelace</div>
+          <div id="bio">Mathematician · first computer programmer</div>
+          <div id="buttons">
+            <div class="btn f" data-i="0"><span class="i">IG</span> Instagram</div>
+            <div class="btn" data-i="1"><span class="i">WA</span> WhatsApp</div>
+            <div class="btn" data-i="2"><span class="i">@</span> Email</div>
+            <div class="btn" data-i="3"><span class="i">↗</span> ada.dev</div>
+          </div>
+        </div>
+      </div>
+
+      <div id="design" aria-hidden="true">
+        <div class="design-chip eu-chip"><span>EU</span> EU-hosted</div>
+        <div class="design-chip energy-chip"><span>100%</span> Renewable energy</div>
+      </div>
+
+      <div id="qr">
+        <div class="done">
+          <span class="check">✓</span>
+          <span><strong>You're live.</strong><small>found.as/ada</small></span>
+        </div>
+        <svg viewBox="-2 -2 29 29" fill="currentColor" shape-rendering="crispEdges" aria-hidden="true">
+          <path d="M0 0h7v1h-7zM8 0h1v1h-1zM10 0h1v1h-1zM12 0h1v1h-1zM15 0h2v1h-2zM18 0h7v1h-7zM0 1h1v1h-1zM6 1h1v1h-1zM8 1h1v1h-1zM10 1h1v1h-1zM12 1h1v1h-1zM14 1h2v1h-2zM18 1h1v1h-1zM24 1h1v1h-1zM0 2h1v1h-1zM2 2h3v1h-3zM6 2h1v1h-1zM13 2h3v1h-3zM18 2h1v1h-1zM20 2h3v1h-3zM24 2h1v1h-1zM0 3h1v1h-1zM2 3h3v1h-3zM6 3h1v1h-1zM8 3h1v1h-1zM11 3h2v1h-2zM18 3h1v1h-1zM20 3h3v1h-3zM24 3h1v1h-1zM0 4h1v1h-1zM2 4h3v1h-3zM6 4h1v1h-1zM9 4h1v1h-1zM11 4h1v1h-1zM13 4h1v1h-1zM18 4h1v1h-1zM20 4h3v1h-3zM24 4h1v1h-1zM0 5h1v1h-1zM6 5h1v1h-1zM9 5h1v1h-1zM12 5h1v1h-1zM14 5h1v1h-1zM18 5h1v1h-1zM24 5h1v1h-1zM0 6h7v1h-7zM8 6h1v1h-1zM10 6h1v1h-1zM12 6h1v1h-1zM14 6h1v1h-1zM16 6h1v1h-1zM18 6h7v1h-7zM8 7h8v1h-8zM0 8h1v1h-1zM2 8h2v1h-2zM5 8h3v1h-3zM10 8h1v1h-1zM12 8h3v1h-3zM18 8h1v1h-1zM21 8h1v1h-1zM23 8h2v1h-2zM1 9h3v1h-3zM5 9h1v1h-1zM7 9h2v1h-2zM10 9h1v1h-1zM16 9h1v1h-1zM19 9h1v1h-1zM23 9h1v1h-1zM0 10h3v1h-3zM6 10h2v1h-2zM10 10h1v1h-1zM12 10h1v1h-1zM14 10h1v1h-1zM16 10h1v1h-1zM18 10h1v1h-1zM1 11h3v1h-3zM7 11h2v1h-2zM13 11h2v1h-2zM16 11h3v1h-3zM21 11h2v1h-2zM1 12h1v1h-1zM3 12h2v1h-2zM6 12h4v1h-4zM15 12h1v1h-1zM17 12h2v1h-2zM20 12h1v1h-1zM22 12h3v1h-3zM1 13h2v1h-2zM4 13h1v1h-1zM7 13h1v1h-1zM11 13h1v1h-1zM13 13h1v1h-1zM15 13h2v1h-2zM18 13h3v1h-3zM24 13h1v1h-1zM1 14h1v1h-1zM3 14h1v1h-1zM6 14h5v1h-5zM12 14h1v1h-1zM14 14h1v1h-1zM16 14h2v1h-2zM20 14h1v1h-1zM22 14h2v1h-2zM0 15h1v1h-1zM7 15h3v1h-3zM12 15h2v1h-2zM16 15h5v1h-5zM24 15h1v1h-1zM3 16h6v1h-6zM10 16h2v1h-2zM15 16h10v1h-10zM8 17h2v1h-2zM12 17h2v1h-2zM16 17h1v1h-1zM20 17h1v1h-1zM22 17h1v1h-1zM24 17h1v1h-1zM0 18h7v1h-7zM8 18h1v1h-1zM11 18h2v1h-2zM16 18h1v1h-1zM18 18h1v1h-1zM20 18h1v1h-1zM22 18h3v1h-3zM0 19h1v1h-1zM6 19h1v1h-1zM8 19h2v1h-2zM12 19h1v1h-1zM16 19h1v1h-1zM20 19h1v1h-1zM23 19h1v1h-1zM0 20h1v1h-1zM2 20h3v1h-3zM6 20h1v1h-1zM9 20h1v1h-1zM11 20h3v1h-3zM16 20h6v1h-6zM0 21h1v1h-1zM2 21h3v1h-3zM6 21h1v1h-1zM8 21h3v1h-3zM12 21h4v1h-4zM17 21h2v1h-2zM20 21h5v1h-5zM0 22h1v1h-1zM2 22h3v1h-3zM6 22h1v1h-1zM8 22h2v1h-2zM11 22h3v1h-3zM15 22h1v1h-1zM17 22h2v1h-2zM20 22h1v1h-1zM22 22h2v1h-2zM0 23h1v1h-1zM6 23h1v1h-1zM9 23h1v1h-1zM17 23h2v1h-2zM20 23h1v1h-1zM22 23h1v1h-1zM0 24h7v1h-7zM8 24h3v1h-3zM12 24h1v1h-1zM14 24h1v1h-1zM19 24h6v1h-6z" />
+        </svg>
+        <span class="pill">One link + a QR</span>
+      </div>
+
+      <div id="cap"></div>
+
+      <div id="end">
+        <div class="end-kicker">100% FREE · PRIVATE BY DEFAULT</div>
+        <div class="wm"><span class="wave">👋</span> found.as</div>
+        <div class="end-headline">Just your<br /><span>page.</span></div>
+        <div class="cta">Make yours — 100% free <b>→</b></div>
+        <div class="trust"><span>No tracking</span><i>·</i><span>EU-hosted</span><i>·</i><span>Renewable energy</span></div>
+      </div>
+      <div id="progress"><span></span></div>
+    </div>
+
+    <script type="text/plain" id="legacy-reel-script">
+      const DUR = 24000;
+      window.__duration = DUR;
+
+      const $ = (s) => document.querySelector(s);
+      const clamp = (x, a, b) => Math.max(a, Math.min(b, x));
+      const seg = (t, s, e) => clamp((t - s) / (e - s), 0, 1);
+      const easeOut = (p) => 1 - Math.pow(1 - p, 3);
+      const easeInOut = (p) => (p < 0.5 ? 4 * p * p * p : 1 - Math.pow(-2 * p + 2, 3) / 2);
+      const lerp = (a, b, p) => a + (b - a) * p;
+      const hex = (h) => [1, 3, 5].map((i) => parseInt(h.slice(i, i + 2), 16));
+      const mix = (c1, c2, p) => {
+        const a = hex(c1), b = hex(c2);
+        return `rgb(${a.map((v, i) => Math.round(lerp(v, b[i], p))).join(",")})`;
+      };
+
+      const URL_TEXT = "ada";
+      const CAPS = [
+        { s: 0, e: 2500, h: "A contact page.<br><b>One minute.</b> No account." },
+        { s: 2500, e: 5000, h: "Pick your <b>address</b>." },
+        { s: 5000, e: 10000, h: "Paste links → <b>buttons</b>." },
+        { s: 10000, e: 14000, h: "Make it yours — <b>even the font</b>." },
+        { s: 14000, e: 16000, h: "Done." },
+        { s: 16000, e: 20000, h: "One link. <b>One QR.</b>" },
+      ];
+
+      function renderAt(t) {
+        t = clamp(t, 0, DUR);
+        const root = document.documentElement.style;
+
+        // Phone fades/scales in during the hook, holds, pushes in on the reveal,
+        // then leaves for the end card.
+        const inP = easeOut(seg(t, 200, 1200));
+        const push = easeInOut(seg(t, 14000, 16000)) * 0.05;
+        const outP = easeInOut(seg(t, 19700, 20300));
+        $("#phone").style.opacity = (inP * (1 - outP)).toFixed(3);
+        $("#phone").style.transform =
+          `translateX(-50%) scale(${(0.96 + inP * 0.04 + push).toFixed(4)})`;
+
+        // URL types in.
+        const typed = Math.floor(easeOut(seg(t, 2500, 4000)) * URL_TEXT.length);
+        const showCaret = t > 2400 && t < 5200;
+        $("#url").innerHTML =
+          t < 2300
+            ? ""
+            : `<span class="host">found.as/</span>${URL_TEXT.slice(0, typed)}` +
+              (showCaret ? '<span class="caret"></span>' : "");
+
+        // Links pop in, staggered.
+        document.querySelectorAll(".btn").forEach((el) => {
+          const i = +el.dataset.i;
+          const p = easeOut(seg(t, 5000 + i * 1050, 5600 + i * 1050));
+          el.style.opacity = p.toFixed(3);
+          el.style.transform = `translateY(${lerp(16, 0, p)}px) scale(${lerp(0.94, 1, p)})`;
+        });
+
+        // Identity fades/rises in.
+        const idP = easeOut(seg(t, 10000, 11400));
+        for (const sel of ["#avatar", "#name", "#bio"]) {
+          $(sel).style.opacity = idP.toFixed(3);
+          $(sel).style.transform = `translateY(${lerp(14, 0, idP)}px)`;
+        }
+
+        // Accent sweep (teal → cyan → back) then settle; font swaps to serif.
+        const sweep = seg(t, 11000, 13200);
+        const accent =
+          sweep < 0.5 ? mix("#007f73", "#0a9bb0", sweep * 2) : mix("#0a9bb0", "#007f73", (sweep - 0.5) * 2);
+        root.setProperty("--a", accent);
+        const serif = t >= 12200;
+        root.setProperty(
+          "--f",
+          serif ? "var(--serif)" : "ui-sans-serif, system-ui, -apple-system, \"Segoe UI\", sans-serif",
+        );
+
+        // QR sheet slides up and holds, then leaves.
+        const qrIn = easeOut(seg(t, 16000, 16700));
+        const qrOut = easeInOut(seg(t, 19600, 20100));
+        const qr = qrIn * (1 - qrOut);
+        $("#qr").style.opacity = qr.toFixed(3);
+        $("#qr").style.transform = `translateX(-50%) translateY(${lerp(60, 0, qr)}px)`;
+
+        // Caption for the current beat, fading in at each cut.
+        const c = CAPS.find((c) => t >= c.s && t < c.e);
+        if (c) {
+          $("#cap").innerHTML = c.h;
+          $("#cap").style.opacity = easeOut(seg(t, c.s, c.s + 280)).toFixed(3);
+        } else {
+          $("#cap").style.opacity = "0";
+        }
+
+        // End card.
+        $("#end").style.opacity = easeInOut(seg(t, 20000, 20500)).toFixed(3);
+      }
+      window.__renderAt = renderAt;
+
+      // Frame mode: reel.html#t=1234 renders that instant (for stills). Otherwise
+      // it auto-plays for previewing in a normal browser.
+      const m = location.hash.match(/t=(\d+)/);
+      if (m) {
+        renderAt(+m[1]);
+      } else {
+        const t0 = performance.now();
+        (function loop(now) {
+          window.__renderAt((now - t0) % window.__duration);
+          requestAnimationFrame(loop);
+        })(t0);
+      }
+    </script>
+    <script src="./reel.js"></script>
+  </body>
+</html>

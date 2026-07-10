@@ -57,7 +57,7 @@ export function signatureHtml(tree: LinkTree, url: string): string {
     ? `<div style="font-weight:bold;font-size:14px;line-height:1.4;color:#181818;">${escapeHtml(name)}</div>`
     : "";
   const bioLine = bio
-    ? `<div style="font-size:12px;line-height:1.4;color:#595959;">${escapeHtml(bio)}</div>`
+    ? `<div style="font-size:12px;line-height:1.4;color:#595959;">${escapeHtml(bio).replace(/\n/g, "<br/>")}</div>`
     : "";
   return `<table cellpadding="0" cellspacing="0" border="0" style="border-collapse:collapse;font-family:Helvetica,Arial,sans-serif;"><tr>${avatarCell}<td style="vertical-align:top;">${nameLine}${bioLine}<div style="font-size:12px;line-height:1.6;"><a href="${safeUrl}" target="_blank" rel="noreferrer" style="color:#007f73;font-weight:bold;text-decoration:underline;">${safeUrl}</a></div></td></tr></table>`;
 }
@@ -162,8 +162,10 @@ export function linkTreeToHtml(
   const safeBio = tree.bio.trim();
   const avatar = avatarImageSrc(tree.avatarUrl);
   const metaTitle = tree.social?.title?.trim() || safeName;
-  const metaDescription =
-    tree.social?.description?.trim() || safeBio || `${safeName} on found.as`;
+  // Meta text is single-line: a multi-line bio collapses to spaces here.
+  const metaDescription = (
+    tree.social?.description?.trim() || safeBio || `${safeName} on found.as`
+  ).replace(/\s+/g, " ");
   const ogImage = generatedOgUrl;
   const featured = featuredLink(tree);
   const entries = linkTreeListedEntries(tree);
@@ -480,6 +482,10 @@ p {
   color: var(--text);
   font-size: 1rem;
   line-height: 1.5;
+}
+/* The bio keeps its authored line breaks. */
+.p-note {
+  white-space: pre-line;
 }
 nav {
   display: grid;
@@ -849,14 +855,14 @@ body { margin: 0; font-family: ui-sans-serif, system-ui, sans-serif; color: #181
 .card svg { flex: none; }
 .card-text { flex: 1; min-width: 0; }
 .card-name { margin: 0; font-size: 12pt; font-weight: 800; line-height: 1.25; }
-.card-bio { margin: 1mm 0 0; color: #595959; font-size: 8pt; line-height: 1.4; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+.card-bio { margin: 1mm 0 0; color: #595959; font-size: 8pt; line-height: 1.4; white-space: pre-line; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
 .card-contacts { margin: 1.5mm 0 0; display: grid; gap: 0.3mm; }
 .card-contact { margin: 0; font-size: 8.5pt; color: #333333; line-height: 1.3; overflow-wrap: anywhere; }
 .card-url { margin: 1.5mm 0 0; color: ${accent}; font-size: 9pt; font-weight: 700; overflow-wrap: anywhere; }
 .poster { break-before: page; min-height: 250mm; display: grid; place-content: center; justify-items: center; gap: 5mm; text-align: center; padding: 14mm 10mm; }
 .poster-avatar { width: 30mm; height: 30mm; border-radius: 50%; object-fit: cover; margin-bottom: 2mm; }
 .poster-name { margin: 0; font-size: 24pt; font-weight: 800; }
-.poster-bio { margin: 0; max-width: 120mm; color: #595959; font-size: 12pt; }
+.poster-bio { margin: 0; max-width: 120mm; color: #595959; font-size: 12pt; white-space: pre-line; }
 .poster-cta { margin: 8mm 0 1mm; color: ${accent}; font-size: 10pt; font-weight: 800; letter-spacing: 0.14em; text-transform: uppercase; }
 .poster-url { margin: 0; font-size: 13pt; font-weight: 700; color: ${accent}; }
 @media print { .toolbar { display: none; } .sheet { padding: 0; } }

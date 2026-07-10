@@ -1,4 +1,11 @@
+/.env.local
 /.direnv/
 /ad-*
 /dist/
 node_modules/
+/recording/frames/
+/recording/*.mp4
+/recording/*.webm
+/recording/*.aiff
+/recording/*.wav
+/recording/beats.json

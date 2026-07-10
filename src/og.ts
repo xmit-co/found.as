@@ -276,7 +276,16 @@ export async function renderOgImage(
   if (bio) {
     ctx.font = font(500, 34);
     ctx.fillStyle = colors.muted;
-    const lines = wrapCanvasText(ctx, bio, 980, 2);
+    // Authored line breaks are forced breaks; the card still caps at 2 lines.
+    let lines = bio
+      .split(/\n+/)
+      .map((seg) => seg.trim())
+      .filter(Boolean)
+      .flatMap((seg) => wrapCanvasText(ctx, seg, 980, 2));
+    if (lines.length > 2) {
+      lines = lines.slice(0, 2);
+      lines[1] += "…";
+    }
     lines.forEach((line, i) => ctx.fillText(line, 600, bioY + i * 46));
   }
 

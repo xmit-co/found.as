@@ -27,9 +27,11 @@
             pnpm
             resvg
             inter
+            ffmpeg
             xmit.packages.${system}.default
           ];
-          # Deterministic font for the og:image rasterizer (publish.mjs).
+          # Deterministic font for the og:image rasterizer (publish.mjs). Any
+          # other family is fetched on demand from cc.me/fonts rather than baked.
           INTER_FONT = "${pkgs.inter}/share/fonts/truetype/InterVariable.ttf";
         };
       }
