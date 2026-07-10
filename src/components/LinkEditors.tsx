@@ -1776,7 +1776,20 @@ export function LinkTreeEditor({
                 />
                 <span className="sr-only">Show a "Save contact" button</span>
               </label>
-              <span className="vcard-button-preview">Save contact</span>
+              <input
+                type="text"
+                className="vcard-button-preview"
+                aria-label="Save contact button label"
+                maxLength={40}
+                value={tree.vcardLabel ?? ""}
+                placeholder="Save contact"
+                onInput={(e) =>
+                  updateTree({
+                    ...tree,
+                    vcardLabel: (e.target as HTMLInputElement).value,
+                  })
+                }
+              />
             </div>
             {tree.showVcard !== false && !vcardEligible(tree) && (
               <p className="help vcard-inplace-help">

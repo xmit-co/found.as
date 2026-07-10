@@ -148,6 +148,7 @@ export function ensureLinkTree(tree: LinkTree | undefined): LinkTree {
       imageDark: current.social?.imageDark ?? false,
     },
     showVcard: current.showVcard ?? true,
+    vcardLabel: current.vcardLabel ?? "",
     links: current.links ?? [],
   };
 }

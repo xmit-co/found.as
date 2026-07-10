@@ -687,7 +687,7 @@ ${btnFx}</style>
   </section>
   ${
     vcard
-      ? `<a class="vcard-button" href="${escapeHtml(vcardHref)}" download="${escapeHtml(vcardFileName(tree.displayName))}">Save contact</a>`
+      ? `<a class="vcard-button" href="${escapeHtml(vcardHref)}" download="${escapeHtml(vcardFileName(tree.displayName))}">${escapeHtml(tree.vcardLabel?.trim() || "Save contact")}</a>`
       : ""
   }
   ${
@@ -842,8 +842,8 @@ export function printablesHtml(
 /* margin: 0 also removes the browser's default page headers and footers;
    the sheet carries its own padding so content clears printer margins. */
 @page { margin: 0; }
-* { box-sizing: border-box; }
-body { margin: 0; font-family: ui-sans-serif, system-ui, sans-serif; color: #181818; background: #ffffff; }
+${tree.loadedFont ? `${fontFaceCss(tree.loadedFont)}\n` : ""}* { box-sizing: border-box; }
+body { margin: 0; font-family: ${fontStack(tree)}; color: #181818; background: #ffffff; }
 .toolbar { display: flex; align-items: center; justify-content: center; gap: 16px; padding: 12px 16px; border-bottom: 1px solid #d7d7d0; background: #f6f6f2; }
 .toolbar p { margin: 0; color: #595959; }
 .toolbar button { min-height: 40px; padding: 8px 20px; border: 0; border-radius: 8px; background: ${accent}; color: #ffffff; font-weight: 700; font-size: 1rem; cursor: pointer; }

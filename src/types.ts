@@ -155,6 +155,8 @@ export interface LinkTree {
   favicon?: string;
   social?: SocialPreview;
   showVcard?: boolean;
+  // Custom label for the vCard download button; blank means "Save contact".
+  vcardLabel?: string;
   links: LinkItem[];
 }
 

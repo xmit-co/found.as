@@ -1585,6 +1585,15 @@ h2 {
   color: var(--pv-accent, #007f73);
   font-weight: 650;
   text-align: center;
+  /* Editable in place: the label input mirrors the published button. */
+  width: 100%;
+  background: transparent;
+  font-size: 1rem;
+}
+
+.vcard-button-preview::placeholder {
+  color: var(--pv-accent, #007f73);
+  opacity: 0.7;
 }
 
 .vcard-inplace.is-off .vcard-button-preview {
