@@ -320,12 +320,11 @@
         filter: brightness(0.96) saturate(0.9);
         box-shadow: 0 22px 50px var(--shadow);
       }
-      .phone-hono,
       .phone-clem {
         position: absolute;
         inset: 0;
       }
-      /* clem fans right behind the others; when clem is up front, hono
+      /* clem fans right behind hono; when clem is up front, hono
          takes the right slot instead. */
       .phone-clem,
       #demo-clem:checked ~ .stack .phone-hono {
@@ -340,7 +339,6 @@
         cursor: pointer;
       }
       /* The selected phone comes to the front. */
-      #demo-ada:checked ~ .stack .phone-ada,
       #demo-hono:checked ~ .stack .phone-hono,
       #demo-clem:checked ~ .stack .phone-clem {
         z-index: 2;
@@ -452,7 +450,6 @@
       .preview-caption a {
         display: none;
       }
-      #demo-ada:checked ~ .preview-caption .cap-ada,
       #demo-hono:checked ~ .preview-caption .cap-hono,
       #demo-clem:checked ~ .preview-caption .cap-clem {
         & a {
@@ -765,15 +762,9 @@
           <input
             type="radio"
             name="demo"
-            id="demo-ada"
-            aria-label="Show the found.as/ada example"
-            checked
-          />
-          <input
-            type="radio"
-            name="demo"
             id="demo-hono"
             aria-label="Show the hono.coffee example"
+            checked
           />
           <input
             type="radio"
@@ -782,30 +773,6 @@
             aria-label="Show the found.as/clem example"
           />
           <div class="stack">
-            <div class="phone phone-ada">
-              <label
-                class="bring-front"
-                for="demo-ada"
-                title="Show found.as/ada"
-                aria-label="Show found.as/ada"
-              ></label>
-              <div class="screen">
-                <div class="skeleton" aria-hidden="true">
-                  <div class="sk-avatar"></div>
-                  <div class="sk-line" style="width: 55%"></div>
-                  <div class="sk-line" style="width: 38%"></div>
-                  <div class="sk-btn"></div>
-                  <div class="sk-btn"></div>
-                  <div class="sk-btn"></div>
-                </div>
-                <iframe
-                  class="preview-frame"
-                  src="https://found.as/ada"
-                  title="Ada Lovelace's found.as page"
-                  loading="lazy"
-                ></iframe>
-              </div>
-            </div>
             <div class="phone phone-hono">
               <label
                 class="bring-front"
@@ -857,13 +824,6 @@
           </div>
           <p class="preview-caption">
             <span class="muted">Live examples:</span>
-            <span class="cap cap-ada">
-              <label for="demo-ada">found.as/ada</label>
-              <a href="https://found.as/ada" target="_blank" rel="noopener"
-                >found.as/ada ↗</a
-              >
-            </span>
-            <span class="sep">·</span>
             <span class="cap cap-hono">
               <label for="demo-hono">hono.coffee</label>
               <a href="https://hono.coffee" target="_blank" rel="noopener"
