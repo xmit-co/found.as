@@ -24,6 +24,7 @@ import {
   clampZoom,
   cornerRadius,
   fontFaceCss,
+  fontFileUrl,
   fontStack,
   linkIconEmoji,
   linkIconSrc,
@@ -164,7 +165,9 @@ export function linkTreeToHtml(
   const metaTitle = tree.social?.title?.trim() || safeName;
   // Meta text is single-line: a multi-line bio collapses to spaces here.
   const metaDescription = (
-    tree.social?.description?.trim() || safeBio || `${safeName} on found.as`
+    tree.social?.description?.trim() ||
+    safeBio ||
+    `${safeName} on found.as`
   ).replace(/\s+/g, " ");
   const ogImage = generatedOgUrl;
   const featured = featuredLink(tree);
@@ -331,12 +334,18 @@ a.contact-link.featured {
       )}"/>\n`
     : "";
   // cc.me/fonts serves the raw .ttf per face; @font-face (regular/bold/italic/
-  // bold-italic) streams them in behind the fallback, lazily per face.
+  // bold-italic) streams them in behind the fallback, lazily per face. The
+  // regular face carries the body text, so it's preloaded to shrink the swap
+  // window; the metric-matched fallback (fontFaceCss) absorbs the swap itself.
   const lf = tree.loadedFont;
-  const fontLink = lf
-    ? `<link rel="preconnect" href="https://cc.me" crossorigin/>\n`
-    : "";
-  const fontFace = lf ? `${fontFaceCss(lf)}\n` : "";
+  const regularFace = lf
+    ? (lf.faces.find((f) => !f.italic) ?? lf.faces[0])
+    : undefined;
+  const fontLink =
+    lf && regularFace
+      ? `<link rel="preload" href="${fontFileUrl(lf.slug, regularFace.file)}" as="font" type="font/ttf" crossorigin/>\n`
+      : "";
+  const fontFace = lf ? `${fontFaceCss(lf, tree.font)}\n` : "";
   const htmlClass = `${themeClass} btn-${buttons}${cover ? " has-cover" : ""}${coverIsTitle ? " cover-title" : ""}`;
 
   return `<!DOCTYPE html>
@@ -842,7 +851,7 @@ export function printablesHtml(
 /* margin: 0 also removes the browser's default page headers and footers;
    the sheet carries its own padding so content clears printer margins. */
 @page { margin: 0; }
-${tree.loadedFont ? `${fontFaceCss(tree.loadedFont)}\n` : ""}* { box-sizing: border-box; }
+${tree.loadedFont ? `${fontFaceCss(tree.loadedFont, tree.font)}\n` : ""}* { box-sizing: border-box; }
 body { margin: 0; font-family: ${fontStack(tree)}; color: #181818; background: #ffffff; }
 .toolbar { display: flex; align-items: center; justify-content: center; gap: 16px; padding: 12px 16px; border-bottom: 1px solid #d7d7d0; background: #f6f6f2; }
 .toolbar p { margin: 0; color: #595959; }

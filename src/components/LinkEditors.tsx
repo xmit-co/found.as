@@ -43,6 +43,7 @@ import {
   pageBackground,
   sanitizeObjectPosition,
 } from "../theme";
+import { measureLoadedFont } from "../fontmetrics";
 import {
   AvatarShape,
   Background,
@@ -150,7 +151,10 @@ function FontPicker({
           (f) => f.name.toLowerCase() === q.toLowerCase(),
         );
         const loaded = exact && facesFor(exact);
-        if (loaded && value?.slug !== loaded.slug) onChange(loaded);
+        // Measuring fetches the regular .ttf the preview needs anyway; the
+        // metrics it yields make the published fallback shift-free.
+        if (loaded && value?.slug !== loaded.slug)
+          onChange(await measureLoadedFont(loaded));
       } catch {
         // Offline or blocked — the field still works, just without suggestions.
       }
@@ -1373,22 +1377,38 @@ export function LinkTreeEditor({
   // Load the chosen web font into the editor document so the live WYSIWYG shows
   // it — same @font-face rules the published page emits, from the cc.me .ttfs.
   const lf = tree.loadedFont;
-  const fontKey = lf ? `${lf.slug}:${lf.faces.map((f) => f.file).join(",")}` : "";
+  const fontCss = lf ? fontFaceCss(lf, tree.font) : "";
   useEffect(() => {
     const existing = document.getElementById(
       "cc-loaded-font",
     ) as HTMLStyleElement | null;
-    if (!lf) {
+    if (!fontCss) {
       existing?.remove();
       return;
     }
-    const css = fontFaceCss(lf);
     const style = existing ?? document.createElement("style");
     style.id = "cc-loaded-font";
-    if (style.textContent !== css) style.textContent = css;
+    if (style.textContent !== fontCss) style.textContent = fontCss;
     if (!existing) document.head.appendChild(style);
+  }, [fontCss]);
+
+  // Pages saved before font metrics existed lack them; measure once so the
+  // next save publishes the metric-matched, shift-free fallback. The ref keeps
+  // the async update from clobbering edits made while the .ttf downloads.
+  const treeRef = useRef(tree);
+  treeRef.current = tree;
+  useEffect(() => {
+    if (!lf || lf.metrics) return;
+    let stale = false;
+    measureLoadedFont(lf).then((measured) => {
+      if (!stale && measured.metrics)
+        updateTree({ ...treeRef.current, loadedFont: measured });
+    });
+    return () => {
+      stale = true;
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [fontKey]);
+  }, [lf?.slug, lf?.metrics]);
 
   // "Preview fallback" drops the loaded font from the preview only (never from
   // what's published), so the fallback family is visible on its own.
@@ -2084,7 +2104,11 @@ export function LinkTreeEditor({
             </div>
             <p className="field-hint">
               Any family from the{" "}
-              <a href="https://fonts.google.com/" target="_blank" rel="noopener">
+              <a
+                href="https://fonts.google.com/"
+                target="_blank"
+                rel="noopener"
+              >
                 Google Fonts catalog ↗
               </a>
               . Google is never involved.

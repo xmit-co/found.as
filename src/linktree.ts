@@ -7,6 +7,7 @@ import {
   clampLighten,
   clampShade,
   clampZoom,
+  normalizeFontMetrics,
 } from "./theme";
 import {
   LinkItem,
@@ -119,6 +120,7 @@ export function ensureLinkTree(tree: LinkTree | undefined): LinkTree {
             name: current.loadedFont.name.trim(),
             slug: current.loadedFont.slug.trim(),
             variable: Boolean(current.loadedFont.variable),
+            metrics: normalizeFontMetrics(current.loadedFont.metrics),
             faces: current.loadedFont.faces
               .filter((f) => f?.file?.trim())
               .map((f) => ({

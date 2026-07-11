@@ -87,6 +87,17 @@ export interface LoadedFontFace {
   weight: number;
 }
 
+// Vertical metrics of the regular face in font units (head.unitsPerEm plus
+// hhea ascender/descender/lineGap), measured in the editor when the font is
+// picked. They parameterize a metric-matched local fallback face so the page
+// doesn't shift when the real font swaps in.
+export interface LoadedFontMetrics {
+  upm: number;
+  ascent: number;
+  descent: number;
+  lineGap: number;
+}
+
 // A web font picked from cc.me/fonts. `faces` carries regular/bold/italic/
 // bold-italic as available so bold and markdown italics render for real rather
 // than faux-synthesized; unused faces are declared but never fetched. Variable
@@ -96,6 +107,7 @@ export interface LoadedFont {
   slug: string;
   variable: boolean;
   faces: LoadedFontFace[];
+  metrics?: LoadedFontMetrics;
 }
 export type ButtonStyle = "soft" | "outline" | "filled";
 export type Corners = "rounded" | "sharp" | "pill";
