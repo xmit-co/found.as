@@ -1,4 +1,5 @@
 import { accentPair } from "./color";
+import { t } from "./i18n";
 import {
   avatarImageSrc,
   clampBtnAlpha,
@@ -210,7 +211,7 @@ export function normalizePhone(
   const cleaned = value.trim().replace(/[^\d+]/g, "");
   const digits = cleaned.replace(/\D/g, "");
   if (!digits) {
-    return { href: "", error: "Enter a phone number." };
+    return { href: "", error: t("Enter a phone number.") };
   }
   return {
     href: `tel:${cleaned}`,
@@ -225,7 +226,7 @@ export function normalizeWhatsApp(
 ): Omit<NormalizedLink, "item" | "label"> {
   const digits = value.trim().replace(/\D/g, "");
   if (!digits) {
-    return { href: "", error: "Enter a WhatsApp phone number." };
+    return { href: "", error: t("Enter a WhatsApp phone number.") };
   }
   return {
     href: `https://wa.me/${digits}`,
@@ -240,10 +241,10 @@ export function normalizeEmail(
 ): Omit<NormalizedLink, "item" | "label"> {
   const address = value.trim().replace(/^mailto:/i, "");
   if (!address) {
-    return { href: "", error: "Enter an email address." };
+    return { href: "", error: t("Enter an email address.") };
   }
   if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(address)) {
-    return { href: "", error: "Enter a valid email address." };
+    return { href: "", error: t("Enter a valid email address.") };
   }
   return { href: `mailto:${encodeURI(address)}` };
 }
@@ -256,13 +257,13 @@ export function normalizeInstagram(
     /^https?:\/\/(www\.)?instagram\.com\/?$/i.test(trimmed) ||
     trimmed === "@"
   ) {
-    return { href: "", error: "Finish the Instagram link or username." };
+    return { href: "", error: t("Finish the Instagram link or username.") };
   }
   const username =
     valueFromKnownHost(value, ["instagram.com"]) ??
     normalizeSocialUsername(value);
   if (!username) {
-    return { href: "", error: "Enter an Instagram username or link." };
+    return { href: "", error: t("Enter an Instagram username or link.") };
   }
   return { href: `https://www.instagram.com/${encodeURIComponent(username)}` };
 }
@@ -274,18 +275,24 @@ export function normalizeUsernameUrl(
 ): Omit<NormalizedLink, "item" | "label"> {
   const trimmed = value.trim();
   if (!trimmed || trimmed === baseUrl) {
-    return { href: "", error: `Enter a ${service} username or link.` };
+    return {
+      href: "",
+      error: t("Enter a {service} username or link.", { service }),
+    };
   }
   if (trimmed.includes(".") || trimmed.includes("://")) {
     const normalized = normalizeUrl(trimmed);
     if (!URL.canParse(normalized)) {
-      return { href: "", error: `Enter a valid ${service} link.` };
+      return {
+        href: "",
+        error: t("Enter a valid {service} link.", { service }),
+      };
     }
     return { href: normalized };
   }
   const username = normalizeSocialUsername(trimmed);
   if (!username) {
-    return { href: "", error: `Enter a ${service} username.` };
+    return { href: "", error: t("Enter a {service} username.", { service }) };
   }
   return { href: `${baseUrl}${encodeURIComponent(username)}` };
 }
@@ -295,17 +302,17 @@ export function normalizeBluesky(
 ): Omit<NormalizedLink, "item" | "label"> {
   const trimmed = value.trim();
   if (!trimmed || trimmed === "https://bsky.app/profile/") {
-    return { href: "", error: "Enter a Bluesky handle or link." };
+    return { href: "", error: t("Enter a Bluesky handle or link.") };
   }
   if (trimmed.includes("://")) {
     const normalized = normalizeUrl(trimmed);
     return URL.canParse(normalized)
       ? { href: normalized }
-      : { href: "", error: "Enter a valid Bluesky link." };
+      : { href: "", error: t("Enter a valid Bluesky link.") };
   }
   const handle = trimmed.replace(/^@+/, "");
   if (!handle) {
-    return { href: "", error: "Enter a Bluesky handle." };
+    return { href: "", error: t("Enter a Bluesky handle.") };
   }
   return { href: `https://bsky.app/profile/${encodeURIComponent(handle)}` };
 }
@@ -315,13 +322,13 @@ export function normalizeMastodon(
 ): Omit<NormalizedLink, "item" | "label"> {
   const trimmed = value.trim();
   if (!trimmed) {
-    return { href: "", error: "Enter a Mastodon address or link." };
+    return { href: "", error: t("Enter a Mastodon address or link.") };
   }
   if (trimmed.includes("://")) {
     const normalized = normalizeUrl(trimmed);
     return URL.canParse(normalized)
       ? { href: normalized }
-      : { href: "", error: "Enter a valid Mastodon link." };
+      : { href: "", error: t("Enter a valid Mastodon link.") };
   }
   const [user, host] = trimmed.replace(/^@+/, "").split("@");
   if (user && host) {
@@ -329,7 +336,7 @@ export function normalizeMastodon(
   }
   return {
     href: "",
-    error: "Use @you@server, or paste your profile link.",
+    error: t("Use @you@server, or paste your profile link."),
   };
 }
 
@@ -338,13 +345,13 @@ export function normalizeMatrix(
 ): Omit<NormalizedLink, "item" | "label"> {
   const trimmed = value.trim();
   if (!trimmed) {
-    return { href: "", error: "Enter a Matrix ID or link." };
+    return { href: "", error: t("Enter a Matrix ID or link.") };
   }
   if (trimmed.includes("://")) {
     const normalized = normalizeUrl(trimmed);
     return URL.canParse(normalized)
       ? { href: normalized }
-      : { href: "", error: "Enter a valid Matrix link." };
+      : { href: "", error: t("Enter a valid Matrix link.") };
   }
   const id = trimmed.replace(/^@+/, "");
   if (id.includes(":")) {
@@ -352,7 +359,7 @@ export function normalizeMatrix(
   }
   return {
     href: "",
-    error: "Use @you:server.org, or paste a matrix.to link.",
+    error: t("Use @you:server.org, or paste a matrix.to link."),
   };
 }
 
@@ -361,18 +368,18 @@ export function normalizeSubstack(
 ): Omit<NormalizedLink, "item" | "label"> {
   const trimmed = value.trim();
   if (!trimmed) {
-    return { href: "", error: "Enter a Substack name or link." };
+    return { href: "", error: t("Enter a Substack name or link.") };
   }
   if (trimmed.includes(".") || trimmed.includes("://")) {
     const normalized = normalizeUrl(trimmed);
     if (!URL.canParse(normalized)) {
-      return { href: "", error: "Enter a valid Substack link." };
+      return { href: "", error: t("Enter a valid Substack link.") };
     }
     return { href: normalized };
   }
   const name = normalizeSocialUsername(trimmed);
   if (!name || !/^[a-z0-9-]+$/i.test(name)) {
-    return { href: "", error: "Enter a Substack name or link." };
+    return { href: "", error: t("Enter a Substack name or link.") };
   }
   return { href: `https://${name.toLowerCase()}.substack.com` };
 }
@@ -382,18 +389,18 @@ export function normalizeCashApp(
 ): Omit<NormalizedLink, "item" | "label"> {
   const trimmed = value.trim();
   if (!trimmed || trimmed === "https://cash.app/$") {
-    return { href: "", error: "Enter a Cash App cashtag or link." };
+    return { href: "", error: t("Enter a Cash App cashtag or link.") };
   }
   if (trimmed.includes(".") || trimmed.includes("://")) {
     const normalized = normalizeUrl(trimmed);
     if (!URL.canParse(normalized)) {
-      return { href: "", error: "Enter a valid Cash App link." };
+      return { href: "", error: t("Enter a valid Cash App link.") };
     }
     return { href: normalized };
   }
   const tag = trimmed.replace(/^\$+/, "");
   if (!tag) {
-    return { href: "", error: "Enter a Cash App cashtag." };
+    return { href: "", error: t("Enter a Cash App cashtag.") };
   }
   return { href: `https://cash.app/$${encodeURIComponent(tag)}` };
 }
@@ -403,12 +410,12 @@ export function normalizeMap(
 ): Omit<NormalizedLink, "item" | "label"> {
   const trimmed = value.trim();
   if (!trimmed) {
-    return { href: "", error: "Enter an address or map link." };
+    return { href: "", error: t("Enter an address or map link.") };
   }
   if (trimmed.includes("://")) {
     const normalized = normalizeUrl(trimmed);
     if (!URL.canParse(normalized)) {
-      return { href: "", error: "Enter a valid map link." };
+      return { href: "", error: t("Enter a valid map link.") };
     }
     return { href: normalized };
   }
@@ -422,11 +429,11 @@ export function normalizeGoogleReview(
 ): Omit<NormalizedLink, "item" | "label"> {
   const trimmed = value.trim();
   if (!trimmed) {
-    return { href: "", error: "Paste your Google review link." };
+    return { href: "", error: t("Paste your Google review link.") };
   }
   const normalized = normalizeUrl(trimmed);
   if (!normalized || !URL.canParse(normalized)) {
-    return { href: "", error: "Paste a valid Google review link." };
+    return { href: "", error: t("Paste a valid Google review link.") };
   }
   return { href: normalized };
 }
@@ -442,14 +449,23 @@ export function normalizeGenericLink(
     unfinished &&
     trimmed.replace(/\/$/, "") === unfinished.replace(/\/$/, "")
   ) {
-    return { href: "", error: `Finish the ${label.toLowerCase()} link.` };
+    return {
+      href: "",
+      error: t("Finish the {label} link.", { label: label.toLowerCase() }),
+    };
   }
   const normalized = normalizeUrl(value);
   if (!normalized) {
-    return { href: "", error: `Enter a ${label.toLowerCase()} link.` };
+    return {
+      href: "",
+      error: t("Enter a {label} link.", { label: label.toLowerCase() }),
+    };
   }
   if (!URL.canParse(normalized)) {
-    return { href: "", error: `Enter a valid ${label.toLowerCase()} link.` };
+    return {
+      href: "",
+      error: t("Enter a valid {label} link.", { label: label.toLowerCase() }),
+    };
   }
   return { href: normalized };
 }
@@ -563,7 +579,7 @@ export function normalizeLink(item: LinkItem): NormalizedLink {
           item,
           label,
           href: "",
-          error: "Enter a YouTube, Vimeo, or PeerTube link.",
+          error: t("Enter a YouTube, Vimeo, or PeerTube link."),
         };
   }
   if (isBlock(item)) {
@@ -580,7 +596,7 @@ export function normalizeLink(item: LinkItem): NormalizedLink {
       item,
       label,
       href: "",
-      error: `Enter an https:// ${label} link.`,
+      error: t("Enter an https:// {label} link.", { label }),
     };
   }
   return { item, label, ...normalized };

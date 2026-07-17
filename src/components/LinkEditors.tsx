@@ -8,6 +8,7 @@ import {
   compressOgImage,
   importLinkIcon,
 } from "../image";
+import { t, tx } from "../i18n";
 import {
   activeValidLinks,
   canFeature,
@@ -165,12 +166,12 @@ function FontPicker({
 
   return (
     <label className="font-inline font-loaded">
-      <span className="field-label">Font</span>
+      <span className="field-label">{t("Font")}</span>
       <input
         type="text"
         className="font-name"
         list="cc-fonts"
-        placeholder="Search fonts…"
+        placeholder={t("Search fonts…")}
         value={query}
         onInput={(e) => setQuery((e.target as HTMLInputElement).value)}
       />
@@ -207,14 +208,16 @@ export function PageEditor({
       <label className="field stack">
         <span className="sr-only">
           {priv.value.type === Type.HTML_PAGE
-            ? "HTML content"
-            : "Markdown content"}
+            ? t("HTML content")
+            : t("Markdown content")}
         </span>
         <textarea
           placeholder={
             priv.value.type === Type.HTML_PAGE
-              ? "Start writing HTML"
-              : "Start writing GitHub-flavored markdown.\n\nOptional front matter:\n---\ntitle: Page title\n---"
+              ? t("Start writing HTML")
+              : t(
+                  "Start writing GitHub-flavored markdown.\n\nOptional front matter:\n---\ntitle: Page title\n---",
+                )
           }
           className="code"
           value={
@@ -237,7 +240,7 @@ export function PageEditor({
       </label>
       <iframe
         className="preview"
-        title="Page preview"
+        title={t("Page preview")}
         ref={ifref}
         onLoad={() => setIframeReady(true)}
         srcdoc={previewBootstrap}
@@ -257,7 +260,7 @@ export function RedirectEditor({ priv }: { priv: Signal<Private> }) {
   return (
     <section className="panel-section">
       <label className="field stack">
-        <span>Redirect destination</span>
+        <span>{t("Redirect destination")}</span>
         <input
           type="url"
           value={priv.value.redir}
@@ -272,7 +275,7 @@ export function RedirectEditor({ priv }: { priv: Signal<Private> }) {
         />
       </label>
       <p id="redirect-help" className={valid ? "help" : "help error-text"}>
-        {valid ? normalizedUrl : "Enter a valid web address."}
+        {valid ? normalizedUrl : t("Enter a valid web address.")}
       </p>
     </section>
   );
@@ -290,7 +293,7 @@ export function FileEditor({
   return (
     <section className="panel-section">
       <label className="field stack">
-        <span>File to publish</span>
+        <span>{t("File to publish")}</span>
         <input
           type="file"
           aria-describedby="file-help"
@@ -302,7 +305,7 @@ export function FileEditor({
               return;
             }
             if (selected.size > 5 * 1024 * 1024) {
-              onError("That file is over 5MB. Choose a smaller file.");
+              onError(t("That file is over 5MB. Choose a smaller file."));
               target.value = target.defaultValue;
               setFile(undefined);
               return;
@@ -313,8 +316,8 @@ export function FileEditor({
       </label>
       <p id="file-help" className="help">
         {file
-          ? `${file.name} is ready to publish.`
-          : "Choose a file under 5MB."}
+          ? t("{name} is ready to publish.", { name: file.name })
+          : t("Choose a file under 5MB.")}
       </p>
     </section>
   );
@@ -386,7 +389,7 @@ export function EditableLink({
   const fieldId = `link-${link.id}`;
   const detailId = `${fieldId}-detail`;
   const valueLabel = linkValueLabel(link.kind);
-  const label = link.label.trim() || kindLabels[link.kind];
+  const label = link.label.trim() || t(kindLabels[link.kind]);
   const optionalIncomplete = Boolean(
     normalized.error && isDefaultLinkValue(link),
   );
@@ -408,7 +411,7 @@ export function EditableLink({
     importLinkIcon(iconImportUrl)
       .then((icon) => {
         setIcon(link.id, icon);
-        setIconStatus("Icon saved into your page.");
+        setIconStatus(t("Icon saved into your page."));
       })
       .catch((error) => {
         onError((error as Error).message);
@@ -450,12 +453,12 @@ export function EditableLink({
       }}
     >
       <div className="editable-link-row">
-        <span className="reorder" title="Drag to reorder">
+        <span className="reorder" title={t("Drag to reorder")}>
           <span className="drag-grip" aria-hidden="true"></span>
           <button
             type="button"
             className="reorder-button"
-            aria-label={`Move ${label} up`}
+            aria-label={t("Move {label} up", { label })}
             disabled={index === 0}
             onClick={() => moveBy(link.id, -1)}
           >
@@ -464,7 +467,7 @@ export function EditableLink({
           <button
             type="button"
             className="reorder-button"
-            aria-label={`Move ${label} down`}
+            aria-label={t("Move {label} down", { label })}
             disabled={index === total - 1}
             onClick={() => moveBy(link.id, 1)}
           >
@@ -510,7 +513,7 @@ export function EditableLink({
                 dangerouslySetInnerHTML={{ __html: videoEmbedFrame(videoSrc) }}
               />
             ) : (
-              <span className="video-placeholder">▶ Add a video</span>
+              <span className="video-placeholder">{t("▶ Add a video")}</span>
             )}
           </div>
         ) : (
@@ -530,7 +533,8 @@ export function EditableLink({
             ) : null}
             {featuredShown && (
               <span className="featured-tag">
-                <span aria-hidden="true">★ </span>Featured
+                <span aria-hidden="true">★ </span>
+                {t("Featured")}
               </span>
             )}
             {label}
@@ -545,8 +549,8 @@ export function EditableLink({
         <button
           type="button"
           className="icon-button"
-          aria-label={`Remove ${label}`}
-          title="Remove"
+          aria-label={t("Remove {label}", { label })}
+          title={t("Remove")}
           onClick={removeLink}
         >
           <span aria-hidden="true">×</span>
@@ -558,18 +562,18 @@ export function EditableLink({
           <label className="field stack">
             <span>
               {videoItem
-                ? "Video link"
+                ? t("Video link")
                 : sectionItem
-                  ? "Heading"
+                  ? t("Heading")
                   : textItem
-                    ? "Text"
-                    : "Button text"}
+                    ? t("Text")
+                    : t("Button text")}
             </span>
             {videoItem ? (
               <input
                 type="url"
                 value={link.value}
-                placeholder={kindExamples.video}
+                placeholder={t(kindExamples.video)}
                 aria-describedby={`${detailId}-status`}
                 onInput={(e) =>
                   updateLink({
@@ -582,7 +586,7 @@ export function EditableLink({
               <textarea
                 rows={3}
                 value={link.label}
-                placeholder={kindExamples.text}
+                placeholder={t(kindExamples.text)}
                 onInput={(e) =>
                   updateLink({
                     ...link,
@@ -595,7 +599,9 @@ export function EditableLink({
                 type="text"
                 value={link.label}
                 placeholder={
-                  sectionItem ? kindExamples.section : kindLabels[link.kind]
+                  sectionItem
+                    ? t(kindExamples.section)
+                    : t(kindLabels[link.kind])
                 }
                 aria-describedby={
                   sectionItem ? `${detailId}-status` : undefined
@@ -624,23 +630,25 @@ export function EditableLink({
                     })
                   }
                 />
-                <span>Format the text</span>
+                <span>{t("Format the text")}</span>
               </label>
               <p id={`${detailId}-md`} className="help">
-                Markdown: <strong>**bold**</strong>, <em>*italic*</em>, links,
-                lists and headings.
+                {tx("Markdown: {bold}, {italic}, links, lists and headings.", {
+                  bold: <strong>**bold**</strong>,
+                  italic: <em>*italic*</em>,
+                })}
               </p>
             </div>
           )}
           {!blockItem && (
             <div className="panel-group">
               <label className="field stack">
-                <span>{valueLabel}</span>
+                <span>{t(valueLabel)}</span>
                 <input
                   id={fieldId}
                   type={link.kind === "email" ? "email" : "text"}
                   value={link.value}
-                  placeholder={kindExamples[link.kind]}
+                  placeholder={t(kindExamples[link.kind])}
                   aria-describedby={`${detailId}-status`}
                   onInput={(e) =>
                     updateLink({
@@ -652,7 +660,9 @@ export function EditableLink({
               </label>
               {link.kind === "email" && (
                 <p className="help">
-                  Need a public email address? Create a forwarding alias at{" "}
+                  {t(
+                    "Need a public email address? Create a forwarding alias at",
+                  )}{" "}
                   <a href="https://cc.me/hi" target="_blank" rel="noreferrer">
                     cc.me/hi
                   </a>
@@ -661,8 +671,9 @@ export function EditableLink({
               )}
               {link.kind === "googlereview" && (
                 <p className="help">
-                  In your Google Business Profile, use “Ask for reviews” to copy
-                  your review link — it looks like{" "}
+                  {t(
+                    "In your Google Business Profile, use “Ask for reviews” to copy your review link — it looks like",
+                  )}{" "}
                   <code>g.page/r/…/review</code>.
                 </p>
               )}
@@ -671,12 +682,12 @@ export function EditableLink({
           {!blockItem && (
             <div className="panel-group">
               <label className="field stack">
-                <span>Subtitle</span>
+                <span>{t("Subtitle")}</span>
                 <input
                   type="text"
                   value={link.desc ?? ""}
                   maxLength={80}
-                  placeholder="Optional line under the button"
+                  placeholder={t("Optional line under the button")}
                   onInput={(e) =>
                     updateLink({
                       ...link,
@@ -686,12 +697,12 @@ export function EditableLink({
                 />
               </label>
               <label className="field stack">
-                <span>Badge</span>
+                <span>{t("Badge")}</span>
                 <input
                   type="text"
                   value={link.badge ?? ""}
                   maxLength={16}
-                  placeholder="e.g. New"
+                  placeholder={t("e.g. New")}
                   onInput={(e) =>
                     updateLink({
                       ...link,
@@ -713,7 +724,7 @@ export function EditableLink({
                 })
               }
             />
-            <span>Show on page</span>
+            <span>{t("Show on page")}</span>
           </label>
           {!blockItem && (
             <label className="show-toggle">
@@ -727,7 +738,7 @@ export function EditableLink({
                   })
                 }
               />
-              <span>Include on business cards</span>
+              <span>{t("Include on business cards")}</span>
             </label>
           )}
           {canFeature(link) && (
@@ -740,7 +751,7 @@ export function EditableLink({
                   setFeatured(link.id, (e.target as HTMLInputElement).checked)
                 }
               />
-              <span>Feature this link</span>
+              <span>{t("Feature this link")}</span>
             </label>
           )}
           {identityKinds.has(link.kind) && (
@@ -757,12 +768,12 @@ export function EditableLink({
                     })
                   }
                 />
-                <span>This is really me</span>
+                <span>{t("This is really me")}</span>
               </label>
               <p id={`${detailId}-relme`} className="help">
-                Publishes this link with rel="me", which tells other sites it's
-                yours — Mastodon uses it for its green "verified" check. Untick
-                it if this link isn't your own.
+                {t(
+                  'Publishes this link with rel="me", which tells other sites it\'s yours — Mastodon uses it for its green "verified" check. Untick it if this link isn\'t your own.',
+                )}
               </p>
             </div>
           )}
@@ -777,7 +788,7 @@ export function EditableLink({
                 <input
                   type="text"
                   className="emoji-input"
-                  aria-label="Emoji icon"
+                  aria-label={t("Emoji icon")}
                   value={iconEmoji ?? ""}
                   placeholder={kindDefaultIcons[link.kind] ?? "😀"}
                   onInput={(e) => {
@@ -803,10 +814,10 @@ export function EditableLink({
                     onClick={importIcon}
                   >
                     {importingIcon
-                      ? "Importing…"
+                      ? t("Importing…")
                       : iconSrc
-                        ? "Refresh icon"
-                        : "Import icon"}
+                        ? t("Refresh icon")
+                        : t("Import icon")}
                   </button>
                 )}
                 {(iconSrc || iconEmoji) && (
@@ -818,33 +829,35 @@ export function EditableLink({
                       setIconStatus("");
                     }}
                   >
-                    Remove icon
+                    {t("Remove icon")}
                   </button>
                 )}
               </div>
               <p className="help">
                 {iconStatus ||
                   (iconImportable
-                    ? "Show an icon on this button — type an emoji, or import the site's icon. It's fetched once and saved into your page."
-                    : "Show an icon on this button — type any emoji.")}
+                    ? t(
+                        "Show an icon on this button — type an emoji, or import the site's icon. It's fetched once and saved into your page.",
+                      )
+                    : t("Show an icon on this button — type any emoji."))}
               </p>
             </div>
           )}
           {sectionItem ? (
             <p id={`${detailId}-status`} className="link-status">
               {!link.label.trim()
-                ? "Hidden until it has text."
+                ? t("Hidden until it has text.")
                 : link.enabled
-                  ? "Shown as a heading."
-                  : "Hidden."}
+                  ? t("Shown as a heading.")
+                  : t("Hidden.")}
             </p>
           ) : textItem ? (
             <p id={`${detailId}-status`} className="link-status">
               {!link.label.trim()
-                ? "Hidden until it has text."
+                ? t("Hidden until it has text.")
                 : link.enabled
-                  ? "Shown as text."
-                  : "Hidden."}
+                  ? t("Shown as text.")
+                  : t("Hidden.")}
             </p>
           ) : videoItem ? (
             <p
@@ -853,10 +866,10 @@ export function EditableLink({
             >
               {normalized.error ??
                 (!link.value.trim()
-                  ? "Add a video link."
+                  ? t("Add a video link.")
                   : link.enabled
-                    ? "Shown as a video."
-                    : "Hidden.")}
+                    ? t("Shown as a video.")
+                    : t("Hidden."))}
             </p>
           ) : (
             <p
@@ -874,14 +887,17 @@ export function EditableLink({
                 (normalized.href
                   ? normalized.href
                   : link.featured
-                    ? "Featured — hidden until complete."
-                    : "Hidden until complete.")}
+                    ? t("Featured — hidden until complete.")
+                    : t("Hidden until complete."))}
             </p>
           )}
         </div>
       )}
       <span className="sr-only">
-        {index + 1} of {total}
+        {t("{index} of {total}", {
+          index: String(index + 1),
+          total: String(total),
+        })}
       </span>
     </article>
   );
@@ -970,7 +986,7 @@ export function RegionEditor({
         max={4}
         step={0.05}
         value={zoom}
-        aria-label="Zoom"
+        aria-label={t("Zoom")}
         onPointerDown={(e) => e.stopPropagation()}
         onInput={(e) =>
           onChange(pos, clampZoom(Number((e.target as HTMLInputElement).value)))
@@ -996,7 +1012,7 @@ export function CoverEditor({
 
   const upload = (file?: File) => {
     if (!file) return;
-    setStatus("Preparing…");
+    setStatus(t("Preparing…"));
     compressCover(file)
       .then((img) => {
         updateTree({ ...tree, coverUrl: img.dataUrl });
@@ -1017,7 +1033,7 @@ export function CoverEditor({
   if (!src) {
     return (
       <label className="cover-add">
-        <span>+ Add cover photo</span>
+        <span>{t("+ Add cover photo")}</span>
         <input
           type="file"
           accept="image/*"
@@ -1054,7 +1070,7 @@ export function CoverEditor({
       )}
       <div className="cover-editor-actions">
         <label className="button-link secondary">
-          Replace
+          {t("Replace")}
           <input
             type="file"
             accept="image/*"
@@ -1067,10 +1083,10 @@ export function CoverEditor({
           className="secondary"
           onClick={() => updateTree({ ...tree, coverUrl: "" })}
         >
-          Remove
+          {t("Remove")}
         </button>
         <label className="cover-fit-field">
-          <span>Cover</span>
+          <span>{t("Cover")}</span>
           <select
             value={fit}
             onChange={(e) =>
@@ -1080,14 +1096,14 @@ export function CoverEditor({
               })
             }
           >
-            <option value="cover">Fill</option>
-            <option value="contain">Fit whole image</option>
+            <option value="cover">{t("Fill")}</option>
+            <option value="contain">{t("Fit whole image")}</option>
           </select>
         </label>
       </div>
       {fit === "cover" && (
         <label className="cover-height-field">
-          <span>Height</span>
+          <span>{t("Height")}</span>
           <input
             type="range"
             min={72}
@@ -1114,7 +1130,7 @@ export function CoverEditor({
             })
           }
         />
-        <span>Use the cover as the page's name</span>
+        <span>{t("Use the cover as the page's name")}</span>
       </label>
       {status && <p className="help">{status}</p>}
     </div>
@@ -1135,7 +1151,7 @@ export function AvatarEditor({
   const pos = sanitizeObjectPosition(tree.avatarPos);
   const upload = (file?: File) => {
     if (!file) return;
-    setStatus("Preparing…");
+    setStatus(t("Preparing…"));
     compressAvatar(file)
       .then((img) => {
         updateTree({ ...tree, avatarUrl: img.dataUrl });
@@ -1156,7 +1172,7 @@ export function AvatarEditor({
   if (!src) {
     return (
       <label className="button-link secondary avatar-add">
-        Add photo
+        {t("Add photo")}
         <input
           type="file"
           accept="image/*"
@@ -1181,7 +1197,7 @@ export function AvatarEditor({
       />
       <div className="avatar-editor-actions">
         <label className="button-link secondary">
-          Replace
+          {t("Replace")}
           <input
             type="file"
             accept="image/*"
@@ -1194,7 +1210,7 @@ export function AvatarEditor({
           className="secondary"
           onClick={() => updateTree({ ...tree, avatarUrl: "" })}
         >
-          Remove
+          {t("Remove")}
         </button>
       </div>
       {status && <p className="help">{status}</p>}
@@ -1303,7 +1319,7 @@ export function PreviewResizeHandle({
       className="preview-resize-handle"
       role="separator"
       aria-orientation="vertical"
-      aria-label="Drag to resize the preview"
+      aria-label={t("Drag to resize the preview")}
       tabIndex={0}
       onPointerDown={onPointerDown}
       onKeyDown={onKeyDown}
@@ -1623,17 +1639,17 @@ export function LinkTreeEditor({
     <div
       className="preview-mode preview-switch"
       role="group"
-      aria-label="Preview appearance"
-      title="Auto follows each visitor's device — check both looks here"
+      aria-label={t("Preview appearance")}
+      title={t("Auto follows each visitor's device — check both looks here")}
     >
-      <span className="accent-row-label">Preview</span>
+      <span className="accent-row-label">{t("Preview")}</span>
       <button
         type="button"
         className="quiet"
         aria-pressed={!previewDark}
         onClick={() => setPreviewDark(false)}
       >
-        Light
+        {t("Light")}
       </button>
       <button
         type="button"
@@ -1641,48 +1657,52 @@ export function LinkTreeEditor({
         aria-pressed={previewDark}
         onClick={() => setPreviewDark(true)}
       >
-        Dark
+        {t("Dark")}
       </button>
     </div>
   );
 
   return (
-    <section className="live-editor" aria-label="Contact page editor">
-      <div className="design-nav" role="group" aria-label="Design sections">
+    <section className="live-editor" aria-label={t("Contact page editor")}>
+      <div
+        className="design-nav"
+        role="group"
+        aria-label={t("Design sections")}
+      >
         <button
           type="button"
           aria-pressed={designTab === "editor"}
           onClick={() => setDesignTab("editor")}
         >
-          Content
+          {t("Content")}
         </button>
         <button
           type="button"
           aria-pressed={designTab === "colors"}
           onClick={() => setDesignTab("colors")}
         >
-          Colors
+          {t("Colors")}
         </button>
         <button
           type="button"
           aria-pressed={designTab === "style"}
           onClick={() => setDesignTab("style")}
         >
-          Style
+          {t("Style")}
         </button>
         <button
           type="button"
           aria-pressed={designTab === "background"}
           onClick={() => setDesignTab("background")}
         >
-          Canvas
+          {t("Canvas")}
         </button>
         <button
           type="button"
           aria-pressed={designTab === "social"}
           onClick={() => setDesignTab("social")}
         >
-          Sharing
+          {t("Sharing")}
         </button>
       </div>
 
@@ -1734,11 +1754,11 @@ export function LinkTreeEditor({
               />
               <textarea
                 className="live-name"
-                aria-label="Name"
+                aria-label={t("Name")}
                 rows={1}
                 ref={nameRef}
                 value={tree.displayName}
-                placeholder="Ada Lovelace"
+                placeholder={t("Ada Lovelace")}
                 onInput={(e) =>
                   updateTree({
                     ...tree,
@@ -1752,11 +1772,11 @@ export function LinkTreeEditor({
               ></textarea>
               <input
                 className="live-status"
-                aria-label="Status line"
+                aria-label={t("Status line")}
                 type="text"
                 value={tree.status ?? ""}
                 maxLength={60}
-                placeholder="🟢 Status (optional)"
+                placeholder={t("🟢 Status (optional)")}
                 onInput={(e) =>
                   updateTree({
                     ...tree,
@@ -1766,11 +1786,11 @@ export function LinkTreeEditor({
               />
               <textarea
                 className="live-bio"
-                aria-label="Short description"
+                aria-label={t("Short description")}
                 rows={1}
                 ref={bioRef}
                 value={tree.bio}
-                placeholder="Mathematician · first computer programmer"
+                placeholder={t("Mathematician · first computer programmer")}
                 onInput={(e) =>
                   updateTree({
                     ...tree,
@@ -1794,15 +1814,17 @@ export function LinkTreeEditor({
                     })
                   }
                 />
-                <span className="sr-only">Show a "Save contact" button</span>
+                <span className="sr-only">
+                  {t('Show a "Save contact" button')}
+                </span>
               </label>
               <input
                 type="text"
                 className="vcard-button-preview"
-                aria-label="Save contact button label"
+                aria-label={t("Save contact button label")}
                 maxLength={40}
                 value={tree.vcardLabel ?? ""}
-                placeholder="Save contact"
+                placeholder={t("Save contact")}
                 onInput={(e) =>
                   updateTree({
                     ...tree,
@@ -1813,12 +1835,13 @@ export function LinkTreeEditor({
             </div>
             {tree.showVcard !== false && !vcardEligible(tree) && (
               <p className="help vcard-inplace-help">
-                Lets visitors download a contact card (.vcf). It appears once
-                the page has a name and a shown phone or email.
+                {t(
+                  "Lets visitors download a contact card (.vcf). It appears once the page has a name and a shown phone or email.",
+                )}
               </p>
             )}
 
-            <div className="editable-links" aria-label="Contact buttons">
+            <div className="editable-links" aria-label={t("Contact buttons")}>
               {tree.links.length > 0 ? (
                 tree.links.map((link, index) => (
                   <EditableLink
@@ -1846,7 +1869,7 @@ export function LinkTreeEditor({
                 ))
               ) : (
                 <div className="empty-list">
-                  <p>No contact buttons yet.</p>
+                  <p>{t("No contact buttons yet.")}</p>
                 </div>
               )}
             </div>
@@ -1860,7 +1883,7 @@ export function LinkTreeEditor({
                 <span className="add-link-plus" aria-hidden="true">
                   +{" "}
                 </span>
-                Add row
+                {t("Add row")}
               </button>
             </div>
 
@@ -1870,11 +1893,11 @@ export function LinkTreeEditor({
               className="popover-panel add-popover"
             >
               <div className="popover-heading">
-                <h2>Add to your page</h2>
+                <h2>{t("Add to your page")}</h2>
                 <button
                   type="button"
                   className="icon-button"
-                  aria-label="Close"
+                  aria-label={t("Close")}
                   onClick={() =>
                     document.getElementById("addMenu")?.hidePopover()
                   }
@@ -1884,7 +1907,7 @@ export function LinkTreeEditor({
               </div>
               {addGroups.map((group) => (
                 <div className="add-group" key={group.label}>
-                  <span className="add-label">{group.label}</span>
+                  <span className="add-label">{t(group.label)}</span>
                   <div className="add-chips">
                     {group.kinds.map((kind) => (
                       <button
@@ -1899,7 +1922,7 @@ export function LinkTreeEditor({
                         <span className="add-link-plus" aria-hidden="true">
                           +
                         </span>
-                        {kindLabels[kind]}
+                        {t(kindLabels[kind])}
                       </button>
                     ))}
                   </div>
@@ -1916,12 +1939,12 @@ export function LinkTreeEditor({
 
       {designTab === "colors" && (
         <fieldset className="theme-picker">
-          <legend className="sr-only">Colors</legend>
+          <legend className="sr-only">{t("Colors")}</legend>
           <div className="theme-row">
             <select
               className="theme-select"
-              aria-label="Theme"
-              title="Auto follows each visitor's device"
+              aria-label={t("Theme")}
+              title={t("Auto follows each visitor's device")}
               value={tree.theme}
               onChange={(e) =>
                 updateTree({
@@ -1931,14 +1954,14 @@ export function LinkTreeEditor({
                 })
               }
             >
-              <option value="system">Auto</option>
-              <option value="light">Light</option>
-              <option value="dark">Dark</option>
+              <option value="system">{t("Auto")}</option>
+              <option value="light">{t("Light")}</option>
+              <option value="dark">{t("Dark")}</option>
             </select>
           </div>
           <div className="accent-row">
-            <span className="sr-only">Accent</span>
-            <label className="accent-choice" title="Theme default">
+            <span className="sr-only">{t("Accent")}</span>
+            <label className="accent-choice" title={t("Theme default")}>
               <input
                 type="radio"
                 name="accent"
@@ -1949,7 +1972,7 @@ export function LinkTreeEditor({
                 className="accent-dot"
                 style={{ background: themeAccentDefaults[tree.theme] }}
               ></span>
-              <span className="sr-only">Theme default</span>
+              <span className="sr-only">{t("Theme default")}</span>
             </label>
             {Object.entries(legacyAccents).map(([name, value]) => {
               const pair = accentPair(value)!;
@@ -1957,7 +1980,7 @@ export function LinkTreeEditor({
                 <label
                   className="accent-choice"
                   key={name}
-                  title={name[0].toUpperCase() + name.slice(1)}
+                  title={t(name[0].toUpperCase() + name.slice(1))}
                 >
                   <input
                     type="radio"
@@ -1974,7 +1997,7 @@ export function LinkTreeEditor({
                       background: `linear-gradient(135deg, ${pair.light} 50%, ${pair.dark} 50%)`,
                     }}
                   ></span>
-                  <span className="sr-only">{name}</span>
+                  <span className="sr-only">{t(name)}</span>
                 </label>
               );
             })}
@@ -1990,10 +2013,10 @@ export function LinkTreeEditor({
 
       {designTab === "style" && (
         <fieldset className="style-picker">
-          <legend className="sr-only">Style</legend>
+          <legend className="sr-only">{t("Style")}</legend>
           <div className="style-grid">
             <label className="field stack">
-              <span>Buttons</span>
+              <span>{t("Buttons")}</span>
               <select
                 value={tree.buttons ?? "soft"}
                 onChange={(e) =>
@@ -2004,13 +2027,13 @@ export function LinkTreeEditor({
                   })
                 }
               >
-                <option value="soft">Soft</option>
-                <option value="outline">Outline</option>
-                <option value="filled">Filled</option>
+                <option value="soft">{t("Soft")}</option>
+                <option value="outline">{t("Outline")}</option>
+                <option value="filled">{t("Filled")}</option>
               </select>
             </label>
             <label className="field stack">
-              <span>Corners</span>
+              <span>{t("Corners")}</span>
               <select
                 value={tree.corners ?? "rounded"}
                 onChange={(e) =>
@@ -2020,13 +2043,13 @@ export function LinkTreeEditor({
                   })
                 }
               >
-                <option value="rounded">Rounded</option>
-                <option value="sharp">Sharp</option>
-                <option value="pill">Pill</option>
+                <option value="rounded">{t("Rounded")}</option>
+                <option value="sharp">{t("Sharp")}</option>
+                <option value="pill">{t("Pill")}</option>
               </select>
             </label>
             <label className="field stack">
-              <span>Photo shape</span>
+              <span>{t("Photo shape")}</span>
               <select
                 value={tree.avatarShape ?? "circle"}
                 onChange={(e) =>
@@ -2037,14 +2060,14 @@ export function LinkTreeEditor({
                   })
                 }
               >
-                <option value="circle">Circle</option>
-                <option value="rounded">Rounded square</option>
+                <option value="circle">{t("Circle")}</option>
+                <option value="rounded">{t("Rounded square")}</option>
               </select>
             </label>
           </div>
           <div className="style-fx">
             <label className="field-range">
-              <span>Button transparency</span>
+              <span>{t("Button transparency")}</span>
               <input
                 type="range"
                 min={0}
@@ -2061,7 +2084,7 @@ export function LinkTreeEditor({
               />
             </label>
             <label className="field-range">
-              <span>Blur behind</span>
+              <span>{t("Blur behind")}</span>
               <input
                 type="range"
                 min={0}
@@ -2084,7 +2107,7 @@ export function LinkTreeEditor({
                 onChange={(loadedFont) => updateTree({ ...tree, loadedFont })}
               />
               <label className="font-inline">
-                <span className="field-label">Fallback</span>
+                <span className="field-label">{t("Fallback")}</span>
                 <select
                   value={tree.font ?? "system"}
                   onChange={(e) =>
@@ -2094,24 +2117,26 @@ export function LinkTreeEditor({
                     })
                   }
                 >
-                  <option value="system">System</option>
-                  <option value="sans">Sans</option>
-                  <option value="serif">Serif</option>
-                  <option value="mono">Mono</option>
-                  <option value="rounded">Rounded</option>
+                  <option value="system">{t("System")}</option>
+                  <option value="sans">{t("Sans")}</option>
+                  <option value="serif">{t("Serif")}</option>
+                  <option value="mono">{t("Mono")}</option>
+                  <option value="rounded">{t("Rounded")}</option>
                 </select>
               </label>
             </div>
             <p className="field-hint">
-              Any family from the{" "}
-              <a
-                href="https://fonts.google.com/"
-                target="_blank"
-                rel="noopener"
-              >
-                Google Fonts catalog ↗
-              </a>
-              . Google is never involved.
+              {tx("Any family from the {catalog}. Google is never involved.", {
+                catalog: (
+                  <a
+                    href="https://fonts.google.com/"
+                    target="_blank"
+                    rel="noopener"
+                  >
+                    {t("Google Fonts catalog ↗")}
+                  </a>
+                ),
+              })}
             </p>
             {tree.loadedFont && (
               <label className="font-preview-toggle">
@@ -2122,7 +2147,7 @@ export function LinkTreeEditor({
                     setPreviewFallback((e.target as HTMLInputElement).checked)
                   }
                 />
-                Preview fallback
+                {t("Preview fallback")}
               </label>
             )}
           </div>
@@ -2131,10 +2156,14 @@ export function LinkTreeEditor({
 
       {designTab === "background" && (
         <fieldset className="style-picker">
-          <legend className="sr-only">Background</legend>
+          <legend className="sr-only">{t("Background")}</legend>
           {/* First pick the background, then tune the light/dark variant
               being previewed. */}
-          <div className="bg-kind-row" role="group" aria-label="Background">
+          <div
+            className="bg-kind-row"
+            role="group"
+            aria-label={t("Background")}
+          >
             {(
               [
                 ["none", "None"],
@@ -2151,14 +2180,14 @@ export function LinkTreeEditor({
                 aria-pressed={(tree.background ?? "none") === kind}
                 onClick={() => updateTree({ ...tree, background: kind })}
               >
-                {label}
+                {t(label)}
               </button>
             ))}
           </div>
           {tree.background === "image" && (
             <div className="cover-editor-actions">
               <label className="button-link secondary">
-                {tree.bgUrl ? "Replace image" : "Add an image"}
+                {tree.bgUrl ? t("Replace image") : t("Add an image")}
                 <input
                   type="file"
                   accept="image/*"
@@ -2174,7 +2203,7 @@ export function LinkTreeEditor({
                     updateTree({ ...tree, bgUrl: "", bgDarkUrl: "" })
                   }
                 >
-                  Remove
+                  {t("Remove")}
                 </button>
               )}
             </div>
@@ -2187,7 +2216,7 @@ export function LinkTreeEditor({
                 (tree.theme === "system" && previewDark) ? (
                   <>
                     <label className="field-range">
-                      <span>Darken by</span>
+                      <span>{t("Darken by")}</span>
                       <input
                         type="range"
                         min={0}
@@ -2207,8 +2236,8 @@ export function LinkTreeEditor({
                     <div className="cover-editor-actions">
                       <label className="button-link secondary">
                         {tree.bgDarkUrl
-                          ? "Replace dark image"
-                          : "Or upload a separate dark image"}
+                          ? t("Replace dark image")
+                          : t("Or upload a separate dark image")}
                         <input
                           type="file"
                           accept="image/*"
@@ -2222,14 +2251,14 @@ export function LinkTreeEditor({
                           className="secondary"
                           onClick={() => updateTree({ ...tree, bgDarkUrl: "" })}
                         >
-                          Remove dark image
+                          {t("Remove dark image")}
                         </button>
                       )}
                     </div>
                   </>
                 ) : (
                   <label className="field-range">
-                    <span>Lighten by</span>
+                    <span>{t("Lighten by")}</span>
                     <input
                       type="range"
                       min={0}
@@ -2255,12 +2284,12 @@ export function LinkTreeEditor({
       {designTab === "social" && (
         <div className="social-preview-fields">
           <label className="field stack favicon-field">
-            <span>Favicon emoji</span>
+            <span>{t("Favicon emoji")}</span>
             <input
               type="text"
               value={tree.favicon ?? ""}
               maxLength={8}
-              placeholder="e.g. ☕"
+              placeholder={t("e.g. ☕")}
               onInput={(e) =>
                 updateTree({
                   ...tree,
@@ -2268,9 +2297,9 @@ export function LinkTreeEditor({
                 })
               }
             />
-            <p className="help">Shown in the browser tab.</p>
+            <p className="help">{t("Shown in the browser tab.")}</p>
           </label>
-          <span className="field-label">Preview</span>
+          <span className="field-label">{t("Preview")}</span>
           <div className="panel-group">
             <label className="show-toggle">
               <input
@@ -2279,7 +2308,7 @@ export function LinkTreeEditor({
                 checked={social.autoImage ?? true}
                 onChange={() => updateSocial({ autoImage: true })}
               />
-              <span>Automatic preview image</span>
+              <span>{t("Automatic preview image")}</span>
             </label>
             <label className="show-toggle">
               <input
@@ -2288,23 +2317,23 @@ export function LinkTreeEditor({
                 checked={!(social.autoImage ?? true)}
                 onChange={() => updateSocial({ autoImage: false })}
               />
-              <span>Custom preview image</span>
+              <span>{t("Custom preview image")}</span>
             </label>
           </div>
           {(social.autoImage ?? true) && tree.theme !== "dark" && (
             <div
               className="preview-mode"
               role="group"
-              aria-label="Preview image appearance"
+              aria-label={t("Preview image appearance")}
             >
-              <span className="accent-row-label">Looks</span>
+              <span className="accent-row-label">{t("Looks")}</span>
               <button
                 type="button"
                 className="quiet"
                 aria-pressed={!social.imageDark}
                 onClick={() => updateSocial({ imageDark: false })}
               >
-                Light
+                {t("Light")}
               </button>
               <button
                 type="button"
@@ -2312,7 +2341,7 @@ export function LinkTreeEditor({
                 aria-pressed={Boolean(social.imageDark)}
                 onClick={() => updateSocial({ imageDark: true })}
               >
-                Dark
+                {t("Dark")}
               </button>
             </div>
           )}
@@ -2320,7 +2349,7 @@ export function LinkTreeEditor({
             <img
               className="og-preview"
               src={ogPreview}
-              alt="Preview image that will be published"
+              alt={t("Preview image that will be published")}
               width={1200}
               height={630}
             />
@@ -2331,14 +2360,16 @@ export function LinkTreeEditor({
                 <img
                   className="og-preview"
                   src={social.customImage}
-                  alt="Custom preview image that will be published"
+                  alt={t("Custom preview image that will be published")}
                   width={1200}
                   height={630}
                 />
               )}
               <div className="cover-editor-actions">
                 <label className="button-link secondary">
-                  {social.customImage ? "Replace image" : "Upload an image"}
+                  {social.customImage
+                    ? t("Replace image")
+                    : t("Upload an image")}
                   <input
                     type="file"
                     accept="image/*"
@@ -2352,36 +2383,38 @@ export function LinkTreeEditor({
                     className="secondary"
                     onClick={() => updateSocial({ customImage: "" })}
                   >
-                    Remove
+                    {t("Remove")}
                   </button>
                 )}
               </div>
               {!social.customImage && (
                 <p className="help">
-                  Cropped to 1200×630 and served with your page. Until you add
-                  one, links share without an image.
+                  {t(
+                    "Cropped to 1200×630 and served with your page. Until you add one, links share without an image.",
+                  )}
                 </p>
               )}
             </>
           )}
           <label className="field stack">
-            <span>Preview title</span>
+            <span>{t("Preview title")}</span>
             <input
               type="text"
               value={social.title ?? ""}
-              placeholder={tree.displayName.trim() || "Ada Lovelace"}
+              placeholder={tree.displayName.trim() || t("Ada Lovelace")}
               onInput={(e) =>
                 updateSocial({ title: (e.target as HTMLInputElement).value })
               }
             />
           </label>
           <label className="field stack">
-            <span>Preview description</span>
+            <span>{t("Preview description")}</span>
             <input
               type="text"
               value={social.description ?? ""}
               placeholder={
-                tree.bio.trim() || "Mathematician · first computer programmer"
+                tree.bio.trim() ||
+                t("Mathematician · first computer programmer")
               }
               onInput={(e) =>
                 updateSocial({
@@ -2402,9 +2435,9 @@ export function LinkTreeEditor({
               : emails[0].item.id;
             return (
               <>
-                <span className="field-label">Sign-in</span>
+                <span className="field-label">{t("Sign-in")}</span>
                 <label className="field stack">
-                  <span>Profile email</span>
+                  <span>{t("Profile email")}</span>
                   <select
                     value={chosen}
                     onChange={(e) =>
@@ -2421,8 +2454,9 @@ export function LinkTreeEditor({
                     ))}
                   </select>
                   <p className="help">
-                    Which address an app receives when someone signs in with
-                    your page and allows the email permission.
+                    {t(
+                      "Which address an app receives when someone signs in with your page and allows the email permission.",
+                    )}
                   </p>
                 </label>
               </>
@@ -2437,7 +2471,7 @@ export function LinkTreeEditor({
           <div className="preview-shell" style={previewShellStyle}>
             <iframe
               className="live-preview"
-              title="Page preview"
+              title={t("Page preview")}
               ref={pvRef}
               onLoad={postPreview}
               srcdoc={previewBootstrap}

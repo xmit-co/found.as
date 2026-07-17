@@ -1,6 +1,7 @@
 import { copyRichSignature, signatureHtml, signatureText } from "../render";
 import { LinkTree } from "../types";
 import { useState } from "preact/hooks";
+import { t } from "../i18n";
 
 export function EmailSignaturePopover({
   tree,
@@ -29,11 +30,11 @@ export function EmailSignaturePopover({
       className="popover-panel signature-popover"
     >
       <div className="popover-heading">
-        <h2>Email signature</h2>
+        <h2>{t("Email signature")}</h2>
         <button
           type="button"
           className="icon-button"
-          aria-label="Close"
+          aria-label={t("Close")}
           onClick={() =>
             document.getElementById("emailSignature")?.hidePopover()
           }
@@ -44,11 +45,11 @@ export function EmailSignaturePopover({
       <div
         className="signature-preview"
         role="region"
-        aria-label="Signature preview"
+        aria-label={t("Signature preview")}
         dangerouslySetInnerHTML={{ __html: html }}
       ></div>
       <p className="help">
-        Copy, then paste into your email app's signature settings.
+        {t("Copy, then paste into your email app's signature settings.")}
       </p>
       <div className="popover-actions">
         <button
@@ -61,10 +62,10 @@ export function EmailSignaturePopover({
           }}
         >
           {copiedKind === "rich"
-            ? "Copied ✓"
+            ? t("Copied ✓")
             : copiedKind === "richPlain"
-              ? "Copied as plain text"
-              : "Copy signature"}
+              ? t("Copied as plain text")
+              : t("Copy signature")}
         </button>
         <button
           type="button"
@@ -77,7 +78,7 @@ export function EmailSignaturePopover({
               .catch((e) => onError(e.message));
           }}
         >
-          {copiedKind === "plain" ? "Copied ✓" : "Copy plain text"}
+          {copiedKind === "plain" ? t("Copied ✓") : t("Copy plain text")}
         </button>
       </div>
     </div>

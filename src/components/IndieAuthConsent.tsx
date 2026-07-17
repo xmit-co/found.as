@@ -1,4 +1,5 @@
 import { deriveKP, mintIndieAuthCode, resolveIndieAuthMe } from "../api";
+import { t, tx } from "../i18n";
 import { rememberPage, rememberedKeyPair } from "../storage";
 import { useEffect, useState } from "preact/hooks";
 import { SignKeyPair } from "tweetnacl";
@@ -58,12 +59,12 @@ export function IndieAuthConsent() {
   // whether this browser already remembers that page's key.
   useEffect(() => {
     if (!req) {
-      setError("This sign-in request is missing required details.");
+      setError(t("This sign-in request is missing required details."));
       setPhase("error");
       return;
     }
     if (req.responseType !== "code") {
-      setError("This sign-in request isn't supported.");
+      setError(t("This sign-in request isn't supported."));
       setPhase("error");
       return;
     }
@@ -93,7 +94,7 @@ export function IndieAuthConsent() {
         setError(
           e instanceof Error && e.message !== "not a page"
             ? e.message
-            : "This address isn't a found.as page.",
+            : t("This address isn't a found.as page."),
         );
         setPhase("error");
       }
@@ -134,7 +135,7 @@ export function IndieAuthConsent() {
       const msg = err instanceof Error ? err.message : String(err);
       setError(
         /Invalid public key|403|Forbidden/.test(msg)
-          ? "That password doesn't match this page."
+          ? t("That password doesn't match this page.")
           : msg,
       );
       setPhase("ready");
@@ -150,8 +151,8 @@ export function IndieAuthConsent() {
       <div className="app-shell">
         <main className="setup-panel">
           <div className="setup-copy">
-            <p className="eyebrow">Sign in</p>
-            <h1>Can't sign in</h1>
+            <p className="eyebrow">{t("Sign in")}</p>
+            <h1>{t("Can't sign in")}</h1>
             <p className="help error-text">{error}</p>
           </div>
         </main>
@@ -163,7 +164,7 @@ export function IndieAuthConsent() {
     return (
       <div className="app-shell">
         <main className="setup-panel">
-          <p className="help">Checking this sign-in request…</p>
+          <p className="help">{t("Checking this sign-in request…")}</p>
         </main>
       </div>
     );
@@ -178,13 +179,17 @@ export function IndieAuthConsent() {
     <div className="app-shell">
       <main className="setup-panel">
         <div className="setup-copy">
-          <p className="eyebrow">{scopes.length ? "Authorize" : "Sign in"}</p>
-          <h1>Continue as {identity}</h1>
+          <p className="eyebrow">
+            {scopes.length ? t("Authorize") : t("Sign in")}
+          </p>
+          <h1>{t("Continue as {identity}", { identity })}</h1>
           {scopes.length ? (
             <>
               <p className="help">
-                <strong>{clientHost}</strong> wants to access your found.as page
-                with these permissions:
+                {tx(
+                  "{client} wants to access your found.as page with these permissions:",
+                  { client: <strong>{clientHost}</strong> },
+                )}
               </p>
               <ul className="help scope-list">
                 {scopes.map((scope) => (
@@ -194,8 +199,9 @@ export function IndieAuthConsent() {
             </>
           ) : (
             <p className="help">
-              <strong>{clientHost}</strong> wants to confirm you own this
-              found.as page.
+              {tx("{client} wants to confirm you own this found.as page.", {
+                client: <strong>{clientHost}</strong>,
+              })}
             </p>
           )}
         </div>
@@ -203,7 +209,7 @@ export function IndieAuthConsent() {
           {needsPassword && (
             <>
               <label className="field">
-                <span>Page password</span>
+                <span>{t("Page password")}</span>
                 <input
                   type="password"
                   autoComplete="current-password"
@@ -211,7 +217,7 @@ export function IndieAuthConsent() {
                   onInput={(e) =>
                     setPassword((e.target as HTMLInputElement).value)
                   }
-                  placeholder="Your page password"
+                  placeholder={t("Your page password")}
                   autoFocus
                 />
               </label>
@@ -223,12 +229,13 @@ export function IndieAuthConsent() {
                     setRemember((e.target as HTMLInputElement).checked)
                   }
                 />
-                <span>Remember on this device</span>
+                <span>{t("Remember on this device")}</span>
               </label>
               {remember && (
                 <p className="help warning-text">
-                  Saves this page's key in this browser so future sign-ins skip
-                  the password. Only on a device you trust.
+                  {t(
+                    "Saves this page's key in this browser so future sign-ins skip the password. Only on a device you trust.",
+                  )}
                 </p>
               )}
             </>
@@ -240,10 +247,10 @@ export function IndieAuthConsent() {
               disabled={phase === "submitting" || (needsPassword && !password)}
             >
               {phase === "submitting"
-                ? "Signing in…"
+                ? t("Signing in…")
                 : scopes.length
-                  ? "Allow access"
-                  : "Continue"}
+                  ? t("Allow access")
+                  : t("Continue")}
             </button>
             <button
               type="button"
@@ -251,11 +258,13 @@ export function IndieAuthConsent() {
               onClick={deny}
               disabled={phase === "submitting"}
             >
-              Cancel
+              {t("Cancel")}
             </button>
           </div>
           <p className="help">
-            Your password never leaves this device — it only signs the approval.
+            {t(
+              "Your password never leaves this device — it only signs the approval.",
+            )}
           </p>
         </form>
       </main>

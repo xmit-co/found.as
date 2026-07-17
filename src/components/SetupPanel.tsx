@@ -1,6 +1,8 @@
 import { RememberedPage, loadMainAddress } from "../storage";
 import { BuilderMode, Type } from "../types";
 import { useState } from "preact/hooks";
+import { LangPicker } from "./LangPicker";
+import { t } from "../i18n";
 
 export function BuilderModePicker({
   mode,
@@ -14,11 +16,11 @@ export function BuilderModePicker({
   setAdvancedType: (type: Type) => void;
 }) {
   return (
-    <section className="intent-row" aria-label="Page type">
-      <span className="accent-row-label">Page type</span>
+    <section className="intent-row" aria-label={t("Page type")}>
+      <span className="accent-row-label">{t("Page type")}</span>
       <label
         className="intent-choice"
-        title="Links for web, email, social, phone, and more."
+        title={t("Links for web, email, social, phone, and more.")}
       >
         <input
           type="radio"
@@ -27,11 +29,11 @@ export function BuilderModePicker({
           checked={mode === "contact"}
           onChange={() => setMode("contact")}
         />
-        <span>Contact page</span>
+        <span>{t("Contact page")}</span>
       </label>
       <label
         className="intent-choice"
-        title="Redirect, markdown page, HTML page, or file."
+        title={t("Redirect, markdown page, HTML page, or file.")}
       >
         <input
           type="radio"
@@ -40,7 +42,7 @@ export function BuilderModePicker({
           checked={mode === "advanced"}
           onChange={() => setMode("advanced")}
         />
-        <span>Advanced</span>
+        <span>{t("Advanced")}</span>
       </label>
       {mode === "advanced" && (
         <AdvancedModePicker value={advancedType} setValue={setAdvancedType} />
@@ -59,23 +61,23 @@ export function AdvancedModePicker({
   const modes: { type: Type; label: string; description: string }[] = [
     {
       type: Type.REDIR,
-      label: "Redirect",
-      description: "Send visitors to one web address.",
+      label: t("Redirect"),
+      description: t("Send visitors to one web address."),
     },
     {
       type: Type.MARKDOWN_PAGE,
-      label: "Markdown",
-      description: "Write a simple page with Markdown.",
+      label: t("Markdown"),
+      description: t("Write a simple page with Markdown."),
     },
     {
       type: Type.HTML_PAGE,
-      label: "HTML",
-      description: "Publish a custom HTML page.",
+      label: t("HTML"),
+      description: t("Publish a custom HTML page."),
     },
     {
       type: Type.BYTES,
-      label: "File",
-      description: "Host one file up to 5MB.",
+      label: t("File"),
+      description: t("Host one file up to 5MB."),
     },
   ];
 
@@ -83,7 +85,7 @@ export function AdvancedModePicker({
     <div
       className="design-nav advanced-nav"
       role="group"
-      aria-label="Advanced format"
+      aria-label={t("Advanced format")}
     >
       {modes.map((mode) => (
         <button
@@ -146,21 +148,25 @@ export function SetupPanel({
   const availability = !hasPath
     ? null
     : working
-      ? { className: "help", text: "Checking availability…" }
+      ? { className: "help", text: t("Checking availability…") }
       : isNew
         ? {
             className: "help available-text",
-            text: `found.as/${path.trim()} is available.`,
+            text: t("found.as/{path} is available.", { path: path.trim() }),
           }
         : isExisting
           ? {
               className: "help",
-              text: "This address already exists — password unlocked. Continue to edit it.",
+              text: t(
+                "This address already exists — password unlocked. Continue to edit it.",
+              ),
             }
           : pwStatus === false
             ? {
                 className: "help error-text",
-                text: "This address exists. Enter its password to edit, or pick another address.",
+                text: t(
+                  "This address exists. Enter its password to edit, or pick another address.",
+                ),
               }
             : null;
 
@@ -172,9 +178,12 @@ export function SetupPanel({
   return (
     <section className="setup-panel" aria-labelledby="setup-title">
       <div className="setup-copy">
-        <p className="eyebrow">found.as</p>
-        <h1 id="setup-title">Online in seconds</h1>
-        <p>Pick an address and a password. No account, no cookies.</p>
+        <div className="setup-topline">
+          <p className="eyebrow">found.as</p>
+          <LangPicker />
+        </div>
+        <h1 id="setup-title">{t("Online in seconds")}</h1>
+        <p>{t("Pick an address and a password. No account, no cookies.")}</p>
       </div>
       <form
         className="setup-form"
@@ -186,12 +195,12 @@ export function SetupPanel({
         }}
       >
         <label className="field stack">
-          <span>Your address</span>
+          <span>{t("Your address")}</span>
           <span className="path-field">
             <span className="path-prefix">found.as/</span>
             <input
               type="text"
-              aria-label="Page path"
+              aria-label={t("Page path")}
               maxLength={64}
               value={path}
               autoComplete="off"
@@ -211,8 +220,9 @@ export function SetupPanel({
         </label>
         {pathDiscouraged && (
           <p className="help warning-text">
-            Lowercase letters, numbers and hyphens make the best address —
-            capitals and special characters are harder to type and share.
+            {t(
+              "Lowercase letters, numbers and hyphens make the best address — capitals and special characters are harder to type and share.",
+            )}
           </p>
         )}
         {availability && (
@@ -221,7 +231,7 @@ export function SetupPanel({
           </p>
         )}
         <label className="field stack">
-          <span>{isExisting ? "Page password" : "Create a password"}</span>
+          <span>{isExisting ? t("Page password") : t("Choose a password")}</span>
           <span className="path-field reveal-field">
             <input
               type={revealPw ? "text" : "password"}
@@ -229,8 +239,8 @@ export function SetupPanel({
               autoComplete={isExisting ? "current-password" : "new-password"}
               placeholder={
                 pwStatus === false
-                  ? "Enter the existing password"
-                  : "Use this to edit later"
+                  ? t("Enter the existing password")
+                  : t("Use this to edit later")
               }
               aria-invalid={pwStatus === false}
               onInput={(e) => setPw((e.target as HTMLInputElement).value)}
@@ -241,19 +251,21 @@ export function SetupPanel({
               aria-pressed={revealPw}
               onClick={() => setRevealPw((v) => !v)}
             >
-              {revealPw ? "Hide" : "Show"}
+              {revealPw ? t("Hide") : t("Show")}
             </button>
           </span>
         </label>
         {isNew && pw === "" && (
           <p className="help warning-text">
-            Blank password — anyone who opens this editor address can change
-            your page.
+            {t(
+              "Blank password — anyone who opens this editor address can change your page.",
+            )}
           </p>
         )}
         <p className="help recovery-note">
-          There is no password reset. Once you're in, save the recovery kit from
-          the menu — it keeps your address and password somewhere safe.
+          {t(
+            "There is no password reset. Once you're in, save the recovery kit from the menu — it keeps your address and password somewhere safe.",
+          )}
         </p>
         {pwStatus === true && (
           <>
@@ -265,25 +277,26 @@ export function SetupPanel({
                   setRemember((e.target as HTMLInputElement).checked)
                 }
               />
-              <span>Remember on this device</span>
+              <span>{t("Remember on this device")}</span>
             </label>
             {remember && (
               <p className="help warning-text">
-                Saves this page's key in this browser so it opens without the
-                password. Only on a device you trust.
+                {t(
+                  "Saves this page's key in this browser so it opens without the password. Only on a device you trust.",
+                )}
               </p>
             )}
           </>
         )}
         <div className="action-row">
           <button type="submit" disabled={!canContinue}>
-            {isExisting ? "Edit page" : "Create page"}
+            {isExisting ? t("Edit page") : t("Create page")}
           </button>
         </div>
       </form>
       {remembered.length > 0 && (
         <div className="remembered-pages">
-          <p className="remembered-title">Remembered on this device</p>
+          <p className="remembered-title">{t("Remembered on this device")}</p>
           <ul>
             {remembered.map((r) => (
               <li key={r.path}>
@@ -299,7 +312,7 @@ export function SetupPanel({
                   className="secondary"
                   onClick={() => forgetRemembered(r.path)}
                 >
-                  Forget
+                  {t("Forget")}
                 </button>
               </li>
             ))}

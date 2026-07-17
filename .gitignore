@@ -9,3 +9,4 @@ node_modules/
 /recording/*.aiff
 /recording/*.wav
 /recording/beats.json
+landing/out/

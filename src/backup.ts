@@ -1,3 +1,4 @@
+import { t } from "./i18n";
 import { normalizePrivate } from "./linktree";
 import { Private, Public } from "./types";
 import { decode, encode } from "cbor-x";
@@ -136,7 +137,7 @@ export async function readZip(
       break;
     }
   }
-  if (eocd < 0) throw new Error("Not a ZIP file.");
+  if (eocd < 0) throw new Error(t("Not a ZIP file."));
   const count = dv.getUint16(eocd + 10, true);
   let p = dv.getUint32(eocd + 16, true);
   const dec = new TextDecoder();
@@ -219,7 +220,7 @@ export async function readPrivFromBackup(data: Uint8Array): Promise<Private> {
     privBytes = data; // a bare priv.cbor
   }
   if (!privBytes) {
-    throw new Error("No priv.cbor found in this file.");
+    throw new Error(t("No priv.cbor found in this file."));
   }
   return normalizePrivate(decode(privBytes));
 }

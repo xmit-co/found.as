@@ -5,6 +5,7 @@ import {
   linkIconMaxRawBytes,
   sanitizeObjectPosition,
 } from "./theme";
+import { t } from "./i18n";
 import { CompressedAvatar, LinkTree } from "./types";
 import { subtle } from "./util";
 
@@ -73,14 +74,14 @@ export async function compressOgImage(file: File): Promise<string> {
   const sourceWidth = Number("width" in image ? image.width : 0);
   const sourceHeight = Number("height" in image ? image.height : 0);
   if (!sourceWidth || !sourceHeight) {
-    throw new Error("Could not read that image.");
+    throw new Error(t("Could not read that image."));
   }
   const canvas = document.createElement("canvas");
   canvas.width = 1200;
   canvas.height = 630;
   const ctx = canvas.getContext("2d");
   if (!ctx) {
-    throw new Error("Could not prepare the image.");
+    throw new Error(t("Could not prepare the image."));
   }
   const scale = Math.max(1200 / sourceWidth, 630 / sourceHeight);
   const cropWidth = Math.round(1200 / scale);
@@ -93,7 +94,7 @@ export async function compressOgImage(file: File): Promise<string> {
   }
   const blob = await canvasToBlob(canvas, "image/jpeg", 0.85);
   if (!blob) {
-    throw new Error("Could not compress that image.");
+    throw new Error(t("Could not compress that image."));
   }
   return blobToDataUrl(blob);
 }
@@ -110,13 +111,13 @@ export async function compressImage(
   const sourceWidth = Number("width" in image ? image.width : 0);
   const sourceHeight = Number("height" in image ? image.height : 0);
   if (!sourceWidth || !sourceHeight) {
-    throw new Error("Could not read that image.");
+    throw new Error(t("Could not read that image."));
   }
 
   const canvas = document.createElement("canvas");
   const ctx = canvas.getContext("2d");
   if (!ctx) {
-    throw new Error("Could not prepare the image.");
+    throw new Error(t("Could not prepare the image."));
   }
 
   if (fit === "contain") {
@@ -170,7 +171,7 @@ export async function encodeCanvas(
       };
     }
   }
-  throw new Error("Could not compress that image.");
+  throw new Error(t("Could not compress that image."));
 }
 
 // Splits a base64 data: URL into a subresource {mime, bytes}.
@@ -196,7 +197,7 @@ export function loadImageFromSrc(src: string): Promise<HTMLImageElement> {
   return new Promise((resolve, reject) => {
     const image = new Image();
     image.onload = () => resolve(image);
-    image.onerror = () => reject(new Error("Could not read the image."));
+    image.onerror = () => reject(new Error(t("Could not read the image.")));
     image.src = src;
   });
 }
@@ -278,7 +279,7 @@ export async function reencodeLinkIcon(blob: Blob): Promise<string> {
   const sourceWidth = Number("width" in image ? image.width : 0);
   const sourceHeight = Number("height" in image ? image.height : 0);
   if (!sourceWidth || !sourceHeight) {
-    throw new Error("Could not read that icon.");
+    throw new Error(t("Could not read that icon."));
   }
   const scale = Math.min(1, 64 / Math.max(sourceWidth, sourceHeight));
   const canvas = document.createElement("canvas");
@@ -286,7 +287,7 @@ export async function reencodeLinkIcon(blob: Blob): Promise<string> {
   canvas.height = Math.max(1, Math.round(sourceHeight * scale));
   const ctx = canvas.getContext("2d");
   if (!ctx) {
-    throw new Error("Could not prepare the icon.");
+    throw new Error(t("Could not prepare the icon."));
   }
   ctx.drawImage(image, 0, 0, canvas.width, canvas.height);
   if (image instanceof ImageBitmap) {
@@ -296,7 +297,7 @@ export async function reencodeLinkIcon(blob: Blob): Promise<string> {
     canvas.toBlob(resolve, "image/png");
   });
   if (!png) {
-    throw new Error("Could not prepare the icon.");
+    throw new Error(t("Could not prepare the icon."));
   }
   return blobToDataUrl(png);
 }
@@ -306,18 +307,20 @@ export async function importLinkIcon(href: string): Promise<string> {
     `https://cc.me/icon?url=${encodeURIComponent(href)}`,
   );
   if (response.status === 404) {
-    throw new Error("No icon found for that site.");
+    throw new Error(t("No icon found for that site."));
   }
   if (!response.ok) {
-    throw new Error(`Icon lookup failed (${response.status}).`);
+    throw new Error(
+      t("Icon lookup failed ({status}).", { status: String(response.status) }),
+    );
   }
   const blob = await response.blob();
   if (!blob.type.startsWith("image/")) {
-    throw new Error("That site did not return an icon.");
+    throw new Error(t("That site did not return an icon."));
   }
   if (blob.type === "image/svg+xml") {
     if (blob.size > linkIconMaxRawBytes) {
-      throw new Error("That icon is too large.");
+      throw new Error(t("That icon is too large."));
     }
     return blobToDataUrl(blob);
   }
@@ -327,6 +330,6 @@ export async function importLinkIcon(href: string): Promise<string> {
     if (blob.size <= linkIconMaxRawBytes) {
       return blobToDataUrl(blob);
     }
-    throw new Error("Could not read that icon.");
+    throw new Error(t("Could not read that icon."));
   }
 }

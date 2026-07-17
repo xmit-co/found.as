@@ -8,6 +8,7 @@
     "build": "tsc && vite build",
     "preview": "vite preview",
     "deploy": "npm run build && xmit be.found.as",
+    "build:landing": "node landing/build.mjs",
     "publish:landing": "node publish.mjs",
     "record": "node recording/record.mjs",
     "record:live": "node recording/record-live.mjs",

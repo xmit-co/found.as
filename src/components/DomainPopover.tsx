@@ -9,6 +9,7 @@ import {
 } from "../api";
 import { useEffect, useRef, useState } from "preact/hooks";
 import { SignKeyPair } from "tweetnacl";
+import { t, tx } from "../i18n";
 
 export function DnsRow({ type, value }: { type: string; value: string }) {
   const [copied, setCopied] = useState(false);
@@ -19,7 +20,7 @@ export function DnsRow({ type, value }: { type: string; value: string }) {
       <button
         type="button"
         className="dns-copy"
-        aria-label={`Copy ${type} value`}
+        aria-label={t("Copy {type} value", { type })}
         onClick={async () => {
           try {
             await navigator.clipboard.writeText(value);
@@ -30,7 +31,7 @@ export function DnsRow({ type, value }: { type: string; value: string }) {
           }
         }}
       >
-        {copied ? "Copied ✓" : "Copy"}
+        {copied ? t("Copied ✓") : t("Copy")}
       </button>
     </div>
   );
@@ -111,13 +112,16 @@ export function DomainPopover({
         setLastStatus({ domain, status });
         if (status.conflict) {
           setPending(null);
-          onError("This domain is already connected to another page.");
+          onError(t("This domain is already connected to another page."));
           return;
         }
         if (status.certPaused) {
           setPending(null);
           onError(
-            `We couldn't secure ${domain} after repeated attempts. Remove it, check your DNS records, and try again.`,
+            t(
+              "We couldn't secure {domain} after repeated attempts. Remove it, check your DNS records, and try again.",
+              { domain },
+            ),
           );
           refresh();
           return;
@@ -161,14 +165,14 @@ export function DomainPopover({
   const connect = async () => {
     const domain = normalizeDomainInput(input);
     if (!domain) {
-      onError("Enter a domain like yourname.com.");
+      onError(t("Enter a domain like yourname.com."));
       return;
     }
     setBusy(true);
     try {
       const status = await customDomainStatus(kp, path, domain);
       if (status.conflict) {
-        onError("This domain is already connected to another page.");
+        onError(t("This domain is already connected to another page."));
         return;
       }
       setJustConnected("");
@@ -226,15 +230,19 @@ export function DomainPopover({
   const cnameInstructions = (p: PendingDomain) => (
     <>
       <p>
-        Sign in wherever you manage <strong>{p.domain}</strong>'s DNS — usually
-        where you bought it — and add a CNAME record:
+        {tx(
+          "Sign in wherever you manage {domain}'s DNS — usually where you bought it — and add a CNAME record:",
+          { domain: <strong>{p.domain}</strong> },
+        )}
       </p>
       <div className="dns-records">
         <DnsRow type="CNAME" value={p.target} />
       </div>
       <p className="help">
-        One CNAME on <code>{p.domain}</code> pointing to the address above. It
-        connects the domain and proves it's yours in a single record.
+        {tx(
+          "One CNAME on {domain} pointing to the address above. It connects the domain and proves it's yours in a single record.",
+          { domain: <code>{p.domain}</code> },
+        )}
       </p>
     </>
   );
@@ -242,23 +250,27 @@ export function DomainPopover({
   const apexInstructions = (p: PendingDomain) => (
     <>
       <p>
-        A bare domain can't use a CNAME, so it takes two steps. First, if your
-        DNS provider offers an ALIAS or ANAME record (or CNAME flattening),
-        point <strong>{p.domain}</strong> at this name — we keep it aimed at our
-        servers, so it never needs updating:
+        {tx(
+          "A bare domain can't use a CNAME, so it takes two steps. First, if your DNS provider offers an ALIAS or ANAME record (or CNAME flattening), point {domain} at this name — we keep it aimed at our servers, so it never needs updating:",
+          { domain: <strong>{p.domain}</strong> },
+        )}
       </p>
       <div className="dns-records">
         <DnsRow type="ALIAS" value={p.target} />
       </div>
       <p className="help">
-        Then add this record so we know the domain is yours:
+        {t("Then add this record so we know the domain is yours:")}
       </p>
       <div className="dns-records">
         <DnsRow type="TXT" value={`found=${p.label}`} />
       </div>
       <p className="help">
-        No ALIAS support? Use a subdomain like <code>www.{p.domain}</code>{" "}
-        instead — it takes a plain CNAME.
+        {tx(
+          "No ALIAS support? Use a subdomain like {www} instead — it takes a plain CNAME.",
+          {
+            www: <code>www.{p.domain}</code>,
+          },
+        )}
       </p>
     </>
   );
@@ -274,16 +286,23 @@ export function DomainPopover({
     if (s.reachable && !s.bound) {
       return (
         <p className="help domain-progress" aria-live="polite">
-          ✓ {p.domain} is reaching us. Now add the record that proves it's yours
-          — the {p.isApex ? "TXT record" : "CNAME"} below.
+          {t(
+            "✓ {domain} is reaching us. Now add the record that proves it's yours — the {record} below.",
+            {
+              domain: p.domain,
+              record: p.isApex ? t("TXT record") : "CNAME",
+            },
+          )}
         </p>
       );
     }
     if (s.bound && !s.reachable) {
       return (
         <p className="help domain-progress" aria-live="polite">
-          ✓ We can see your proof record — now waiting for {p.domain} to route
-          to us, usually just the DNS change spreading.
+          {t(
+            "✓ We can see your proof record — now waiting for {domain} to route to us, usually just the DNS change spreading.",
+            { domain: p.domain },
+          )}
         </p>
       );
     }
@@ -297,7 +316,7 @@ export function DomainPopover({
         disabled={busy}
         onClick={() => checkNow.current?.()}
       >
-        Check now
+        {t("Check now")}
       </button>
       <button
         type="button"
@@ -305,7 +324,7 @@ export function DomainPopover({
         disabled={busy}
         onClick={() => remove(p.domain)}
       >
-        Cancel
+        {t("Cancel")}
       </button>
     </div>
   );
@@ -317,22 +336,23 @@ export function DomainPopover({
       className="popover-panel domain-popover"
     >
       <div className="popover-heading">
-        <h2>Manage domains</h2>
+        <h2>{t("Manage domains")}</h2>
         <button
           type="button"
           className="icon-button"
-          aria-label="Close"
+          aria-label={t("Close")}
           onClick={() => document.getElementById("customDomain")?.hidePopover()}
         >
           <span aria-hidden="true">×</span>
         </button>
       </div>
       <p className="help">
-        A domain you own can show this page. Your found.as address keeps working
-        — the domain is an extra way in, and you can remove it anytime.
+        {t(
+          "A domain you own can show this page. Your found.as address keeps working — the domain is an extra way in, and you can remove it anytime.",
+        )}
       </p>
       {domains === null ? (
-        <p className="help">Loading…</p>
+        <p className="help">{t("Loading…")}</p>
       ) : (
         <>
           {listed.map((domain) => {
@@ -346,10 +366,10 @@ export function DomainPopover({
                   {status === undefined
                     ? ""
                     : status.cert
-                      ? "live"
+                      ? t("live")
                       : status.certPaused
-                        ? "needs attention"
-                        : "securing…"}
+                        ? t("needs attention")
+                        : t("securing…")}
                 </span>
                 <button
                   type="button"
@@ -357,7 +377,7 @@ export function DomainPopover({
                   disabled={busy}
                   onClick={() => remove(domain)}
                 >
-                  Remove
+                  {t("Remove")}
                 </button>
               </div>
             );
@@ -365,23 +385,26 @@ export function DomainPopover({
           {justConnected && (
             <p className="help" aria-live="polite">
               🎉{" "}
-              <a
-                href={`https://${justConnected}/`}
-                target="_blank"
-                rel="noreferrer"
-              >
-                https://{justConnected}
-              </a>{" "}
-              is live.
+              {tx("{link} is live.", {
+                link: (
+                  <a
+                    href={`https://${justConnected}/`}
+                    target="_blank"
+                    rel="noreferrer"
+                  >
+                    https://{justConnected}
+                  </a>
+                ),
+              })}
             </p>
           )}
           {liveDomains.length > 0 && (
             <fieldset className="main-address">
-              <legend>Main address</legend>
+              <legend>{t("Main address")}</legend>
               <p className="help">
-                The address featured on your QR code, printables and email
-                signature. Your page stays reachable at every address either
-                way.
+                {t(
+                  "The address featured on your QR code, printables and email signature. Your page stays reachable at every address either way.",
+                )}
               </p>
               <label className="main-address-option">
                 <input
@@ -410,7 +433,9 @@ export function DomainPopover({
               {pending.state === "waiting" ? (
                 <>
                   <p>
-                    <strong>{pending.domain}</strong> isn't connected yet.
+                    {tx("{domain} isn't connected yet.", {
+                      domain: <strong>{pending.domain}</strong>,
+                    })}
                   </p>
                   {diagnostic(pending)}
                   {pending.isApex ? (
@@ -418,7 +443,9 @@ export function DomainPopover({
                       {apexInstructions(pending)}
                       <details className="domain-apex">
                         <summary>
-                          On a subdomain instead (like www.{pending.domain})?
+                          {t("On a subdomain instead (like www.{domain})?", {
+                            domain: pending.domain,
+                          })}
                         </summary>
                         {cnameInstructions(pending)}
                       </details>
@@ -427,22 +454,27 @@ export function DomainPopover({
                     <>
                       {cnameInstructions(pending)}
                       <details className="domain-apex">
-                        <summary>Using a bare domain like example.com?</summary>
+                        <summary>
+                          {t("Using a bare domain like example.com?")}
+                        </summary>
                         {apexInstructions(pending)}
                       </details>
                     </>
                   )}
                   <p className="help" aria-live="polite">
-                    We check every few seconds — you can close this window and
-                    come back later.
+                    {t(
+                      "We check every few seconds — you can close this window and come back later.",
+                    )}
                   </p>
                   {pendingActions(pending)}
                 </>
               ) : (
                 <>
                   <p aria-live="polite">
-                    Found it! Securing <strong>{pending.domain}</strong> — this
-                    usually takes under a minute…
+                    {tx(
+                      "Found it! Securing {domain} — this usually takes under a minute…",
+                      { domain: <strong>{pending.domain}</strong> },
+                    )}
                   </p>
                   {pendingActions(pending)}
                 </>
@@ -451,11 +483,11 @@ export function DomainPopover({
           ) : (
             <>
               <label className="field stack">
-                <span>Domain you own</span>
+                <span>{t("Domain you own")}</span>
                 <input
                   type="text"
                   value={input}
-                  placeholder="yourname.com"
+                  placeholder={t("yourname.com")}
                   onInput={(e) =>
                     setInput((e.target as HTMLInputElement).value)
                   }
@@ -467,7 +499,7 @@ export function DomainPopover({
                   disabled={busy || !input.trim()}
                   onClick={connect}
                 >
-                  Connect
+                  {t("Connect")}
                 </button>
               </div>
             </>

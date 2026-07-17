@@ -1,3 +1,4 @@
+import { t } from "./i18n";
 import { normalizePrivate } from "./linktree";
 import { FourOFour, FourXX, Private, Public } from "./types";
 import { subtle, textEncoder } from "./util";
@@ -289,7 +290,7 @@ export async function resolveIndieAuthMe(
     `/indieauth/resolve?me=${encodeURIComponent(me)}`,
   );
   if (!response.ok) {
-    throw new Error("This address isn't a found.as page.");
+    throw new Error(t("This address isn't a found.as page."));
   }
   return response.json();
 }

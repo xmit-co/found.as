@@ -326,6 +326,24 @@ h2 {
   color: #a11717;
 }
 
+/* Compact language selector (topbar and setup screen). */
+.lang-picker {
+  width: auto;
+  padding: 0.375rem 0.625rem;
+  font-size: 0.85rem;
+}
+
+.setup-topline {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 0.625rem;
+}
+
+.setup-topline .eyebrow {
+  margin: 0;
+}
+
 .action-row,
 .topbar-actions,
 .publish-actions,
@@ -1885,7 +1903,8 @@ iframe.preview {
     align-items: center;
   }
 
-  .topbar-actions > :not(.topbar-menu-button):not(.topbar-share) {
+  .topbar-actions
+    > :not(.topbar-menu-button):not(.topbar-share):not(.lang-picker) {
     display: none;
   }
 

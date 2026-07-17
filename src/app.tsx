@@ -9,6 +9,7 @@ import {
 import { exportBackupZip, readPrivFromBackup } from "./backup";
 import { DomainPopover } from "./components/DomainPopover";
 import { EmailSignaturePopover } from "./components/EmailSignaturePopover";
+import { LangPicker } from "./components/LangPicker";
 import {
   FileEditor,
   LinkTreeEditor,
@@ -16,11 +17,8 @@ import {
   RedirectEditor,
 } from "./components/LinkEditors";
 import { QrCode } from "./components/QrCode";
-import {
-  BuilderModePicker,
-  SetupPanel,
-  modeSummary,
-} from "./components/SetupPanel";
+import { BuilderModePicker, SetupPanel } from "./components/SetupPanel";
+import { t, tx } from "./i18n";
 import { bakeTreeImages, dataUrlToSub, subVersion } from "./image";
 import {
   createDefaultPrivate,
@@ -71,6 +69,16 @@ function hashSeed(): Uint8Array | null {
   } catch {
     return null;
   }
+}
+
+// Full sentences per page type (not composed from a noun) so each language
+// controls its own casing and grammar.
+function liveMessage(type: Type): string {
+  if (type === Type.LINK_TREE) return t("Your contact page is live.");
+  if (type === Type.REDIR) return t("Your redirect is live.");
+  if (type === Type.MARKDOWN_PAGE) return t("Your markdown page is live.");
+  if (type === Type.HTML_PAGE) return t("Your HTML page is live.");
+  return t("Your file is live.");
 }
 
 export function App() {
@@ -151,10 +159,10 @@ export function App() {
     if (priv.value.type === Type.REDIR) {
       const target = normalizeUrl(priv.value.redir);
       if (!target) {
-        return ["Enter a redirect destination before publishing."];
+        return [t("Enter a redirect destination before publishing.")];
       }
       if (!URL.canParse(target)) {
-        return ["Enter a valid redirect destination before publishing."];
+        return [t("Enter a valid redirect destination before publishing.")];
       }
     }
     return [];
@@ -404,7 +412,7 @@ export function App() {
   const openPrintables = () => {
     const win = window.open("", "_blank");
     if (!win) {
-      showError("Allow pop-ups to open the print page.");
+      showError(t("Allow pop-ups to open the print page."));
       return;
     }
     win.document.write(printablesHtml(tree, shareUrl, shareDisplay));
@@ -493,7 +501,9 @@ export function App() {
         }
       } catch {
         showError(
-          "Couldn't render the social preview image — publishing the page without it.",
+          t(
+            "Couldn't render the social preview image — publishing the page without it.",
+          ),
         );
       }
     } else {
@@ -602,9 +612,7 @@ export function App() {
         await buildPubToSend(privateValue),
       );
       setPathIsNew(false);
-      flashStatus(
-        `Your ${modeSummary(priv.value.type).toLowerCase()} is live.`,
-      );
+      flashStatus(liveMessage(priv.value.type));
       setJustPublished(true);
       setShareOpen(true);
     } catch (e) {
@@ -646,7 +654,7 @@ export function App() {
       priv.value = await readPrivFromBackup(
         new Uint8Array(await chosen.arrayBuffer()),
       );
-      flashStatus("Imported — review and publish to make it live.");
+      flashStatus(t("Imported — review and publish to make it live."));
     } catch (e) {
       showError((e as Error).message);
     } finally {
@@ -724,7 +732,7 @@ export function App() {
           <a
             className="topbar-home"
             href="/"
-            aria-label="found.as home — switch to another page"
+            aria-label={t("found.as home — switch to another page")}
           >
             found.as
           </a>
@@ -733,12 +741,13 @@ export function App() {
             href={shareUrl}
             target="_blank"
             rel="noreferrer"
-            title="Open your public page"
+            title={t("Open your public page")}
           >
             {shareDomain ?? `/${path.trim()}`}
           </a>
         </div>
         <div className="topbar-actions">
+          <LangPicker />
           {!pathIsNew && (
             <button
               type="button"
@@ -748,7 +757,7 @@ export function App() {
                 setShareOpen(true);
               }}
             >
-              Share
+              {t("Share")}
             </button>
           )}
           <button
@@ -756,24 +765,24 @@ export function App() {
             className="secondary topbar-menu-button"
             popovertarget="topbarMenu"
           >
-            Menu
+            {t("Menu")}
           </button>
         </div>
       </header>
 
       <div popover="auto" id="topbarMenu" className="popover-panel topbar-menu">
         <div className="popover-heading">
-          <h2>Menu</h2>
+          <h2>{t("Menu")}</h2>
           <button
             type="button"
             className="icon-button"
-            aria-label="Close"
+            aria-label={t("Close")}
             onClick={closeMenu}
           >
             <span aria-hidden="true">×</span>
           </button>
         </div>
-        <p className="menu-heading">Backup</p>
+        <p className="menu-heading">{t("Backup")}</p>
         <button
           type="button"
           className="secondary"
@@ -782,7 +791,7 @@ export function App() {
             saveRecoveryKit();
           }}
         >
-          Save recovery kit
+          {t("Save recovery kit")}
         </button>
         <button
           type="button"
@@ -792,7 +801,7 @@ export function App() {
             exportBackup();
           }}
         >
-          Export backup (.zip)
+          {t("Export backup (.zip)")}
         </button>
         <button
           type="button"
@@ -802,10 +811,10 @@ export function App() {
             importInputRef.current?.click();
           }}
         >
-          Import backup
+          {t("Import backup")}
         </button>
 
-        <p className="menu-heading">Address</p>
+        <p className="menu-heading">{t("Address")}</p>
         {!pathIsNew && (
           <button
             type="button"
@@ -816,7 +825,7 @@ export function App() {
               document.getElementById("renamePage")?.showPopover();
             }}
           >
-            Change address
+            {t("Change address")}
           </button>
         )}
         <button
@@ -827,10 +836,10 @@ export function App() {
             document.getElementById("customDomain")?.showPopover();
           }}
         >
-          Manage domains
+          {t("Manage domains")}
         </button>
 
-        <p className="menu-heading">Access</p>
+        <p className="menu-heading">{t("Access")}</p>
         <button
           type="button"
           className="secondary"
@@ -839,7 +848,7 @@ export function App() {
             document.getElementById("changePw")?.showPopover();
           }}
         >
-          Change password
+          {t("Change password")}
         </button>
         {!pathIsNew && (
           <button
@@ -858,8 +867,8 @@ export function App() {
             }}
           >
             {remembered.some((r) => r.path === path.trim())
-              ? "Forget on this device"
-              : "Remember on this device"}
+              ? t("Forget on this device")
+              : t("Remember on this device")}
           </button>
         )}
         {!pathIsNew && (
@@ -874,7 +883,7 @@ export function App() {
                 document.getElementById("deletePage")?.showPopover();
               }}
             >
-              Delete page
+              {t("Delete page")}
             </button>
           </>
         )}
@@ -925,12 +934,12 @@ export function App() {
         <div className="publish-status" aria-live="polite">
           {statusMessage ||
             (!working && contactNeedsContent
-              ? "Add a name, photo, description, or link."
+              ? t("Add a name, photo, description, or link.")
               : "")}
         </div>
         <div className="publish-actions">
           <button type="button" disabled={!canPublish} onClick={publish}>
-            {working ? "Working…" : "Publish"}
+            {working ? t("Working…") : t("Publish")}
           </button>
         </div>
       </footer>
@@ -941,18 +950,18 @@ export function App() {
         className="popover-panel password-popover"
       >
         <div className="popover-heading">
-          <h2>Update password</h2>
+          <h2>{t("Update password")}</h2>
           <button
             type="button"
             className="icon-button"
-            aria-label="Close"
+            aria-label={t("Close")}
             onClick={() => document.getElementById("changePw")?.hidePopover()}
           >
             <span aria-hidden="true">×</span>
           </button>
         </div>
         <label className="field stack">
-          <span>New password</span>
+          <span>{t("New password")}</span>
           <input
             type="password"
             value={newPw}
@@ -960,8 +969,9 @@ export function App() {
           />
         </label>
         <p className="help">
-          This replaces your page's key, so any recovery kit you've saved stops
-          working — save a fresh one afterwards.
+          {t(
+            "This replaces your page's key, so any recovery kit you've saved stops working — save a fresh one afterwards.",
+          )}
         </p>
         <div className="popover-actions">
           <button
@@ -975,7 +985,9 @@ export function App() {
                 .then(() => {
                   setPw(newPw);
                   setNewPw("");
-                  flashStatus("Password changed — save a fresh recovery kit.");
+                  flashStatus(
+                    t("Password changed — save a fresh recovery kit."),
+                  );
                   document.getElementById("changePw")?.hidePopover();
                 })
                 .catch((e) => {
@@ -986,38 +998,37 @@ export function App() {
                 });
             }}
           >
-            Save
+            {t("Save")}
           </button>
           <button
             type="button"
             className="secondary"
             onClick={() => document.getElementById("changePw")?.hidePopover()}
           >
-            Cancel
+            {t("Cancel")}
           </button>
         </div>
       </div>
 
-
       <div popover="auto" id="renamePage" className="popover-panel">
         <div className="popover-heading">
-          <h2>Change address</h2>
+          <h2>{t("Change address")}</h2>
           <button
             type="button"
             className="icon-button"
-            aria-label="Close"
+            aria-label={t("Close")}
             onClick={() => document.getElementById("renamePage")?.hidePopover()}
           >
             <span aria-hidden="true">×</span>
           </button>
         </div>
         <label className="field stack">
-          <span>New address</span>
+          <span>{t("New address")}</span>
           <span className="path-field">
             <span className="path-prefix">found.as/</span>
             <input
               type="text"
-              aria-label="New page path"
+              aria-label={t("New page path")}
               maxLength={64}
               value={renameTo}
               autoComplete="off"
@@ -1034,13 +1045,15 @@ export function App() {
         </label>
         {renameDiscouraged && (
           <p className="help warning-text">
-            Lowercase letters, numbers and hyphens make the best address —
-            capitals and special characters are harder to type and share.
+            {t(
+              "Lowercase letters, numbers and hyphens make the best address — capitals and special characters are harder to type and share.",
+            )}
           </p>
         )}
         <p className="help">
-          Your page moves to the new address. The old one stops working, and any
-          custom domains follow automatically.
+          {t(
+            "Your page moves to the new address. The old one stops working, and any custom domains follow automatically.",
+          )}
         </p>
         <div className="popover-actions">
           <button
@@ -1060,43 +1073,47 @@ export function App() {
                   setPathIsNew(false);
                   renamingRef.current = true;
                   setPath(target);
-                  flashStatus(`Now at found.as/${target}.`);
+                  flashStatus(t("Now at found.as/{target}.", { target }));
                 })
                 .catch((e) => showError(e.message))
                 .finally(() => setWorking(false));
             }}
           >
-            Move page
+            {t("Move page")}
           </button>
           <button
             type="button"
             className="secondary"
             onClick={() => document.getElementById("renamePage")?.hidePopover()}
           >
-            Cancel
+            {t("Cancel")}
           </button>
         </div>
       </div>
 
       <div popover="auto" id="deletePage" className="popover-panel">
         <div className="popover-heading">
-          <h2>Delete page</h2>
+          <h2>{t("Delete page")}</h2>
           <button
             type="button"
             className="icon-button"
-            aria-label="Close"
+            aria-label={t("Close")}
             onClick={() => document.getElementById("deletePage")?.hidePopover()}
           >
             <span aria-hidden="true">×</span>
           </button>
         </div>
         <p className="help warning-text">
-          This permanently removes found.as/{path.trim()} and releases any
-          custom domains. There's no undo.
+          {t(
+            "This permanently removes found.as/{path} and releases any custom domains. There's no undo.",
+            { path: path.trim() },
+          )}
         </p>
         <label className="field stack">
           <span>
-            Type <strong>{path.trim()}</strong> to confirm
+            {tx("Type {path} to confirm", {
+              path: <strong>{path.trim()}</strong>,
+            })}
           </span>
           <input
             type="text"
@@ -1131,14 +1148,14 @@ export function App() {
                 });
             }}
           >
-            Delete permanently
+            {t("Delete permanently")}
           </button>
           <button
             type="button"
             className="secondary"
             onClick={() => document.getElementById("deletePage")?.hidePopover()}
           >
-            Cancel
+            {t("Cancel")}
           </button>
         </div>
       </div>
@@ -1170,12 +1187,12 @@ export function App() {
           <div className="publish-success">
             <div className="popover-heading">
               <h2 id="publish-success-title">
-                {justPublished ? "You're live 🎉" : "Share"}
+                {justPublished ? t("You're live 🎉") : t("Share")}
               </h2>
               <button
                 type="button"
                 className="icon-button"
-                aria-label="Close"
+                aria-label={t("Close")}
                 onClick={() => setShareOpen(false)}
               >
                 <span aria-hidden="true">×</span>
@@ -1185,19 +1202,23 @@ export function App() {
               type="button"
               className="qr-frame"
               onClick={saveQr}
-              title="Save QR code"
+              title={t("Save QR code")}
             >
               <QrCode value={vcardQrShown ? qrVcard! : shareUrl} />
             </button>
             {qrVcard && (
-              <div className="qr-mode" role="group" aria-label="QR code type">
+              <div
+                className="qr-mode"
+                role="group"
+                aria-label={t("QR code type")}
+              >
                 <button
                   type="button"
                   className="secondary"
                   aria-pressed={!vcardQrShown}
                   onClick={() => setQrMode("link")}
                 >
-                  Page link
+                  {t("Page link")}
                 </button>
                 <button
                   type="button"
@@ -1205,12 +1226,12 @@ export function App() {
                   aria-pressed={vcardQrShown}
                   onClick={() => setQrMode("vcard")}
                 >
-                  Contact card
+                  {t("Contact card")}
                 </button>
               </div>
             )}
             {vcardQrShown ? (
-              <p className="help qr-mode-help">Works offline</p>
+              <p className="help qr-mode-help">{t("Works offline")}</p>
             ) : (
               <a
                 className="success-url"
@@ -1223,10 +1244,14 @@ export function App() {
             )}
             <div className="success-actions">
               <button type="button" onClick={sharePublicUrl} aria-live="polite">
-                {canShare ? "Share" : copied ? "Copied ✓" : "Copy link"}
+                {canShare
+                  ? t("Share")
+                  : copied
+                    ? t("Copied ✓")
+                    : t("Copy link")}
               </button>
               <button type="button" className="secondary" onClick={saveQr}>
-                Save QR
+                {t("Save QR")}
               </button>
               {signatureAvailable && (
                 <button
@@ -1234,7 +1259,7 @@ export function App() {
                   className="secondary"
                   popovertarget="emailSignature"
                 >
-                  Email signature
+                  {t("Email signature")}
                 </button>
               )}
               {priv.value.type === Type.LINK_TREE && (
@@ -1243,7 +1268,7 @@ export function App() {
                   className="secondary"
                   onClick={openPrintables}
                 >
-                  Cards &amp; poster
+                  {t("Cards & poster")}
                 </button>
               )}
               <a
@@ -1252,7 +1277,7 @@ export function App() {
                 target="_blank"
                 rel="noreferrer"
               >
-                Open
+                {t("Open")}
               </a>
             </div>
             {signatureAvailable && (

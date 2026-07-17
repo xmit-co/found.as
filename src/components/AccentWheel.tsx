@@ -6,6 +6,7 @@ import {
   parseAccent,
 } from "../color";
 import { useRef } from "preact/hooks";
+import { t } from "../i18n";
 
 // The wheel face: hue around the rim, chroma fading to gray at the center —
 // OKLCH at the light theme's accent lightness, precomputed to hex so the
@@ -57,14 +58,21 @@ export function AccentWheel({
       className="accent-wheel"
       role="slider"
       tabIndex={0}
-      aria-label="Accent color — left/right arrows change the hue, up/down how colorful"
+      aria-label={t(
+        "Accent color — left/right arrows change the hue, up/down how colorful",
+      )}
       aria-valuemin={0}
       aria-valuemax={359}
       aria-valuenow={selected ? Math.round(selected.hue) : 0}
       aria-valuetext={
         selected
-          ? `hue ${Math.round(selected.hue)}°, ${Math.round((selected.chroma / accentMaxChroma) * 100)}% colorful`
-          : "theme default"
+          ? t("hue {hue}°, {pct}% colorful", {
+              hue: String(Math.round(selected.hue)),
+              pct: String(
+                Math.round((selected.chroma / accentMaxChroma) * 100),
+              ),
+            })
+          : t("theme default")
       }
       style={{ background: accentWheelFace }}
       onPointerDown={(e) => {

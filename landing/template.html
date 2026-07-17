@@ -1,33 +1,27 @@
 <!doctype html>
-<html lang="en">
+<html lang="{{lang}}">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>found.as — your free contact page &amp; digital business card</title>
-    <meta
-      name="description"
-      content="A free contact page and digital business card at found.as/you — one link and QR code for your profiles, links and contact details. No account, no cookies, no tracking. Hosted in the EU on renewable energy."
-    />
-    <link rel="canonical" href="https://found.as/" />
+    <title>{{metaTitle}}</title>
+    <meta name="description" content="{{metaDescription}}" />
+    <link rel="canonical" href="{{canonicalUrl}}" />
+    <link rel="alternate" hreflang="en" href="https://found.as/?en" />
+    <link rel="alternate" hreflang="fr" href="https://found.as/?fr" />
+    <link rel="alternate" hreflang="de" href="https://found.as/?de" />
+    <link rel="alternate" hreflang="es" href="https://found.as/?es" />
+    <link rel="alternate" hreflang="it" href="https://found.as/?it" />
+    <link rel="alternate" hreflang="x-default" href="https://found.as/" />
     <link rel="preconnect" href="https://hono.coffee" crossorigin />
     <meta property="og:type" content="website" />
     <meta property="og:site_name" content="found.as" />
-    <meta property="og:url" content="https://found.as/" />
-    <meta
-      property="og:title"
-      content="found.as — your free contact page &amp; digital business card"
-    />
-    <meta
-      property="og:description"
-      content="One link and QR code for your profiles, links and contact details. No account, no cookies, no tracking. Hosted in the EU on renewable energy."
-    />
+    <meta property="og:url" content="{{canonicalUrl}}" />
+    <meta property="og:title" content="{{metaTitle}}" />
+    <meta property="og:description" content="{{ogDescription}}" />
     <meta property="og:image" content="https://found.as/og" />
     <meta property="og:image:width" content="1200" />
     <meta property="og:image:height" content="630" />
-    <meta
-      property="og:image:alt"
-      content="found.as — no account, no app, no tracking, just your page"
-    />
+    <meta property="og:image:alt" content="{{ogImageAlt}}" />
     <meta name="twitter:card" content="summary_large_image" />
     <script type="application/ld+json">
       {
@@ -37,7 +31,7 @@
         "url": "https://found.as/",
         "applicationCategory": "UtilitiesApplication",
         "operatingSystem": "Web",
-        "description": "A free contact page and digital business card at found.as/you — one link and QR code for your profiles, links and contact details. No account, no cookies, no tracking.",
+        "description": "{{ldDescription}}",
         "offers": {
           "@type": "Offer",
           "price": "0",
@@ -129,6 +123,35 @@
       main {
         width: min(100%, 64rem);
         margin-inline: auto;
+      }
+
+      /* Language selector */
+      .langs {
+        display: flex;
+        justify-content: flex-end;
+        flex-wrap: wrap;
+        gap: 0.375rem;
+        margin: 0 0 2rem;
+      }
+      .langs a {
+        padding: 0.25rem 0.625rem;
+        border-radius: 999px;
+        border: 1px solid var(--border);
+        background: var(--panel);
+        color: var(--muted);
+        font-size: 0.78rem;
+        font-weight: 700;
+        letter-spacing: 0.06em;
+        text-decoration: none;
+      }
+      .langs a:hover {
+        color: var(--accent);
+        border-color: var(--accent);
+      }
+      .langs a[aria-current] {
+        background: var(--grad);
+        color: var(--accent-text);
+        border-color: transparent;
       }
 
       a {
@@ -728,34 +751,30 @@
   </head>
   <body>
     <main>
+      <nav class="langs" aria-label="{{langAria}}">
+        {{langNav}}
+      </nav>
       <div class="hero">
         <div class="hero-copy reveal">
-          <p class="eyebrow">Contact page · digital business card</p>
+          <p class="eyebrow">{{eyebrow}}</p>
           <h1 class="wordmark">
             <span class="wave">👋</span> <span class="grad">found.as</span>
           </h1>
-          <p class="hook">
-            No account. No app. No tracking.<br/>
-            <span class="grad">Just your page.</span>
-          </p>
-          <p class="lead">
-            Your profiles, links, and ways to reach you — one little page at
-            <strong>found.as/you</strong> or your own domain, shared by link or
-            QR code.
-          </p>
+          <p class="hook">{{hookHtml}}</p>
+          <p class="lead">{{leadHtml}}</p>
           <div class="cta">
-            <a class="button" href="https://be.found.as"
-              >Make yours — it's free <span class="arr">→</span></a
+            <a class="button" href="https://be.found.as/?{{lang}}"
+              >{{ctaButton}} <span class="arr">→</span></a
             >
-            <span class="muted">Ready in about a minute.</span>
+            <span class="muted">{{ctaNote}}</span>
           </div>
           <p class="signin">
-            <a href="https://be.found.as">Already have a page?</a>
+            <a href="https://be.found.as/?{{lang}}">{{signin}}</a>
           </p>
           <ul class="chips">
-            <li>🇪🇺 EU-hosted</li>
-            <li>🔒 GDPR-compliant</li>
-            <li>🔋 Renewable energy</li>
+            <li>{{chipEu}}</li>
+            <li>{{chipGdpr}}</li>
+            <li>{{chipEnergy}}</li>
           </ul>
         </div>
         <div class="preview reveal reveal-2">
@@ -763,22 +782,22 @@
             type="radio"
             name="demo"
             id="demo-hono"
-            aria-label="Show the hono.coffee example"
+            aria-label="{{previewAriaHono}}"
             checked
           />
           <input
             type="radio"
             name="demo"
             id="demo-clem"
-            aria-label="Show the found.as/clem example"
+            aria-label="{{previewAriaClem}}"
           />
           <div class="stack">
             <div class="phone phone-hono">
               <label
                 class="bring-front"
                 for="demo-hono"
-                title="Show hono.coffee"
-                aria-label="Show hono.coffee"
+                title="{{showHono}}"
+                aria-label="{{showHono}}"
               ></label>
               <div class="screen">
                 <div class="skeleton" aria-hidden="true">
@@ -792,7 +811,7 @@
                 <iframe
                   class="preview-frame"
                   src="https://hono.coffee"
-                  title="Hono Coffee House's found.as page"
+                  title="{{iframeTitleHono}}"
                   loading="lazy"
                 ></iframe>
               </div>
@@ -801,8 +820,8 @@
               <label
                 class="bring-front"
                 for="demo-clem"
-                title="Show found.as/clem"
-                aria-label="Show found.as/clem"
+                title="{{showClem}}"
+                aria-label="{{showClem}}"
               ></label>
               <div class="screen">
                 <div class="skeleton" aria-hidden="true">
@@ -816,14 +835,14 @@
                 <iframe
                   class="preview-frame"
                   src="https://found.as/clem"
-                  title="Clem's found.as page"
+                  title="{{iframeTitleClem}}"
                   loading="lazy"
                 ></iframe>
               </div>
             </div>
           </div>
           <p class="preview-caption">
-            <span class="muted">Live examples:</span>
+            <span class="muted">{{liveExamples}}</span>
             <span class="cap cap-hono">
               <label for="demo-hono">hono.coffee</label>
               <a href="https://hono.coffee" target="_blank" rel="noopener"
@@ -841,29 +860,27 @@
         </div>
       </div>
 
-      <h2 class="section-h">Yours in <span class="grad">three steps</span></h2>
-      <p class="section-sub">
-        No sign-up wall, no download — you're editing in seconds.
-      </p>
+      <h2 class="section-h">{{stepsHeadingHtml}}</h2>
+      <p class="section-sub">{{stepsSub}}</p>
       <div class="steps">
         <div class="step">
           <div class="step-head">
             <span class="step-num">1</span>
-            <h3>Claim your address</h3>
+            <h3>{{step1Title}}</h3>
           </div>
           <div class="mock">
             <span class="mock-url"
-              ><span class="host">found.as/</span>you<span
+              ><span class="host">found.as/</span>{{youSlug}}<span
                 class="caret"
               ></span
             ></span>
           </div>
-          <p>Pick a name — or point your own domain at it. A password, done.</p>
+          <p>{{step1Body}}</p>
         </div>
         <div class="step">
           <div class="step-head">
             <span class="step-num">2</span>
-            <h3>Add your links</h3>
+            <h3>{{step2Title}}</h3>
           </div>
           <div class="mock">
             <div class="mock-links">
@@ -871,22 +888,19 @@
                 ><span class="mock-emoji">📸</span> Instagram</span
               >
               <span class="mock-btn"
-                ><span class="mock-emoji">✉️</span> Email</span
+                ><span class="mock-emoji">✉️</span> {{mockEmail}}</span
               >
               <span class="mock-btn"
                 ><span class="mock-emoji">💬</span> WhatsApp</span
               >
             </div>
           </div>
-          <p>
-            Paste any URL or handle — it becomes a tidy button. Reorder,
-            rename, theme.
-          </p>
+          <p>{{step2Body}}</p>
         </div>
         <div class="step">
           <div class="step-head">
             <span class="step-num">3</span>
-            <h3>Share it anywhere</h3>
+            <h3>{{step3Title}}</h3>
           </div>
           <div class="mock">
             <div class="mock-share">
@@ -895,7 +909,7 @@
                   class="qr"
                   viewBox="-2 -2 29 29"
                   role="img"
-                  aria-label="QR code linking to found.as"
+                  aria-label="{{qrAria}}"
                   fill="currentColor"
                   shape-rendering="crispEdges"
                 >
@@ -905,77 +919,34 @@
                 </svg>
               </span>
               <span class="share-side">
-                <span class="share-pill">found.as/you</span>
-                <small>One link + a QR — card, poster, signature.</small>
+                <span class="share-pill">found.as/{{youSlug}}</span>
+                <small>{{shareSmall}}</small>
               </span>
             </div>
           </div>
-          <p>
-            A link and a QR that saves your contact even with no internet.
-          </p>
+          <p>{{step3Body}}</p>
         </div>
       </div>
-      <p class="included">
-        <strong>Everything's included:</strong> themes, your photo and colors,
-        an auto-made social preview card, a vCard QR that works offline,
-        printable cards and a poster, an email signature, redirects, short
-        write-ups, file drops, and any Google Font — served without ever
-        calling Google.
-      </p>
+      <p class="included">{{includedHtml}}</p>
 
-      <h2 class="section-h">No <span class="grad">catch</span></h2>
-      <p class="section-sub">
-        What most link pages do quietly, we don't.
-      </p>
+      <h2 class="section-h">{{noCatchHeadingHtml}}</h2>
+      <p class="section-sub">{{noCatchSub}}</p>
       <ul class="nolist">
-        <li>
-          <strong>No account.</strong> Just an address and a password — no
-          email, no signup.
-        </li>
-        <li>
-          <strong>No tracking.</strong> No cookies, analytics, or ads — for you
-          or your visitors.
-        </li>
-        <li>
-          <strong>No cookie banner.</strong> No cookies or trackers means
-          nothing to consent to — effortlessly GDPR-compliant, hosted in the EU.
-        </li>
-        <li>
-          <strong>No lock-in.</strong> Bring your own domain and export any
-          time. We handle the padlock.
-        </li>
-        <li>
-          <strong>No paid tier.</strong> Every feature included, free forever —
-          <a href="https://found.as/donations">donations</a> keep it running.
-        </li>
-        <li>
-          <strong>No black box.</strong> Built on web standards: a valid
-          <a
-            href="https://microformats.org/wiki/h-card"
-            target="_blank"
-            rel="noopener"
-            >h-card</a
-          >, links that prove they're yours (Mastodon's green check), and
-          <a
-            href="https://indieweb.org/IndieAuth"
-            target="_blank"
-            rel="noopener"
-            >IndieAuth</a
-          >
-          sign-in.
-        </li>
-        <li>
-          <strong>No surprises.</strong> Your page changes only when you
-          publish — visitors keep the last version until you're ready.
-        </li>
+        <li>{{no1Html}}</li>
+        <li>{{no2Html}}</li>
+        <li>{{no3Html}}</li>
+        <li>{{no4Html}}</li>
+        <li>{{no5Html}}</li>
+        <li>{{no6Html}}</li>
+        <li>{{no7Html}}</li>
       </ul>
 
       <section class="cta-band">
-        <h2>Grab your <span class="grad">found.as</span>.</h2>
-        <a class="button" href="https://be.found.as"
-          >Make yours — it's free <span class="arr">→</span></a
+        <h2>{{ctaBandHeadingHtml}}</h2>
+        <a class="button" href="https://be.found.as/?{{lang}}"
+          >{{ctaButton}} <span class="arr">→</span></a
         >
-        <span class="sub">No account. No app. About a minute.</span>
+        <span class="sub">{{ctaBandSub}}</span>
       </section>
     </main>
   </body>

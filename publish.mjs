@@ -30,6 +30,7 @@ import { homedir } from "node:os";
 import { dirname, join } from "node:path";
 import { encode, decode } from "cbor-x";
 import nacl from "tweetnacl";
+import { renderLandings } from "./landing/build.mjs";
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const TYPE_HTML_PAGE = 0; // src/types.ts: enum Type { HTML_PAGE, MARKDOWN_PAGE, REDIR, BYTES, LINK_TREE }
@@ -55,18 +56,30 @@ const r = spawnSync(
   ["--skip-system-fonts", "--use-font-file", font, join(HERE, "og.svg"), "-c"],
   { maxBuffer: 64 << 20 },
 );
-if (r.status !== 0) die(`resvg failed: ${r.stderr?.toString().trim() || r.error}`);
+if (r.status !== 0)
+  die(`resvg failed: ${r.stderr?.toString().trim() || r.error}`);
 const png = new Uint8Array(r.stdout);
 if (png[0] !== 0x89 || png[1] !== 0x50) die("resvg did not emit a PNG.");
 
 // 2. Cache-busting version from the bytes (src/image.ts subVersion).
 const version = createHash("sha256").update(png).digest("hex").slice(0, 8);
 
-// 3. Landing HTML, with the og:image URL pinned to this render.
-let html = await readFile(join(HERE, "landing.html"), "utf8");
+// 3. Landing HTML in every language — rendered from landing/template.html +
+// landing/<lang>.json — each with the og:image URL pinned to this render.
+// English is the default (`html`); the rest ride `langHtml`, negotiated by
+// the backend from ?<lang> and Accept-Language.
 const ogRef = 'content="https://found.as/og"';
-if (!html.includes(ogRef)) die("landing.html has no og:image reference to version.");
-html = html.replace(ogRef, `content="https://found.as/og?v=${version}"`);
+const pinOg = (lang, source) => {
+  if (!source.includes(ogRef))
+    die(`${lang} landing has no og:image reference to version.`);
+  return source.replaceAll(ogRef, `content="https://found.as/og?v=${version}"`);
+};
+const rendered = await renderLandings();
+const html = pinOg("en", rendered.en);
+const langHtml = {};
+for (const [lang, source] of Object.entries(rendered)) {
+  if (lang !== "en") langHtml[lang] = pinOg(lang, source);
+}
 
 // 4. Page key — PBKDF2 -> Ed25519 seed, mirroring src/api.ts deriveKP.
 async function deriveKeyPair(path, pw) {
@@ -92,7 +105,11 @@ async function deriveKeyPair(path, pw) {
 
 function promptHidden(query) {
   return new Promise((resolve) => {
-    const rl = createInterface({ input: process.stdin, output: process.stdout, terminal: true });
+    const rl = createInterface({
+      input: process.stdin,
+      output: process.stdout,
+      terminal: true,
+    });
     rl._writeToOutput = (s) => rl.output.write(s.includes(query) ? query : "*");
     rl.question(query, (answer) => {
       rl.output.write("\n");
@@ -105,7 +122,9 @@ function promptHidden(query) {
 async function resolvePassword() {
   if (process.env.FOUND_AS_PW) return process.env.FOUND_AS_PW;
   try {
-    const fromFile = (await readFile(join(homedir(), ".found.as"), "utf8")).trim();
+    const fromFile = (
+      await readFile(join(homedir(), ".found.as"), "utf8")
+    ).trim();
     if (fromFile) return fromFile;
   } catch {
     // fall through to prompt
@@ -123,7 +142,8 @@ async function publishRecord(path, priv, pub, pw) {
 
   // Self-check: the signature opens and the inner payload round-trips.
   const opened = nacl.sign.open(signed, kp.publicKey);
-  if (!opened || decode(opened).length !== 4) die(`signature self-check failed for /${path}`);
+  if (!opened || decode(opened).length !== 4)
+    die(`signature self-check failed for /${path}`);
 
   if (dryRun) {
     console.log(`  would publish /${path || "(root)"} — ${body.length} bytes`);
@@ -142,7 +162,7 @@ async function publishRecord(path, priv, pub, pw) {
 const pw = await resolvePassword();
 
 const landingPriv = { type: TYPE_HTML_PAGE, md: "", html, redir: "" };
-const landingPub = { html };
+const landingPub = { html, lang: "en", langHtml };
 const ogPriv = { type: TYPE_BYTES, md: "", html: "", redir: "" };
 const ogPub = { bytes: png, mime: "image/png" };
 
