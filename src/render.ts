@@ -158,10 +158,12 @@ export function linkTreeToHtml(
   generatedOgUrl?: string,
   bgLightUrl?: string,
   bgDarkUrl?: string,
+  avatarSubUrl?: string,
+  coverSubUrl?: string,
 ): string {
   const safeName = tree.displayName.trim() || "Contact";
   const safeBio = tree.bio.trim();
-  const avatar = avatarImageSrc(tree.avatarUrl);
+  const avatar = avatarSubUrl ?? avatarImageSrc(tree.avatarUrl);
   const metaTitle = tree.social?.title?.trim() || safeName;
   // Meta text is single-line: a multi-line bio collapses to spaces here.
   const metaDescription = (
@@ -318,7 +320,7 @@ a.contact-link.featured {
             : ""
         }`
       : "";
-  const cover = avatarImageSrc(tree.coverUrl);
+  const cover = coverSubUrl ?? avatarImageSrc(tree.coverUrl);
   const coverObjectFit = tree.coverFit === "contain" ? "contain" : "cover";
   const coverObjectPos = sanitizeObjectPosition(tree.coverPos);
   const coverHeight = clampCoverHeight(tree.coverHeight);

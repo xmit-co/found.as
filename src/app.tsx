@@ -536,6 +536,32 @@ export function App() {
         // publish without the custom background rather than block
       }
     }
+    // Avatar and cover ride the pub record as the `avatar` and `cover` subs,
+    // referenced by URL from the page, instead of data: URLs inlined in the
+    // HTML. External image URLs pass through untouched.
+    let avatarSubUrl: string | undefined;
+    let avatarAbsUrl: string | undefined;
+    let coverSubUrl: string | undefined;
+    const avatarSub = publishTree.avatarUrl
+      ? dataUrlToSub(publishTree.avatarUrl)
+      : null;
+    if (avatarSub) {
+      subs = { ...(subs ?? {}), avatar: avatarSub };
+      const v = await subVersion(avatarSub.bytes);
+      avatarSubUrl = pageSubUrl(path.trim(), "avatar", v);
+      avatarAbsUrl = `${publicPageUrl(path.trim())}/avatar?v=${v}`;
+    }
+    const coverSub = publishTree.coverUrl
+      ? dataUrlToSub(publishTree.coverUrl)
+      : null;
+    if (coverSub) {
+      subs = { ...(subs ?? {}), cover: coverSub };
+      coverSubUrl = pageSubUrl(
+        path.trim(),
+        "cover",
+        await subVersion(coverSub.bytes),
+      );
+    }
     const pubToSend: Public = {
       html: linkTreeToHtml(
         publishTree,
@@ -543,13 +569,19 @@ export function App() {
         ogUrl,
         bgLightSubUrl,
         bgDarkSubUrl,
+        avatarSubUrl,
+        coverSubUrl,
       ),
     };
     if (subs) {
       pubToSend.subs = subs;
     }
-    // Structured profile for the IndieAuth profile/email scopes.
+    // Structured profile for the IndieAuth profile/email scopes. The photo
+    // points at the avatar sub rather than duplicating the image bytes.
     const profile = linkTreeProfile(publishTree);
+    if (avatarAbsUrl && profile.photo) {
+      profile.photo = avatarAbsUrl;
+    }
     if (Object.keys(profile).length) {
       pubToSend.profile = profile;
     }
