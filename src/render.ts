@@ -360,9 +360,7 @@ a.contact-link.featured {
 <meta property="og:url" content="${escapeHtml(url)}"/>
 ${ogImage ? `<meta property="og:image" content="${escapeHtml(ogImage)}"/>\n` : ""}<meta name="twitter:card" content="${ogImage ? "summary_large_image" : "summary"}"/>
 <title>${escapeHtml(metaTitle)}</title>
-${fontLink}${faviconLink}<link rel="authorization_endpoint" href="https://be.found.as/indieauth"/>
-<link rel="indieauth-metadata" href="https://be.found.as/.well-known/oauth-authorization-server"/>
-<style>
+${fontLink}${faviconLink}<style>
 ${fontFace}:root {
   color-scheme: light dark;
   --bg: #fbfbf8;
